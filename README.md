@@ -30,6 +30,11 @@ processing that ship with the page.
 六线谱上也只在拨到的那根弦上标品位。初学者不管什么和弦都从六弦开始，就是因为一张印死的弦号
 表没法告诉你这件事。
 
+六线谱有两个版本，因为它们各干各的事。屏幕上和打印出来的是排版过的：六条连续的弦线、品位
+数字嵌在线上、小节线画在小节该在的地方，每一下的横向位置按它在小节里的时值来定——所以一小节
+八下扫弦看起来就是比四下密，而不是比四下宽。「复制」按钮给的仍然是大家熟悉的等宽字符谱，
+因为能贴进论坛帖子的只有那一种。
+
 界面中英文都有，第一次打开时按浏览器语言自动选，顶栏随时可切，选完会记住。
 
 准确率我们用两把尺子量，因为只用宽的那把会骗人。宽尺子问「认出的和弦在不在这首歌的和弦
@@ -63,18 +68,32 @@ npm run dev        # 打开 http://localhost:5173
    song comes at up to three levels — easy folds sevenths, suspensions and quick
    passing chords away, standard is the beginner reading, faithful keeps every
    extension — and the lower rungs are offered only when they actually differ.
-4. **Teaches it to you.** Chord diagrams, a bar-by-bar chart, six-line tablature of
-   the whole song — on screen and as a printable sheet — the repeating loop the song
-   is built on, and a practice screen where the chords scroll past a playhead with a
+4. **Teaches it to you.** Chord diagrams, a bar-by-bar chart, engraved six-line
+   tablature of the whole song — on screen and as a printable sheet — the repeating
+   loop the song is built on, and a practice screen where the chords scroll past a
+   playhead with a
    count-in, a metronome, a live right-hand guide, the next chord previewed beside the
    current one, section looping, slow-down that keeps the pitch, a scrubbable
    position bar with ten-second skips, and a volume control tucked behind a button.
+   Opening it takes the screen sideways where the platform allows that — full
+   screen plus an orientation lock, requested inside the tap so the browser still
+   counts it as a gesture. iOS Safari grants neither, so the rotate prompt stays,
+   with the phone in it turning on a loop and a line about rotation lock, which is
+   the actual reason turning the phone does nothing.
    The right-hand patterns include fingerpicking as well as strumming. A picking
    pattern names the string and the finger for every pluck, and the thumb's string
    is worked out from the chord shape rather than printed once — the fifth string
    for C, the sixth for G, the fourth for D — which is the one thing a fixed row of
    string numbers cannot tell you, and the reason beginners start every chord from
    the sixth string.
+
+   The tablature exists in two forms, because they are for different things. What
+   the screen and the printable sheet draw is engraved: continuous string lines
+   with the fret numbers set into them, bar lines where the bars are, and columns
+   spaced by when they actually fall in the bar, so eight strums to a bar look
+   twice as busy as four instead of merely wider. What the Copy button produces is
+   the monospace tab everyone already knows, because that is the version that
+   survives being pasted into a forum post.
 5. **Keeps a chord library.** Every chord the transcriber can hear, as a browsable
    page: how to read a chord box, the eight shapes to learn first and in what
    order, and the full vocabulary filterable by quality, root and whether it needs

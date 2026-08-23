@@ -26,6 +26,26 @@ const DECISION_STEP = 5;
 const CHROMA_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const PATH_NODES = [30, 90, 150, 210, 270, 330, 390, 450, 510];
+/**
+ * The three jobs the nine stages divide into, in order.
+ *
+ * The boundary between measuring and deciding is the same one the stage cards
+ * already draw — nothing is committed to until the frame-by-frame flicker is
+ * smoothed — and the third job is where a committed answer stops describing
+ * the recording and starts describing what a beginner's hands should do.
+ */
+const PATH_SEGMENTS = [
+  'measure',
+  'measure',
+  'measure',
+  'measure',
+  'decide',
+  'decide',
+  'decide',
+  'hands',
+  'hands',
+] as const;
+const SEGMENT_FILL = { measure: 'hw-raw', decide: 'hw-decided', hands: 'hw-hands' } as const;
 const PATH_ARROWS: [number, number][] = [
   [38, 82],
   [98, 142],
@@ -234,6 +254,7 @@ function Figure({
   caption,
   viewBox,
   revealed,
+  legend,
   children,
 }: {
   index: number;
@@ -241,15 +262,53 @@ function Figure({
   caption: string;
   viewBox: string;
   revealed: boolean;
+  legend?: readonly string[];
   children: ReactNode;
 }) {
+  // Every figure's type sizes were chosen against the prose beside them, so a
+  // figure must never be drawn larger than the size it was drawn at — stretched
+  // to fill a desktop card, a 13px label comes out bigger than the paragraph it
+  // is explaining. Scaling down on a narrow screen is fine; scaling up is not.
+  const naturalWidth = Number(viewBox.split(/\s+/)[2]) || 0;
   return (
-    <figure className={`hw-fig${revealed ? ' is-visible' : ''}`} data-fig={index}>
+    <figure
+      className={`hw-fig${revealed ? ' is-visible' : ''}`}
+      data-fig={index}
+      style={naturalWidth ? ({ ['--fig-w' as string]: `${naturalWidth}px` } as CSSProperties) : undefined}
+    >
       <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={aria}>
         {children}
       </svg>
+      {legend ? (
+        <ul className="hw-legend">
+          {legend.map((label, i) => (
+            <li key={label}>
+              <span className={`hw-legend-dot ${['measure', 'decide', 'hands'][i]}`} />
+              {label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <figcaption>{caption}</figcaption>
     </figure>
+  );
+}
+
+/**
+ * An optional layer under a stage, for the one idea in it that a curious reader
+ * will stop on and everyone else should be able to walk past.
+ *
+ * A native <details> rather than component state: it survives printing (the
+ * browser expands it), it is keyboard- and screen-reader-native, and a reader
+ * using find-in-page gets it opened for them on a hit inside it. The page's job
+ * is to be readable in one pass; this is the second pass, for whoever wants it.
+ */
+function Deeper({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="hw-deeper">
+      <summary>{title}</summary>
+      <div className="hw-deeper-body">{children}</div>
+    </details>
   );
 }
 
@@ -403,6 +462,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             aria={t.hwOverviewAria}
             caption={t.hwOverviewCaption}
             viewBox="0 0 640 120"
+            legend={t.hwLegend}
           >
             <defs>
               <marker
@@ -423,7 +483,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
                 cx={cx}
                 cy="60"
                 r="8"
-                className={i < 5 ? 'hw-raw' : 'hw-decided'}
+                className={SEGMENT_FILL[PATH_SEGMENTS[i]]}
                 stroke="currentColor"
                 strokeWidth="2"
               />
@@ -432,7 +492,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               cx="610"
               cy="60"
               r="8"
-              className="hw-decided"
+              className="hw-hands"
               stroke="currentColor"
               strokeWidth="2"
             />
@@ -720,6 +780,10 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               {t.hwS3Buckets}
             </text>
           </Figure>
+          <Deeper title={t.hwDeepChromaTitle}>
+            <p>{t.hwDeepChromaP1}</p>
+            <p>{t.hwDeepChromaP2}</p>
+          </Deeper>
         </Stage>
 
         {/* ---------- stage 4: template matching ---------- */}
@@ -942,6 +1006,10 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
 
             <line x1="40" y1="170" x2="520" y2="170" className="hw-rule" />
           </Figure>
+          <Deeper title={t.hwDeepOctaveTitle}>
+            <p>{t.hwDeepOctaveP1}</p>
+            <p>{t.hwDeepOctaveP2}</p>
+          </Deeper>
         </Stage>
 
         {/* ---------- stage 7: key ---------- */}
@@ -1066,7 +1134,9 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
           <li>
             <strong>{t.hwLimitTerms[0]}</strong>
             {t.hwLimitAccuracyLead}
-            <span className="hw-stat">94%</span>
+            <span className="hw-stat">96%</span>
+            {t.hwLimitAccuracyMid}
+            <span className="hw-stat">70%</span>
             {t.hwLimitAccuracyTail}
           </li>
           <li>

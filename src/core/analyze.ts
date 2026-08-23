@@ -225,15 +225,28 @@ function beatGrid(
  * Change cost of the decode: one beat is the shortest chord worth writing
  * down, so this is far lower than a frame-level decode would use.
  *
+ * The value is 2.2 because that is where both position-aware measures peak.
+ * Swept across the sheet corpus and GuitarSet:
+ *
+ *   cost   vocabulary   order F1   GuitarSet recall   sandwiches
+ *   1.2         95.03      75.36              60.89           70
+ *   1.6         95.57      77.88              60.91           44
+ *   1.9         96.15      78.78              61.60           26
+ *   2.2         96.24      79.12              61.66           18
+ *   2.6         96.81      78.43              61.51           11
+ *   3.0         97.05      78.79              61.18            7
+ *
+ * Read the vocabulary column and the answer is 3.0 or higher — it rises all
+ * the way, because it only asks whether a segment names a chord the song uses
+ * somewhere, and merging a chord into its neighbour never breaks that. Read
+ * either column that knows where a chord sits and the answer is 2.2.
+ *
  * A second decode at a stiffer cost, fitted to the song's own median chord
- * length, was tried and removed. It looked like a gain — vocabulary agreement
- * on the sheet corpus rose 96.24 to 96.81 and one-chord sandwiches fell from
- * 18 to 12 — but that measure only asks whether a segment names a chord the
- * song uses somewhere. Both position-aware measures said the opposite: chord
- * order against the published sheets fell 84.18 to 82.00, and time-aligned
- * symbol recall on GuitarSet fell 61.66 to 61.41. The tidier chart was tidier
- * because it had merged real changes into their neighbours. Anything that
- * makes the chart quieter has to be judged against those two, not this one.
+ * length, was tried on the strength of the vocabulary column and removed on
+ * the strength of the other two. Anything that makes the chart quieter has to
+ * be judged against those, not this one — and order recall alone is not one of
+ * them either, since emitting more changes covers more of the sheet by luck;
+ * that is why the table above reads the F1 of order recall and precision.
  */
 const CHANGE_PENALTY = 2.2;
 

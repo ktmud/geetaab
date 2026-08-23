@@ -1447,25 +1447,25 @@ input[type='range'] {
   margin-top: 14px;
 }
 
-.tab-sys-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 3px;
+/* The staff carries its own bar numbers, so the system no longer needs a
+   caption over it. Its width is pinned by the renderer (see SCREEN_SCALE), and
+   the floor here is what stops a phone's column squeezing it below legible:
+   under that it scrolls sideways inside its own box rather than shrinking, and
+   the page around it does not move. */
+.tablature {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
-.tab-grid {
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre;
-  color: var(--text-dim);
+.tab-sys + .tab-sys {
+  margin-top: 10px;
 }
 
-.tab-grid .tab-label {
-  color: var(--text-faint);
+.tab-sys {
+  /* A system is about two and a half times as wide as it is tall, so left to
+     itself it grows a staff the height of a paragraph on a desktop. The cap is
+     what keeps the string spacing at a size you would recognise from paper. */
+  min-width: 300px;
 }
 
 .strum-row {
@@ -2134,6 +2134,66 @@ input[type='range'] {
   height: 68px;
   margin-bottom: 18px;
   color: var(--accent);
+}
+
+.rotate-lock-hint {
+  max-width: 320px;
+  margin: 0 auto 18px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+/* The phone turns itself, over and over, so the instruction does not depend on
+   reading the sentence under it. The arc above stays put — it is the path, not
+   the thing travelling it — and it dims on the way so the eye follows the
+   phone rather than the decoration. */
+@keyframes phone-rotate {
+  0%,
+  18% {
+    transform: rotate(0deg);
+  }
+  40%,
+  76% {
+    transform: rotate(-90deg);
+  }
+  96%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes phone-rotate-arc {
+  0%,
+  14% {
+    opacity: 0.85;
+  }
+  46%,
+  100% {
+    opacity: 0.22;
+  }
+}
+
+.phone-rotate-body {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: phone-rotate 3.4s cubic-bezier(0.65, 0, 0.2, 1) infinite;
+}
+
+.phone-rotate-arc {
+  animation: phone-rotate-arc 3.4s ease-in-out infinite;
+}
+
+/* Asked for less motion: show the destination instead of the journey. */
+@media (prefers-reduced-motion: reduce) {
+  .phone-rotate-body {
+    animation: none;
+    transform: rotate(-90deg);
+  }
+
+  .phone-rotate-arc {
+    animation: none;
+    opacity: 0.4;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 460px) {
@@ -2824,13 +2884,17 @@ input[type='range'] {
 
 /* ---------- how chords are recognized ---------- */
 
-/* Two roles, both taken from the palette the rest of the app already uses:
+/* Three roles, all taken from the palette the rest of the app already uses:
    verdigris is a raw measurement nothing has been decided from yet, brass is an
-   answer the app has committed to. The page never names a colour anywhere else,
-   so a repaint of --accent / --cool carries the whole explainer with it. */
+   answer the app has committed to, and the deeper copper is that answer once it
+   has been rewritten for a beginner's hands — a shade of the same brass rather
+   than a third hue, because the app's palette has only two. The page never
+   names a colour anywhere else, so a repaint of --accent / --cool carries the
+   whole explainer with it. */
 .how-it-works {
   --hw-raw: var(--cool);
   --hw-decided: var(--accent);
+  --hw-hands: var(--accent-strong);
   --hw-raw-tint: rgb(var(--cool-rgb) / 0.055);
   --hw-decided-tint: rgb(var(--accent-fill-rgb) / 0.05);
   --hw-decided-tint-strong: rgb(var(--accent-fill-rgb) / 0.075);
@@ -3132,8 +3196,13 @@ input[type='range'] {
 .hw-fig svg {
   display: block;
   width: 100%;
+  /* Never wider than the size the drawing was laid out at: its font sizes were
+     picked to sit beside the prose, and stretching the drawing stretches them
+     out of step with it. Narrower is fine — that is what the viewBox is for. */
+  max-width: var(--fig-w, none);
   min-width: 440px;
   height: auto;
+  margin-inline: auto;
   color: var(--text);
   fill: currentColor;
   font-family: var(--font);
@@ -3168,6 +3237,49 @@ input[type='range'] {
 
 .hw-fig svg .hw-decided-s {
   stroke: var(--hw-decided);
+}
+
+.hw-fig svg .hw-hands {
+  fill: var(--hw-hands);
+}
+
+/* Which colour means what. Only the overview has enough distinct parts to need
+   saying; it is HTML rather than SVG so it reflows on a phone instead of
+   shrinking with the drawing. */
+.hw-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.hw-legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.hw-legend-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.hw-legend-dot.measure {
+  background: var(--hw-raw);
+}
+
+.hw-legend-dot.decide {
+  background: var(--hw-decided);
+}
+
+.hw-legend-dot.hands {
+  background: var(--hw-hands);
 }
 
 .hw-fig svg .hw-rule {
@@ -3494,19 +3606,12 @@ input[type='range'] {
     break-inside: avoid;
   }
 
-  .print-sys i {
-    font-style: normal;
-    font-family: var(--mono);
-    font-size: 8.5px;
-    color: var(--text-faint);
-  }
-
-  .print-sys pre {
-    margin: 2px 0 0;
-    font-family: var(--mono);
-    font-size: 10.5px;
-    line-height: 1.35;
-    white-space: pre;
+  /* On paper the staff sits on white, so the knockouts behind the fret
+     numbers have to be white rather than the app's card colour. */
+  .print-sys .tab-staff {
+    --tab-surface: var(--print-paper);
+    margin-top: 1px;
+    max-width: 560px;
   }
 
   .print-foot {
@@ -3647,4 +3752,177 @@ html[lang^='zh'] .how-it-works em {
 .strum-cell.pluck.now i,
 .strum-cell.pluck.accent i {
   color: inherit;
+}
+
+/* Engraved tablature, following the conventions a printed songbook uses: light
+   grey rules, dark numerals, the chord name and its box announced above the
+   staff. Text tab is what survives a copy-paste into a forum; this is what
+   survives being printed and looked at. The knockout rectangles behind the fret
+   numbers take their fill from the surface the staff sits on, so the same
+   drawing works on a dark card and on white paper. */
+.tab-staff {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  --tab-surface: var(--surface);
+  --tab-ink: var(--text);
+  --tab-rule: var(--line);
+  color: var(--tab-ink);
+}
+
+.tab-staff-string,
+.tab-box-line {
+  stroke: var(--tab-rule);
+  stroke-width: 0.6;
+}
+
+.tab-staff-barline {
+  stroke: var(--tab-rule);
+  stroke-width: 0.8;
+}
+
+.tab-staff-barline.end {
+  stroke: var(--text-faint);
+  stroke-width: 1.4;
+}
+
+.tab-staff-clef {
+  fill: var(--text-faint);
+  font-family: var(--font);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.tab-staff-barnum {
+  fill: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 6px;
+}
+
+.tab-staff-name {
+  fill: var(--accent);
+  font-family: var(--font);
+  font-size: 8.5px;
+  font-weight: 600;
+}
+
+.tab-staff-knockout {
+  fill: var(--tab-surface);
+}
+
+.tab-staff-fret {
+  fill: var(--tab-ink);
+  font-family: var(--mono);
+  font-size: 7px;
+  font-weight: 500;
+}
+
+.tab-staff-fret.muted {
+  fill: var(--text-faint);
+}
+
+.tab-staff-stroke {
+  fill: var(--text-dim);
+  font-size: 7.5px;
+}
+
+.tab-staff-finger {
+  fill: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 6.5px;
+}
+
+.tab-staff-col.accent .tab-staff-stroke,
+.tab-staff-col.accent .tab-staff-finger {
+  fill: var(--accent);
+}
+
+/* The chord box over the staff. */
+.tab-box-nut {
+  stroke: var(--tab-ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.tab-box-dot {
+  fill: var(--tab-ink);
+}
+
+.tab-box-open {
+  fill: none;
+  stroke: var(--text-dim);
+  stroke-width: 0.7;
+}
+
+.tab-box-mute {
+  stroke: var(--text-faint);
+  stroke-width: 0.7;
+  stroke-linecap: round;
+}
+
+.tab-box-fret {
+  fill: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 5px;
+}
+
+/* The second pass through a stage: shut by default, because the page has to
+   read straight through for someone who only wants the shape of the thing. */
+.hw-deeper {
+  margin-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.hw-deeper summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hw-decided);
+}
+
+.hw-deeper summary::-webkit-details-marker {
+  display: none;
+}
+
+.hw-deeper summary::before {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.15s ease;
+}
+
+.hw-deeper[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.hw-deeper-body {
+  margin-top: 8px;
+  font-size: 14.5px;
+  line-height: 1.72;
+  color: var(--text-dim);
+}
+
+.hw-deeper-body p {
+  margin: 0 0 10px;
+}
+
+.hw-deeper-body p:last-child {
+  margin-bottom: 0;
+}
+
+@media print {
+  .hw-deeper-body {
+    display: block !important;
+  }
 }

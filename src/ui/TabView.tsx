@@ -4,7 +4,10 @@ import { isNoChord } from '../core/chordTypes';
 import { chooseCapo, patternsFor } from '../music/arrange';
 import { levelsWorthOffering, reduceSegments, type TabLevel } from '../music/levels';
 import { buildTab, type SongTab } from '../music/tab';
-import { songTabText, tabSystems } from '../music/tabText';
+import { songTabText } from '../music/tabText';
+import { engraveSystems } from '../music/tabEngrave';
+import { enterLandscape } from './landscape';
+import { TabStaff } from './TabStaff';
 import { shapeNoteText, useT, useLanguage, translateKeyName } from '../i18n';
 import { ChordCard } from './ChordDiagram';
 import { PrintSheet } from './PrintSheet';
@@ -118,7 +121,9 @@ export function TabView({
       tabScope === 'loop' && tab.loop
         ? tab.bars.slice(0, Math.min(tab.bars.length, tab.loop.length))
         : tab.bars;
-    return tabSystems(bars, tab.strum, 2);
+    // No fixed bars-per-line: how many fit is a property of how busy this
+    // song's bars are, and the layout works it out.
+    return engraveSystems(bars, tab.strum);
   }, [tab, tabScope]);
 
   const copyText = async (): Promise<void> => {
@@ -390,16 +395,17 @@ export function TabView({
             ) : null}
           </div>
           <div className="tablature">
-            {systems.map((system) => (
-              <div className="tab-sys" key={system.startBar}>
-                <div className="tab-sys-label">
-                {system.bars > 1
-                  ? t.systemBars(system.startBar + 1, system.startBar + system.bars)
-                  : t.systemBar(system.startBar + 1)}
-              </div>
-                <pre className="tab-grid">{system.text}</pre>
-              </div>
-            ))}
+            {systems.map((system) => {
+              const label =
+                system.bars.length > 1
+                  ? t.systemBars(system.startBar + 1, system.startBar + system.bars.length)
+                  : t.systemBar(system.startBar + 1);
+              return (
+                <div className="tab-sys" key={system.startBar}>
+                  <TabStaff system={system} label={label} />
+                </div>
+              );
+            })}
           </div>
           <div className="btn-row" style={{ marginTop: 12 }}>
             <button className="btn" onClick={() => window.print()}>
@@ -415,7 +421,15 @@ export function TabView({
       <PrintSheet tab={tab} title={title} />
 
       <div className="sticky-cta">
-        <button className="btn btn-primary btn-lg" onClick={() => onPractice(tab)}>
+        <button
+          className="btn btn-primary btn-lg"
+          onClick={() => {
+            // Synchronously, before the screen swaps: full screen is only
+            // granted while this gesture is still being handled.
+            void enterLandscape();
+            onPractice(tab);
+          }}
+        >
           <PlayIcon size={18} /> {t.practiseThis}
         </button>
       </div>
