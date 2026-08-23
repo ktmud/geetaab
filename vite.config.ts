@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
-// Deployed under a sub-path on GitHub Pages, at the root everywhere else.
-const base = process.env.GEETAAB_BASE ?? '/';
+// Relative, so one build works at the domain root, under /<repo>/ on GitHub
+// Pages, and behind any custom domain without being rebuilt. The app is a
+// single page with no routed sub-paths, which is what makes this safe.
+const base = process.env.GEETAAB_BASE ?? './';
 
 export default defineConfig({
   base,

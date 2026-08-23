@@ -36,7 +36,12 @@ into Chromium's fake microphone to verify the capture path all the way to a fini
 tab. It needs a Chromium — either one Playwright installed, or `PLAYWRIGHT_CHROMIUM`
 pointing at an executable.
 
-The whole app is static. `npm run build` output can be served from any file host.
+The whole app is static. `npm run build` output can be served from any file host,
+including from a sub-path — asset URLs are relative, so the same build works at a
+domain root, under `/<repo>/` on GitHub Pages, and behind a custom domain.
+
+Pushing to `main` builds and force-pushes `dist/` to the `gh-pages` branch as a
+single commit. Point Pages at that branch to publish.
 
 Microphone capture needs a secure context, so use `localhost` or HTTPS.
 
