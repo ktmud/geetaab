@@ -33,7 +33,7 @@ type Screen =
   | { name: 'practice'; tab: SongTab }
   | { name: 'chords' }
   | { name: 'how' }
-  | { name: 'error'; message: string };
+  | { name: 'error'; error: 'recordingTooShort' | 'couldNotDecode' | 'analysisFailed'; detail?: string };
 
 interface Session {
   id: string;
@@ -144,7 +144,8 @@ export function App() {
       } catch (error) {
         setScreen({
           name: 'error',
-          message: error instanceof Error ? error.message : t.analysisFailed,
+          error: 'analysisFailed',
+          detail: error instanceof Error ? error.message : undefined,
         });
       } finally {
         setBusy(false);
@@ -156,7 +157,7 @@ export function App() {
   const handleRecording = useCallback(
     (samples: Float32Array, sampleRate: number) => {
       if (samples.length < sampleRate * 3) {
-        setScreen({ name: 'error', message: t.recordingTooShort });
+        setScreen({ name: 'error', error: 'recordingTooShort' });
         return;
       }
       const wav = encodeWav(samples, sampleRate);
@@ -185,7 +186,7 @@ export function App() {
       } catch {
         setScreen({
           name: 'error',
-          message: t.couldNotDecode,
+          error: 'couldNotDecode',
         });
         setBusy(false);
       }
@@ -437,7 +438,7 @@ export function App() {
           <div className="shell">
             <div className="card" style={{ marginTop: 40 }}>
               <h2>{t.thatDidNotWork}</h2>
-              <p>{screen.message}</p>
+              <p>{screen.detail ?? t[screen.error]}</p>
               <button className="btn btn-primary" onClick={() => setScreen({ name: 'home' })}>
                 {t.startOver}
               </button>
