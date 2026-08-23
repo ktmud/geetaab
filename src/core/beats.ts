@@ -72,6 +72,23 @@ export interface TempoEstimate {
 }
 
 /**
+ * Centre and width (in octaves) of the log-normal tempo prior.
+ *
+ * Both were calibrated on GuitarSet's 360 annotated tempi (68-200 BPM, five
+ * styles) plus the real-song corpus: narrowing the width from 0.9 to 0.6 cut
+ * the files landing on a wrong octave or a triplet multiple from 140/360 to
+ * 119/360 while leaving the corpus error count unchanged. Moving the centre
+ * below ~110 instead halves genuinely fast songs far faster than it rescues
+ * doubled ballads (at centre 80 GuitarSet falls from 61% to 36% correct), so
+ * the centre stays where it was. A style-conditioned centre would beat any
+ * global one (80% with oracle style labels) but predicting the style from
+ * non-tempo features measured only 37%, which gave back the whole gain —
+ * see the tempo study in the regression harness before re-tuning these.
+ */
+const TEMPO_PRIOR_CENTRE = 120;
+const TEMPO_PRIOR_WIDTH = 0.6;
+
+/**
  * Tempo from the autocorrelation of the onset envelope, biased by a log-normal
  * prior around 120 BPM so half- and double-time peaks do not win by default.
  */
@@ -93,7 +110,7 @@ export function estimateTempo(onset: OnsetEnvelope, minBpm = 50, maxBpm = 210): 
     for (let i = lag; i < n; i++) sum += (values[i] - mean) * (values[i - lag] - mean);
     sum /= n - lag;
     const bpm = (60 * fps) / lag;
-    const prior = Math.exp(-0.5 * Math.pow(Math.log2(bpm / 120) / 0.9, 2));
+    const prior = Math.exp(-0.5 * Math.pow(Math.log2(bpm / TEMPO_PRIOR_CENTRE) / TEMPO_PRIOR_WIDTH, 2));
     scores.push({ bpm, score: sum * prior });
     byLag.push(sum * prior);
   }

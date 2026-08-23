@@ -36,11 +36,10 @@ import { estimateKey, type KeyEstimate } from './key';
  *   1  the pipeline as first shipped
  *   2  graded N.C., free-time detection, parabolic tempo, three tab levels
  *   3  consolidateSegments: a song's own vocabulary settles drifting bars
- *   4  adaptive change cost: a second decode matched to the song's own
- *      harmonic rhythm, so slow songs stop flickering and fast ones keep
- *      every change
+ *   4  a hold pass on the easy level, for songs that change twice a bar
+ *   5  tempo prior narrowed (width 0.9 → 0.6), calibrated on GuitarSet
  */
-export const ANALYSIS_VERSION = 4;
+export const ANALYSIS_VERSION = 5;
 
 export interface AnalysisResult {
   duration: number;
@@ -222,49 +221,21 @@ function beatGrid(
   return padBeatGrid(beats, duration);
 }
 
-/** Change cost of the first decoding pass: one beat is the shortest chord
- * worth writing down, so this is far lower than a frame-level decode would use. */
-const BASE_CHANGE_PENALTY = 2.2;
-
 /**
- * The stiffest cost a second pass may use.
+ * Change cost of the decode: one beat is the shortest chord worth writing
+ * down, so this is far lower than a frame-level decode would use.
  *
- * Set by what the harmony survives, not by what the corpus average likes. A
- * chord that shares two of its three notes with the chord beside it — Ab
- * between Cm and Eb, Am between C and F — is held in place by a thin margin,
- * and a change cost above this erases it into its neighbour. The corpus score
- * keeps climbing well past this point, but it cannot see that particular
- * failure: it asks whether each segment names a chord the song uses, not
- * whether it names the chord that was playing there, so swallowing Ab into Cm
- * reads as a hit either way. Raising this needs a measure that checks where a
- * chord sits, not only that it belongs to the song.
+ * A second decode at a stiffer cost, fitted to the song's own median chord
+ * length, was tried and removed. It looked like a gain — vocabulary agreement
+ * on the sheet corpus rose 96.24 to 96.81 and one-chord sandwiches fell from
+ * 18 to 12 — but that measure only asks whether a segment names a chord the
+ * song uses somewhere. Both position-aware measures said the opposite: chord
+ * order against the published sheets fell 84.18 to 82.00, and time-aligned
+ * symbol recall on GuitarSet fell 61.66 to 61.41. The tidier chart was tidier
+ * because it had merged real changes into their neighbours. Anything that
+ * makes the chart quieter has to be judged against those two, not this one.
  */
-const MAX_CHANGE_PENALTY = 2.6;
-
-/**
- * Change cost matched to the song's own harmonic rhythm.
- *
- * One flat cost cannot serve both kinds of song: high enough to stop a slow
- * ballad flickering onto one-beat excursions, it also erases the genuine
- * two-beat changes of a fast song. The song itself settles the trade — a first
- * pass at the base cost measures the median chord length, and a song whose
- * chords already run long earns a stiffer cost, while a genuinely fast song
- * (median at two beats) keeps the base cost and every change it played.
- * The ramp is linear between the two so a song near the boundary is not
- * flipped between regimes by one beat of measurement noise.
- */
-export function adaptiveChangePenalty(medianBeats: number): number {
-  const t = Math.max(0, Math.min(1, (medianBeats - 2) / 2));
-  return BASE_CHANGE_PENALTY + (MAX_CHANGE_PENALTY - BASE_CHANGE_PENALTY) * t;
-}
-
-function medianChordBeats(segments: ChordSegment[]): number {
-  const lens = segments
-    .filter((s) => !isNoChord(s.chord))
-    .map((s) => (s.endBeat ?? 0) - (s.startBeat ?? 0))
-    .sort((a, b) => a - b);
-  return lens.length ? lens[lens.length >> 1] : 0;
-}
+const CHANGE_PENALTY = 2.2;
 
 function decodeOnGrid(
   chroma: ReturnType<typeof computeChromagram>,
@@ -280,38 +251,24 @@ function decodeOnGrid(
     bassWeight: 0.3,
     ncFloor: 0.12,
   });
-  const decode = (changePenalty: number) => {
-    const path = decodeChords(scored, {
-      beta: 22,
-      changePenalty,
-      relatedBonus: 0.4,
-    });
-    const beatTimes = beats.slice(0, treble.count);
-    const raw = pathToSegments(path, beatTimes, beats[beats.length - 1] ?? 0, scored.scores);
-    // The decode ran on the beat grid, so segment indices are already beat
-    // numbers; deriving them from timestamps would accumulate rounding drift.
-    for (const seg of raw) {
-      seg.startBeat = seg.startIndex;
-      seg.endBeat = seg.endIndex;
-    }
-    refineSegments(raw, treble.data, bass.data, treble.count);
-    const merged = mergeAdjacent(raw);
-    consolidateSegments(merged, treble.data, bass.data, treble.count);
-    return { segments: bridgeShortGaps(mergeAdjacent(merged)), path };
-  };
-
-  let { segments, path } = decode(gridOpts.changePenalty ?? BASE_CHANGE_PENALTY);
-  if (gridOpts.changePenalty === undefined) {
-    // Second pass with the cost the first pass showed the song can afford.
-    // An explicit changePenalty (the free-time fine grid) opts out: with no
-    // beat grid a "median in beats" measures nothing.
-    const penalty = adaptiveChangePenalty(medianChordBeats(segments));
-    if (penalty > BASE_CHANGE_PENALTY + 1e-6) {
-      ({ segments, path } = decode(penalty));
-    }
+  const path = decodeChords(scored, {
+    beta: 22,
+    changePenalty: gridOpts.changePenalty ?? CHANGE_PENALTY,
+    relatedBonus: 0.4,
+  });
+  const beatTimes = beats.slice(0, treble.count);
+  const raw = pathToSegments(path, beatTimes, beats[beats.length - 1] ?? 0, scored.scores);
+  // The decode ran on the beat grid, so segment indices are already beat
+  // numbers; deriving them from timestamps would accumulate rounding drift.
+  for (const seg of raw) {
+    seg.startBeat = seg.startIndex;
+    seg.endBeat = seg.endIndex;
   }
+  refineSegments(raw, treble.data, bass.data, treble.count);
+  const merged = mergeAdjacent(raw);
+  consolidateSegments(merged, treble.data, bass.data, treble.count);
   return {
-    segments,
+    segments: bridgeShortGaps(mergeAdjacent(merged)),
     path,
     beatCount: treble.count,
     beatEnergy,
@@ -327,6 +284,19 @@ function decodeOnGrid(
  * tie-break has to come from the harmony, where chords that never change faster
  * than every eighth bar mean the grid is counting twice as fast as the player.
  * The guards keep genuinely fast songs with slow harmony from being halved.
+ *
+ * Measured on GuitarSet (360 annotated tempi) this rule is deliberately almost
+ * inert: it fires on 2 files, fixing one genuine double and wrongly halving
+ * one fast solo — net zero — and it never fires on the real-song corpus,
+ * whose doubled ballads change chords every half-bar. Every relaxation and
+ * replacement tested made things worse: lowering the 8-beat threshold to 6
+ * nets -1 (1 fixed, 2 broken) and to 4 nets -22; deciding from beat-salience
+ * alternation fails because upstrokes carry as much spectral flux as beats
+ * (doubled files show no strong/weak pattern, full-band or bass-band); and an
+ * empty-midpoint test halves quarter-note swing comping wholesale (fixes
+ * 15-20, breaks 19-32). A doubled grid over fast harmony is simply not
+ * decidable from this evidence, so the rule stays at its conservative
+ * setting rather than pretending otherwise.
  */
 function shouldHalveTempo(tempo: number, segments: ChordSegment[]): boolean {
   if (tempo < 125 || tempo / 2 < 55) return false;

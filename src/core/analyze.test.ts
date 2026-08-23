@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adaptiveChangePenalty, analyzeAudio, ANALYSIS_VERSION } from './analyze';
+import { analyzeAudio, ANALYSIS_VERSION } from './analyze';
 import { chordName, isNoChord } from './chordTypes';
 import { DEMO_PROGRESSION, renderProgression, renderShapeStrum, type SynthChord } from '../audio/synth';
 
@@ -206,16 +206,6 @@ describe('analyzeAudio', () => {
       }
     }
   }, 60000);
-});
-
-describe('adaptiveChangePenalty', () => {
-  it('keeps the base cost for a fast song and ramps to the stiff cost for a slow one', () => {
-    expect(adaptiveChangePenalty(0)).toBeCloseTo(2.2, 5);
-    expect(adaptiveChangePenalty(2)).toBeCloseTo(2.2, 5);
-    expect(adaptiveChangePenalty(3)).toBeCloseTo(2.4, 5);
-    expect(adaptiveChangePenalty(4)).toBeCloseTo(2.6, 5);
-    expect(adaptiveChangePenalty(8)).toBeCloseTo(2.6, 5);
-  });
 });
 
 describe('ANALYSIS_VERSION', () => {
