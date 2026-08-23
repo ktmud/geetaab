@@ -740,16 +740,23 @@ input[type='range'] {
   z-index: 1;
 }
 
-/* "Fmaj7" is five characters and "C#maj7" is six; at the size a bare "C" wants,
-   both run into the ring. Stepping the face down by name length keeps the
-   clearance visible without measuring text, and the sizes are chosen against
-   the widest name in each bucket rather than against a typical one. */
+/* Names run from "C" to "D#maj7", and past three characters they stop clearing
+   the ring at the size a bare "C" wants. Each step down is sized against the
+   widest name in its own bucket — measured in the browser, not guessed: at the
+   top of the clamp the widest are D#m7 at four characters, D#maj7 at six, and
+   the steps land them all within a few pixels of the same clearance. Length is
+   the key rather than a measured width, so the size is right on the first paint
+   even before the variable font has loaded. */
 .listen-chord.long {
-  font-size: clamp(30px, 9.4vw, 48px);
+  font-size: clamp(34px, 11vw, 56px);
+}
+
+.listen-chord.longer {
+  font-size: clamp(30px, 9.6vw, 50px);
 }
 
 .listen-chord.longest {
-  font-size: clamp(25px, 7.8vw, 40px);
+  font-size: clamp(26px, 8.4vw, 44px);
 }
 
 .listen-chord-sub {

@@ -20,16 +20,17 @@ export interface ListeningProps {
 /**
  * Size class for a chord name, so the ring can hold its longest one.
  *
- * The vocabulary is twelve roots against seven suffixes plus N.C., which tops
- * out at six characters (C#maj7, Bbsus4). Measured in the browser at the top of
- * the type clamp, the full-size face runs those past the ring's inner edge, so
- * long names step down. Length is the key rather than a measured width: the
- * bucket has to be right on the first paint, before the variable font has
- * necessarily loaded, and a re-measure per frame would fight the readout.
+ * The vocabulary is twelve roots against seven suffixes plus N.C., so names run
+ * one to six characters. Measured in the browser rather than assumed: at the
+ * top of the type clamp the widest six-character name, D#maj7, spans 215px
+ * against an inner diameter of 186px — but so does D#m7 at four characters,
+ * spanning 168px, which is why the steps start there and not at five. The CSS
+ * does the sizing; this only says which bucket the name is in.
  */
 function nameSize(label: string): string {
   if (label.length >= 6) return ' longest';
-  if (label.length >= 5) return ' long';
+  if (label.length === 5) return ' longer';
+  if (label.length === 4) return ' long';
   return '';
 }
 
