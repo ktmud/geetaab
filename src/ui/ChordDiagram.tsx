@@ -156,7 +156,7 @@ export function ChordDiagram({ shape, width = 92, showFingers = true, title }: C
                 y={dotY(fret) + dotR * 0.62}
                 fontSize={dotR * 1.5}
                 fontWeight={700}
-                fill="#21160a"
+                fill="var(--on-accent)"
                 textAnchor="middle"
               >
                 {finger}

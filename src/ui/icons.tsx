@@ -219,23 +219,47 @@ export function GitHubIcon({ size = 24, className }: IconProps) {
   );
 }
 
+export function SunIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7" />
+    </svg>
+  );
+}
+
+export function MoonIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M20 14.2A8.4 8.4 0 0 1 9.8 4 8.4 8.4 0 1 0 20 14.2Z" />
+    </svg>
+  );
+}
+
+/**
+ * The brand mark.
+ *
+ * Every colour is a custom property rather than a literal, so the mark is
+ * repainted by the theme itself: on paper the brass is pitched down a step so
+ * a 46px lockup does not glare beside black text.
+ */
 export function GuitarMark({ size = 26, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
         <linearGradient id="geetaab-mark" x1="0" y1="0" x2="0.6" y2="1">
-          <stop offset="0%" stopColor="#ffd487" />
-          <stop offset="46%" stopColor="#f5b03c" />
-          <stop offset="100%" stopColor="#dd7a26" />
+          <stop offset="0%" stopColor="var(--mark-hi)" />
+          <stop offset="46%" stopColor="var(--mark-mid)" />
+          <stop offset="100%" stopColor="var(--mark-lo)" />
         </linearGradient>
       </defs>
       <rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="url(#geetaab-mark)" />
       {/* A nut across the top turns three lines into an unmistakable chord box. */}
-      <rect x="5.6" y="6.2" width="12.8" height="1.9" rx="0.95" fill="#2a1a08" />
-      <g stroke="#2a1a08" strokeWidth="1.15" strokeLinecap="round" opacity="0.92">
+      <rect x="5.6" y="6.2" width="12.8" height="1.9" rx="0.95" fill="var(--mark-ink)" />
+      <g stroke="var(--mark-ink)" strokeWidth="1.15" strokeLinecap="round" opacity="0.92">
         <path d="M8 8.4v9.8M12 8.4v9.8M16 8.4v9.8" />
       </g>
-      <g fill="#2a1a08">
+      <g fill="var(--mark-ink)">
         <circle cx="8" cy="11.4" r="1.85" />
         <circle cx="16" cy="11.4" r="1.85" />
         <circle cx="12" cy="15.4" r="1.85" />

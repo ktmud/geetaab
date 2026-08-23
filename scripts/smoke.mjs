@@ -378,43 +378,54 @@ try {
   // inner edge is 43/120 of the rendered width, and a name fits when all four
   // corners of its box are inside that radius. The size buckets mirror
   // nameSize() in src/ui/Listening.tsx.
-  const fit = await quiet.evaluate(() => {
-    const el = document.querySelector('.listen-chord');
-    const box = document.querySelector('.listen-ring').getBoundingClientRect();
-    const cx = box.x + box.width / 2;
-    const cy = box.y + box.height / 2;
-    const inner = (43 / 120) * box.width;
-    const roots = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const suffixes = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2'];
-    const names = [...roots.flatMap((root) => suffixes.map((suffix) => root + suffix)), 'N.C.'];
-    const before = { text: el.textContent, className: el.className };
-    let worst = { name: '', clear: Infinity, width: 0 };
-    let widest = { name: '', width: 0 };
-    for (const name of names) {
-      el.textContent = name;
-      el.className = `listen-chord${
-        name.length >= 6 ? ' longest' : name.length === 5 ? ' longer' : name.length === 4 ? ' long' : ''
-      }`;
-      const r = el.getBoundingClientRect();
-      const reach = Math.max(
-        ...[
-          [r.left, r.top],
-          [r.right, r.top],
-          [r.left, r.bottom],
-          [r.right, r.bottom],
-        ].map(([x, y]) => Math.hypot(x - cx, y - cy)),
-      );
-      if (inner - reach < worst.clear) worst = { name, clear: +(inner - reach).toFixed(1), width: +r.width.toFixed(1) };
-      if (r.width > widest.width) widest = { name, width: +r.width.toFixed(1) };
-    }
-    el.textContent = before.text;
-    el.className = before.className;
-    return { count: names.length, worst, widest };
-  });
+  const measureFit = () =>
+    quiet.evaluate(() => {
+      const el = document.querySelector('.listen-chord');
+      const box = document.querySelector('.listen-ring').getBoundingClientRect();
+      const cx = box.x + box.width / 2;
+      const cy = box.y + box.height / 2;
+      const inner = (43 / 120) * box.width;
+      const roots = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const suffixes = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2'];
+      const names = [...roots.flatMap((root) => suffixes.map((suffix) => root + suffix)), 'N.C.'];
+      const before = { text: el.textContent, className: el.className };
+      let worst = { name: '', clear: Infinity, width: 0 };
+      let widest = { name: '', width: 0 };
+      for (const name of names) {
+        el.textContent = name;
+        el.className = `listen-chord${
+          name.length >= 6 ? ' longest' : name.length === 5 ? ' longer' : name.length === 4 ? ' long' : ''
+        }`;
+        const r = el.getBoundingClientRect();
+        const reach = Math.max(
+          ...[
+            [r.left, r.top],
+            [r.right, r.top],
+            [r.left, r.bottom],
+            [r.right, r.bottom],
+          ].map(([x, y]) => Math.hypot(x - cx, y - cy)),
+        );
+        if (inner - reach < worst.clear) {
+          worst = { name, clear: +(inner - reach).toFixed(1), width: +r.width.toFixed(1) };
+        }
+        if (r.width > widest.width) widest = { name, width: +r.width.toFixed(1) };
+      }
+      el.textContent = before.text;
+      el.className = before.className;
+      return { count: names.length, worst, widest };
+    });
+  const fitPhone = await measureFit();
+  // The type clamp tops out on a wide screen, which is where the names are
+  // biggest against a ring that has stopped growing.
+  await quiet.setViewportSize({ width: 1100, height: 900 });
+  await quiet.waitForTimeout(250);
+  const fitDesktop = await measureFit();
+  await quiet.setViewportSize({ width: 430, height: 932 });
+  await quiet.waitForTimeout(250);
   checkThat(
-    'every chord name in the vocabulary clears the ring',
-    fit.count === 85 && fit.worst.clear > 12,
-    `${fit.count} names, widest ${fit.widest.name} at ${fit.widest.width}px, tightest ${fit.worst.name} with ${fit.worst.clear}px to spare`,
+    'every chord name in the vocabulary clears the ring, on a phone and on a desktop',
+    fitPhone.count === 85 && fitPhone.worst.clear > 12 && fitDesktop.worst.clear > 12,
+    `${fitPhone.count} names; widest ${fitDesktop.widest.name} at ${fitDesktop.widest.width}px, tightest ${fitDesktop.worst.name} with ${fitDesktop.worst.clear}px to spare on desktop and ${fitPhone.worst.clear}px on a phone`,
   );
 
   // Recording by hand still works from under the overlay — and a take that is

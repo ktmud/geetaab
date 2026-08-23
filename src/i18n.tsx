@@ -8,6 +8,10 @@ export const dictionary = {
     chords: 'Chords',
     home: 'Home',
     language: 'EN',
+    lightTheme: 'Light',
+    darkTheme: 'Dark',
+    switchToLight: 'Switch to the light theme',
+    switchToDark: 'Switch to the dark theme',
 
     // Home screen
     eyebrowGuitarTabs: 'Guitar tabs, by ear',
@@ -400,6 +404,10 @@ export const dictionary = {
     chords: '和弦',
     home: '主页',
     language: '中文',
+    lightTheme: '浅色',
+    darkTheme: '深色',
+    switchToLight: '切换到浅色主题',
+    switchToDark: '切换到深色主题',
 
     // Home screen
     eyebrowGuitarTabs: '凭听觉识谱',

@@ -15,6 +15,7 @@ import {
 } from './store/library';
 import type { SongTab } from './music/tab';
 import { useT, useLanguage } from './i18n';
+import { useTheme } from './theme';
 import { ChordLibrary } from './ui/ChordLibrary';
 import { Home } from './ui/Home';
 import { HowItWorks } from './ui/HowItWorks';
@@ -22,7 +23,7 @@ import { Listening } from './ui/Listening';
 import { Practice } from './ui/Practice';
 import { TabView, type TabOptions } from './ui/TabView';
 import { Backdrop } from './ui/Backdrop';
-import { GitHubIcon, GuitarMark } from './ui/icons';
+import { GitHubIcon, GuitarMark, MoonIcon, SunIcon } from './ui/icons';
 
 type Screen =
   | { name: 'home' }
@@ -51,6 +52,7 @@ const MAX_STORED_AUDIO_BYTES = 48 * 1024 * 1024;
 export function App() {
   const t = useT();
   const [lang, setLang] = useLanguage();
+  const { theme, setTheme } = useTheme();
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [session, setSession] = useState<Session | null>(null);
   const [options, setOptions] = useState<TabOptions>({ simplify: true });
@@ -304,6 +306,17 @@ export function App() {
           {screen.name !== 'practice' ? (
             <button className="btn btn-ghost" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}>
               {lang === 'en' ? '中文' : 'EN'}
+            </button>
+          ) : null}
+          {screen.name !== 'practice' ? (
+            <button
+              className="btn btn-ghost btn-theme"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? t.switchToLight : t.switchToDark}
+              title={theme === 'dark' ? t.switchToLight : t.switchToDark}
+            >
+              {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+              <span className="btn-theme-label">{theme === 'dark' ? t.lightTheme : t.darkTheme}</span>
             </button>
           ) : null}
         </header>

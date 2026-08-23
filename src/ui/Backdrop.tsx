@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 
 const STRING_COUNT = 18;
 /** One repeat of six, running from the low E to the high E. */
@@ -69,7 +69,10 @@ export function Backdrop() {
       if (!path) return;
       const string = geometry.current[index];
       path.setAttribute('d', stringPath(string.y, amplitude, phase));
-      path.style.opacity = String(string.opacity * (1 + glow * 5));
+      // The resting opacity, not the final one: the stylesheet multiplies it by
+      // the theme's gain, so a ringing string brightens correctly on paper too
+      // and the whole field repaints on a theme change without any JS.
+      path.style.setProperty('--string-opacity', String(string.opacity * (1 + glow * 5)));
     };
 
     const frame = (now: number): void => {
@@ -130,7 +133,7 @@ export function Backdrop() {
               strokeWidth={string.gauge}
               strokeLinecap="round"
               vectorEffect="non-scaling-stroke"
-              style={{ opacity: string.opacity }}
+              style={{ '--string-opacity': string.opacity } as CSSProperties}
             />
           ))}
         </svg>

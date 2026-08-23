@@ -191,7 +191,7 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
 
       <div className={`listen-ring${waiting ? ' waiting' : ''}`}>
         <svg viewBox="0 0 120 120" aria-hidden="true">
-          <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--surface-3)" strokeWidth="6" />
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--track)" strokeWidth="6" />
           <circle
             cx="60"
             cy="60"

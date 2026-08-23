@@ -624,6 +624,31 @@ p {
   color: var(--text);
 }
 
+/* The theme switch sits beside the language switch and reads the same way:
+   it names the theme it will move you to, not the one you are in. */
+.btn-theme {
+  gap: 7px;
+  padding-left: 12px;
+  padding-right: 13px;
+}
+
+.btn-theme svg {
+  flex: none;
+}
+
+/* On a phone the topbar has to hold the brand, two or three navigation
+   buttons and both switches; the icon alone still says what it does. */
+@media (max-width: 560px) {
+  .btn-theme-label {
+    display: none;
+  }
+
+  .btn-theme {
+    padding-left: 11px;
+    padding-right: 11px;
+  }
+}
+
 .btn-danger {
   color: var(--bad);
   border-color: transparent;
