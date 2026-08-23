@@ -162,7 +162,42 @@ try {
   ]);
   check('shapes a beginner can play', mic.palette, ['C', 'G', 'Am', 'Fmaj7']);
 
-  console.log('\n4. console');
+  console.log('\n4. the ambient backdrop stays behind the content');
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  await page.evaluate(() => {
+    const grid = document.querySelector('.feature-grid');
+    if (grid) window.scrollBy(0, grid.getBoundingClientRect().top - 60);
+    document
+      .querySelectorAll('.backdrop-strings i')
+      .forEach((el) => el.getAnimations().forEach((a) => a.pause()));
+  });
+  await page.waitForTimeout(300);
+  const box = await page.evaluate(() => {
+    const r = document.querySelector('.feature').getBoundingClientRect();
+    return { top: Math.round(r.y), left: Math.round(r.x), right: Math.round(r.right) };
+  });
+  const strip = async (x, width) =>
+    (await page.screenshot({ clip: { x, y: box.top + 40, width, height: 1 } })).toString('base64');
+  const marginBefore = await strip(0, box.left - 10);
+  const cardBefore = await strip(box.left + 15, box.right - box.left - 30);
+  await page.evaluate(() => {
+    document.querySelector('.backdrop').style.display = 'none';
+  });
+  await page.waitForTimeout(150);
+  const marginAfter = await strip(0, box.left - 10);
+  const cardAfter = await strip(box.left + 15, box.right - box.left - 30);
+  // A fixed element with a z-index paints after in-flow block backgrounds, so
+  // moving the backdrop inside .app would put the string field on top of every
+  // unpositioned card again. The margin is the control: if it does not change,
+  // the field is not drawing and the card result would mean nothing.
+  checkThat('the field actually draws in the page margin', marginBefore !== marginAfter);
+  checkThat('the field never draws over a card', cardBefore === cardAfter);
+  await page.evaluate(() => {
+    document.querySelector('.backdrop').style.display = '';
+  });
+
+  console.log('\n5. console');
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {
   await browser?.close();

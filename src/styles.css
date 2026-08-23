@@ -223,7 +223,7 @@ button {
 
 .brand-mark {
   flex: none;
-  filter: drop-shadow(0 4px 12px rgba(245, 176, 60, 0.22));
+  filter: drop-shadow(0 4px 12px rgb(var(--accent-rgb) / 0.22));
 }
 
 /* The landing page carries the full lockup, and gives up the sticky header for
@@ -1257,7 +1257,7 @@ input[type='range'] {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(13, 14, 19, 0.72);
+  background: rgb(6 7 13 / 0.78);
   backdrop-filter: blur(3px);
   z-index: 5;
   font-size: clamp(48px, 16vh, 120px);
@@ -1570,7 +1570,7 @@ input[type='range'] {
 
 .feature-stage {
   border-radius: var(--radius);
-  background: linear-gradient(170deg, var(--surface-2), rgba(30, 33, 48, 0.35));
+  background: linear-gradient(170deg, var(--surface-2), var(--surface-3));
   border: 1px solid var(--line-soft);
   padding: 14px 12px;
   /* Fixed so the three cards' headings line up across the row. */

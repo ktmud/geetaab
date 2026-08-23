@@ -265,81 +265,87 @@ export function App() {
   }
 
   return (
-    <div className="app">
+    <>
+      {/* Outside .app on purpose. As a child it painted over every unpositioned
+          element: a fixed element with a z-index paints after in-flow block
+          backgrounds, so the string field landed on top of the feature cards
+          while the positioned ones nearby stayed clear. */}
       <Backdrop />
-      <header className={`topbar${screen.name === 'home' ? ' topbar-home' : ''}`}>
-        <button
-          className={`brand${screen.name === 'home' ? ' brand-lg' : ''}`}
-          onClick={() => setScreen({ name: 'home' })}
-          style={{ background: 'none', border: 'none', padding: 0 }}
-        >
-          <GuitarMark size={screen.name === 'home' ? 46 : 30} className="brand-mark" />
-          geetaab
-        </button>
-        <span className="spacer" />
-        {screen.name !== 'home' ? (
-          <button className="btn btn-ghost" onClick={() => setScreen({ name: 'home' })}>
-            Home
+      <div className="app">
+        <header className={`topbar${screen.name === 'home' ? ' topbar-home' : ''}`}>
+          <button
+            className={`brand${screen.name === 'home' ? ' brand-lg' : ''}`}
+            onClick={() => setScreen({ name: 'home' })}
+            style={{ background: 'none', border: 'none', padding: 0 }}
+          >
+            <GuitarMark size={screen.name === 'home' ? 46 : 30} className="brand-mark" />
+            geetaab
           </button>
-        ) : null}
-      </header>
-
-      {screen.name === 'home' ? (
-        <Home
-          songs={songs}
-          micSupported={micSupported}
-          onRecord={() => setScreen({ name: 'listening' })}
-          onFile={(file) => void handleFile(file)}
-          onDemo={handleDemo}
-          onOpenSong={handleOpenSong}
-          onDeleteSong={handleDeleteSong}
-        />
-      ) : null}
-
-      {screen.name === 'listening' ? (
-        <Listening onDone={handleRecording} onCancel={() => setScreen({ name: 'home' })} />
-      ) : null}
-
-      {screen.name === 'analyzing' ? (
-        <div className="shell">
-          <div className="card" style={{ marginTop: 40 }}>
-            <div className="eyebrow">Working it out</div>
-            <h2 style={{ textTransform: 'capitalize' }}>{screen.stage}…</h2>
-            <div className="progress-track" style={{ marginTop: 14 }}>
-              <div className="progress-fill" style={{ width: `${Math.round(screen.fraction * 100)}%` }} />
-            </div>
-            <p className="faint" style={{ marginTop: 14, marginBottom: 0, fontSize: 13 }}>
-              All of this runs on your device. Nothing is uploaded.
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {screen.name === 'tab' && session ? (
-        <TabView
-          analysis={session.analysis}
-          title={session.title}
-          options={options}
-          busy={busy}
-          onTitleChange={updateTitle}
-          onOptionsChange={updateOptions}
-          onPractice={(tab) => setScreen({ name: 'practice', tab })}
-          onBack={() => setScreen({ name: 'home' })}
-          onRetempo={session.samples ? handleRetempo : undefined}
-        />
-      ) : null}
-
-      {screen.name === 'error' ? (
-        <div className="shell">
-          <div className="card" style={{ marginTop: 40 }}>
-            <h2>That did not work</h2>
-            <p>{screen.message}</p>
-            <button className="btn btn-primary" onClick={() => setScreen({ name: 'home' })}>
-              Start over
+          <span className="spacer" />
+          {screen.name !== 'home' ? (
+            <button className="btn btn-ghost" onClick={() => setScreen({ name: 'home' })}>
+              Home
             </button>
+          ) : null}
+        </header>
+
+        {screen.name === 'home' ? (
+          <Home
+            songs={songs}
+            micSupported={micSupported}
+            onRecord={() => setScreen({ name: 'listening' })}
+            onFile={(file) => void handleFile(file)}
+            onDemo={handleDemo}
+            onOpenSong={handleOpenSong}
+            onDeleteSong={handleDeleteSong}
+          />
+        ) : null}
+
+        {screen.name === 'listening' ? (
+          <Listening onDone={handleRecording} onCancel={() => setScreen({ name: 'home' })} />
+        ) : null}
+
+        {screen.name === 'analyzing' ? (
+          <div className="shell">
+            <div className="card" style={{ marginTop: 40 }}>
+              <div className="eyebrow">Working it out</div>
+              <h2 style={{ textTransform: 'capitalize' }}>{screen.stage}…</h2>
+              <div className="progress-track" style={{ marginTop: 14 }}>
+                <div className="progress-fill" style={{ width: `${Math.round(screen.fraction * 100)}%` }} />
+              </div>
+              <p className="faint" style={{ marginTop: 14, marginBottom: 0, fontSize: 13 }}>
+                All of this runs on your device. Nothing is uploaded.
+              </p>
+            </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+
+        {screen.name === 'tab' && session ? (
+          <TabView
+            analysis={session.analysis}
+            title={session.title}
+            options={options}
+            busy={busy}
+            onTitleChange={updateTitle}
+            onOptionsChange={updateOptions}
+            onPractice={(tab) => setScreen({ name: 'practice', tab })}
+            onBack={() => setScreen({ name: 'home' })}
+            onRetempo={session.samples ? handleRetempo : undefined}
+          />
+        ) : null}
+
+        {screen.name === 'error' ? (
+          <div className="shell">
+            <div className="card" style={{ marginTop: 40 }}>
+              <h2>That did not work</h2>
+              <p>{screen.message}</p>
+              <button className="btn btn-primary" onClick={() => setScreen({ name: 'home' })}>
+                Start over
+              </button>
+            </div>
+          </div>
+    ) : null}
+      </div>
+    </>
   );
 }
