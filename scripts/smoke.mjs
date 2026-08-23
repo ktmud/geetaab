@@ -662,6 +662,38 @@ try {
   await page.evaluate(() => localStorage.removeItem('geetaab-theme'));
   await page.emulateMedia({ colorScheme: null });
 
+  console.log('\n6c. the pages you can link to');
+  await page.goto(`${ORIGIN}#/chords`, { waitUntil: 'networkidle' });
+  checkThat(
+    'opening the chord library by address lands on it',
+    (await page.locator('.library-grid .chord-tile').count()) > 0,
+  );
+  await page.reload({ waitUntil: 'networkidle' });
+  checkThat(
+    'and reloading stays there rather than going home',
+    (await page.locator('.library-grid .chord-tile').count()) > 0,
+    await page.evaluate(() => location.hash),
+  );
+  await page.goto(`${ORIGIN}#/how?lang=zh`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+  const linked = await page.evaluate(() => ({
+    onExplainer: Boolean(document.querySelector('.how-it-works')),
+    lang: document.documentElement.lang,
+    hash: location.hash,
+  }));
+  checkThat(
+    'a link can carry the language as well as the page',
+    linked.onExplainer && linked.lang.startsWith('zh'),
+    JSON.stringify(linked),
+  );
+  // Put the browser back into English for the checks that follow.
+  await page.goto(`${ORIGIN}#/?lang=en`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  checkThat(
+    'and back at the home address the app is home again',
+    (await page.locator('.home-hero').count()) > 0,
+  );
+
   console.log('\n7. the how-it-works explainer');
   await page.setViewportSize({ width: 1100, height: 900 });
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });

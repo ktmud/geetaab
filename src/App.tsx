@@ -24,6 +24,7 @@ import { Practice } from './ui/Practice';
 import { TabView, type TabOptions } from './ui/TabView';
 import { Backdrop } from './ui/Backdrop';
 import { GitHubIcon, GuitarMark, MoonIcon, SunIcon } from './ui/icons';
+import { formatLocation, parseLocation, routeOf } from './router';
 
 type Screen =
   | { name: 'home' }
@@ -53,13 +54,49 @@ export function App() {
   const t = useT();
   const [lang, setLang] = useLanguage();
   const { theme, setTheme } = useTheme();
-  const [screen, setScreen] = useState<Screen>({ name: 'home' });
+  // Open on whatever the address asks for, so a reload and a shared link both
+  // land where they should.
+  const [screen, setScreen] = useState<Screen>(() => ({
+    name: parseLocation(window.location.hash).route,
+  }));
   const [session, setSession] = useState<Session | null>(null);
   const [options, setOptions] = useState<TabOptions>({ simplify: true });
   const [songs, setSongs] = useState<SongSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const sessionRef = useRef<Session | null>(null);
   sessionRef.current = session;
+
+  // A language named in the address wins over the stored one: that is what
+  // makes a link shareable across people who do not read the same language.
+  useEffect(() => {
+    const asked = parseLocation(window.location.hash).lang;
+    if (asked && asked !== lang) setLang(asked);
+    // Once, on load. Later changes flow the other way, into the address.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep the address in step with the screen. Screens that belong to a song
+  // held in memory are not addressable, so they leave the hash alone rather
+  // than pointing at something a reload could not restore.
+  useEffect(() => {
+    const route = routeOf(screen.name);
+    if (!route) return;
+    const next = formatLocation({ route, lang });
+    if (next !== window.location.hash) {
+      window.history.replaceState(null, '', next);
+    }
+  }, [screen.name, lang]);
+
+  // Back and forward move between screens, including the browser's own gesture.
+  useEffect(() => {
+    const onHashChange = (): void => {
+      const { route, lang: asked } = parseLocation(window.location.hash);
+      if (asked && asked !== lang) setLang(asked);
+      setScreen((current) => (routeOf(current.name) === route ? current : { name: route }));
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [lang, setLang]);
 
   // Anything that sticks below the topbar needs its real height, which changes
   // with the screen (the home wordmark is larger), the language and the loaded
