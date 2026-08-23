@@ -6,3 +6,6 @@ dist/
 coverage/
 *.tsbuildinfo
 .claude/
+ios/GeetaabKit/.build/
+ios/**/*.xcodeproj/xcuserdata/
+ios/**/xcuserdata/
