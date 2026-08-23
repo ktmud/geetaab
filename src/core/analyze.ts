@@ -26,6 +26,19 @@ import {
 import { medianOf, resample } from './dsp';
 import { estimateKey, type KeyEstimate } from './key';
 
+/**
+ * Bumped whenever a change to this pipeline would give a stored song a
+ * different tab. A song saved under an older number is re-analysed from its
+ * audio the next time it is opened, so an accuracy fix reaches songs a player
+ * already has rather than only new ones.
+ *
+ * History:
+ *   1  the pipeline as first shipped
+ *   2  graded N.C., free-time detection, parabolic tempo, three tab levels
+ *   3  consolidateSegments: a song's own vocabulary settles drifting bars
+ */
+export const ANALYSIS_VERSION = 3;
+
 export interface AnalysisResult {
   duration: number;
   tempo: number;

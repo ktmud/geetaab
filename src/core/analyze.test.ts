@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeAudio } from './analyze';
+import { analyzeAudio, ANALYSIS_VERSION } from './analyze';
 import { chordName, isNoChord } from './chordTypes';
 import { DEMO_PROGRESSION, renderProgression, renderShapeStrum, type SynthChord } from '../audio/synth';
 
@@ -165,4 +165,11 @@ describe('analyzeAudio', () => {
       }
     }
   }, 60000);
+});
+
+describe('ANALYSIS_VERSION', () => {
+  it('is a positive integer, so a stored tab can be told stale from current', () => {
+    expect(Number.isInteger(ANALYSIS_VERSION)).toBe(true);
+    expect(ANALYSIS_VERSION).toBeGreaterThan(0);
+  });
 });

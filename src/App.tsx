@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AnalysisResult } from './core/analyze';
+import { ANALYSIS_VERSION, type AnalysisResult } from './core/analyze';
 import { decodeAudioFile } from './audio/decode';
 import { DEMO_PROGRESSION, renderProgression } from './audio/synth';
 import { encodeWav } from './audio/wav';
@@ -77,6 +77,7 @@ export function App() {
         // Editing a title must not reorder the library or rewrite its history.
         createdAt: next.createdAt,
         analysis: next.analysis,
+        analysisVersion: ANALYSIS_VERSION,
         capo: nextOptions.capo,
         strumId: nextOptions.strumId,
         simplify: nextOptions.simplify,
@@ -155,7 +156,7 @@ export function App() {
   const handleFile = useCallback(
     async (file: File) => {
       setBusy(true);
-      setScreen({ name: 'analyzing', stage: t.readingFile, fraction: 0.01 });
+      setScreen({ name: 'analyzing', stage: 'reading the file', fraction: 0.01 });
       try {
         const decoded = await decodeAudioFile(file);
         // Keep the original file rather than the decoded samples: it is already
@@ -191,8 +192,28 @@ export function App() {
   }, [runAnalysis]);
 
   const handleOpenSong = useCallback((id: string) => {
-    void loadSong(id).then((song) => {
+    void loadSong(id).then(async (song) => {
       if (!song) return;
+      // An accuracy fix should reach songs a player already has. When the
+      // stored tab predates the current pipeline and the audio was kept, work
+      // it out again; without the audio the old tab is all there is.
+      if (song.analysisVersion !== ANALYSIS_VERSION && song.audio) {
+        try {
+          const decoded = await decodeAudioFile(
+            new File([song.audio], `${song.title}`, { type: song.audio.type || 'audio/wav' }),
+          );
+          await runAnalysis(decoded.samples, decoded.sampleRate, {
+            title: song.title,
+            source: song.source,
+            audio: song.audio,
+            id: song.id,
+            createdAt: song.createdAt,
+          });
+          return;
+        } catch {
+          // Undecodable now: fall through and show what was stored.
+        }
+      }
       setSession({
         id: song.id,
         title: song.title,
@@ -209,7 +230,7 @@ export function App() {
       });
       setScreen({ name: 'tab' });
     });
-  }, []);
+  }, [runAnalysis]);
 
   const handleDeleteSong = useCallback(
     (id: string) => {
@@ -354,7 +375,9 @@ export function App() {
           <div className="shell">
             <div className="card" style={{ marginTop: 40 }}>
               <div className="eyebrow">{t.workingItOut}</div>
-              <h2 style={{ textTransform: 'capitalize' }}>{screen.stage}…</h2>
+              <h2 style={{ textTransform: 'capitalize' }}>
+                {t.stages[screen.stage] ?? screen.stage}…
+              </h2>
               <div className="progress-track" style={{ marginTop: 14 }}>
                 <div className="progress-fill" style={{ width: `${Math.round(screen.fraction * 100)}%` }} />
               </div>

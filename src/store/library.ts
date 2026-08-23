@@ -5,6 +5,9 @@ export interface StoredSong {
   title: string;
   createdAt: number;
   analysis: AnalysisResult;
+  /** ANALYSIS_VERSION at the time the tab was worked out. Absent on songs
+      saved before versioning, which are treated as stale. */
+  analysisVersion?: number;
   capo?: number;
   strumId?: string;
   simplify?: boolean;

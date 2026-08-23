@@ -715,6 +715,20 @@ p {
   margin-top: 16px;
 }
 
+/* A card's spacing cannot depend on what happens to precede it: the loop card
+   above the palette is conditional, and when a song has no repeating loop the
+   next card used to sit flush against the header. Own the gap from above, and
+   drop it only for a card that opens its container. */
+.shell > .card,
+.shell > .notice {
+  margin-top: 18px;
+}
+
+.shell > .card:first-child,
+.shell > .notice:first-child {
+  margin-top: 0;
+}
+
 .card-tight {
   padding: 14px;
 }

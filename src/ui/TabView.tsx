@@ -162,19 +162,19 @@ export function TabView({
       </div>
 
       {lowConfidence ? (
-        <div className="notice notice-warn" style={{ marginTop: 16 }}>
+        <div className="notice notice-warn">
           {t.lowConfidence}
         </div>
       ) : null}
 
       {analysis.freeTime ? (
-        <div className="notice notice-info" style={{ marginTop: 16 }}>
+        <div className="notice notice-info">
           {t.freeTime}
         </div>
       ) : null}
 
       {tab.loop ? (
-        <div className="card" style={{ marginTop: 18 }}>
+        <div className="card">
           <div className="eyebrow">{t.theWholeSong}</div>
           <div className="loop-summary">
             {tab.loop.bars.map((bar, index) => (
