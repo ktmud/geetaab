@@ -84,6 +84,35 @@ npm run build      # static bundle in dist/
 npm run smoke      # drives the built app in a real browser
 ```
 
+## Checking the transcription against real songs
+
+`scripts/regress.mjs` runs a whole corpus through the analysis and compares
+every song against a saved baseline, so a change to `src/core/` can be held to
+the same standard as the unit tests: no song may go backwards.
+
+The corpus is real music with published tabs, so **none of it is in this
+repository** — the audio and the chord sheets belong to their authors. Point
+the script at a directory of your own instead:
+
+```bash
+ffmpeg -i song.m4a -ac 1 -ar 22050 -f f32le corpus/song.f32   # once per song
+export GEETAAB_CORPUS=/path/to/corpus
+npx vite-node scripts/regress.mjs --save-baseline              # record where you are
+npx vite-node scripts/regress.mjs                              # after a change
+```
+
+The directory holds a `corpus.json` naming each song, its reference chord
+vocabulary, and any assertions to hold (that a rubato piece keeps coming back
+free-time, say); the format is documented at the top of the script. Alongside
+the time-weighted agreement with each published sheet, the report gives the
+median chord length in beats and the count of one-chord sandwiches between two
+runs of the same neighbour — the numbers that say whether a chart is chopped
+into more changes than the music has. It exits non-zero if any song loses more
+than half a point, or if an assertion fails.
+
+`scripts/score.mjs` does the same for one song, and `scripts/analyze.mjs`
+prints what the analysis heard, segment by segment.
+
 `npm run smoke` is the end-to-end check: it serves `dist/`, runs the demo track
 through the worker, exercises the practice transport, and feeds a synthesized song
 into Chromium's fake microphone to verify the capture path all the way to a finished
