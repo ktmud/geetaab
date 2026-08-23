@@ -3963,3 +3963,86 @@ html[lang^='zh'] .how-it-works em {
   font-size: 12.5px;
   opacity: 0.82;
 }
+
+/* The arrangement sheet over the practice screen. Landscape and short, so it
+   is a centred panel that scrolls inside itself rather than a bottom sheet:
+   there is not enough height on a phone held sideways for one that slides up. */
+.practice-sheet-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.practice-sheet {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.35);
+}
+
+.practice-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.practice-sheet-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.practice-settings-btn {
+  padding: 4px 8px;
+}
+
+/* Wider columns than the tab card's: the capo option carries a "— suggested"
+   suffix, and a select clips its text rather than shrinking it, so a column
+   sized for the label leaves the reader guessing which fret they picked. */
+.practice-sheet .controls-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+/* Half time and double time are a pair and read as one control; wrapped onto
+   two lines they read as two. */
+.practice-sheet .field .btn-row {
+  flex-wrap: nowrap;
+}
+
+.practice-sheet .field .btn-row .btn {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* A phone held sideways has about 430px of height, and the sheet's own padding
+   is the first thing worth giving back. */
+@media (max-height: 520px) {
+  .practice-sheet {
+    padding: 12px 14px 14px;
+  }
+
+  .practice-sheet-head {
+    margin-bottom: 8px;
+  }
+
+  .practice-sheet .controls-grid {
+    gap: 10px;
+  }
+}
+
+.settings-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+}

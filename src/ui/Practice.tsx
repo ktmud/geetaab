@@ -12,7 +12,10 @@ import { resumeAudio } from '../audio/context';
 import { translateKeyName, useLanguage, useT } from '../i18n';
 import { enterLandscape, exitLandscape } from './landscape';
 import { pluckStringOf } from '../music/pick';
+import type { AnalysisResult } from '../core/analyze';
 import type { SongTab } from '../music/tab';
+import { TabSettings } from './TabSettings';
+import type { ArrangedSong, TabOptions } from './tabOptions';
 import { ChordDiagram } from './ChordDiagram';
 import {
   BackIcon,
@@ -22,6 +25,8 @@ import {
   PlayIcon,
   RewindIcon,
   PhoneRotateIcon,
+  SlidersIcon,
+  CloseIcon,
   SkipBackTenIcon,
   SkipForwardTenIcon,
   SpeedIcon,
@@ -60,7 +65,12 @@ function suggestedRate(tab: SongTab): number {
 }
 
 export interface PracticeProps {
-  tab: SongTab;
+  analysis: AnalysisResult;
+  song: ArrangedSong;
+  options: TabOptions;
+  onOptionsChange: (options: TabOptions) => void;
+  onRetempo?: (bpm: number) => void;
+  busy?: boolean;
   title: string;
   beats: number[];
   barPhase: number;
@@ -70,7 +80,20 @@ export interface PracticeProps {
 
 const PLAYHEAD_FRACTION = 0.26;
 
-export function Practice({ tab, title, beats, barPhase, audio, onExit }: PracticeProps) {
+export function Practice({
+  analysis,
+  song,
+  options,
+  onOptionsChange,
+  onRetempo,
+  busy,
+  title,
+  beats,
+  barPhase,
+  audio,
+  onExit,
+}: PracticeProps) {
+  const tab = song.tab;
   const t = useT();
   const [lang] = useLanguage();
   const laneRef = useRef<HTMLDivElement>(null);
@@ -267,6 +290,26 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
       return;
     }
     setPlaying(true);
+  };
+
+  /**
+   * The arrangement sheet.
+   *
+   * Deciding the strum is wrong is something that happens *while* playing along,
+   * not before; until now that cost a trip back to the tab screen. Opening it
+   * pauses, because the tab under it is about to be rebuilt and a playhead
+   * running over a chart that changes shape underneath it is disorienting.
+   */
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const openSettings = (): void => {
+    const transport = transportRef.current;
+    if (transport?.playing || countIn !== null) {
+      countInToken.current++;
+      transport?.pause();
+      setCountIn(null);
+      setPlaying(false);
+    }
+    setSettingsOpen(true);
   };
 
   const toggle = (): void => {
@@ -467,6 +510,14 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
           <span className="chip chip-accent">{t.capoChip(tab.capo)}</span>
         ) : null}
         <span className="spacer" />
+        <button
+          className="btn btn-ghost practice-settings-btn"
+          onClick={openSettings}
+          aria-label={t.makeItFitHands}
+          title={t.makeItFitHands}
+        >
+          <SlidersIcon size={17} />
+        </button>
         <div className="beat-dots" aria-hidden="true">
           {Array.from({ length: tab.beatsPerBar }, (_, i) => (
             <span
@@ -724,6 +775,41 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
           <span className="chip">{Math.round(tab.tempo * rate)} BPM</span>
         </div>
       </div>
+
+      {settingsOpen ? (
+        <div
+          className="practice-sheet-veil"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.makeItFitHands}
+          // Clicking the darkened area behind the sheet is the fastest way out
+          // on a phone held in two hands; the sheet itself must not close it.
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setSettingsOpen(false);
+          }}
+        >
+          <div className="practice-sheet">
+            <div className="practice-sheet-head">
+              <h2>{t.makeItFitHands}</h2>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setSettingsOpen(false)}
+                aria-label={t.close}
+              >
+                <CloseIcon size={18} />
+              </button>
+            </div>
+            <TabSettings
+              analysis={analysis}
+              song={song}
+              options={options}
+              onOptionsChange={onOptionsChange}
+              onRetempo={onRetempo}
+              busy={busy}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

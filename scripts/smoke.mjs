@@ -307,6 +307,47 @@ try {
   );
   const laneBefore = await page.evaluate(() => document.querySelector('.lane-inner')?.style.transform);
 
+  console.log('\n2a. changing the arrangement without leaving the song');
+  // Deciding the strum is wrong happens while playing along, not before, and
+  // used to cost a trip back to the tab screen.
+  await page.getByRole('button', { name: 'Play' }).click();
+  await page.waitForTimeout(1200);
+  await page.getByRole('button', { name: /Make it fit your hands|调成你顺手的样子/ }).click();
+  await page.waitForTimeout(300);
+  const sheet2 = await page.evaluate(() => ({
+    open: Boolean(document.querySelector('.practice-sheet')),
+    paused: document.querySelector('.countin') === null,
+    capo: document.querySelector('.practice-sheet #capo')?.value ?? null,
+    strum: document.querySelector('.practice-sheet #strum')?.value ?? null,
+  }));
+  checkThat(
+    'the practice screen opens the arrangement controls, and pauses to do it',
+    sheet2.open && sheet2.paused && sheet2.capo !== null && sheet2.strum !== null,
+    JSON.stringify(sheet2),
+  );
+  const before2 = await page.evaluate(
+    () => document.querySelector('.strum-strip-label')?.textContent ?? '',
+  );
+  await page.locator('.practice-sheet #strum').selectOption({ label: 'The eight-note pattern' });
+  await page.waitForTimeout(400);
+  const after2 = await page.evaluate(() => ({
+    label: document.querySelector('.strum-strip-label')?.textContent ?? '',
+    plucks: document.querySelectorAll('.strum-cell.pluck').length,
+  }));
+  checkThat(
+    'and the change reaches the player behind it',
+    after2.label !== before2 && after2.plucks > 0,
+    `${before2} -> ${after2.label}, ${after2.plucks} plucked steps`,
+  );
+  await page.locator('.practice-sheet #strum').selectOption({ label: 'Down-up eighths' });
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.waitForTimeout(200);
+  checkThat(
+    'closing it puts the player back',
+    await page.evaluate(() => document.querySelector('.practice-sheet') === null),
+  );
+
   console.log('\n2b. seeking');
   await page.getByRole('button', { name: 'Forward ten seconds' }).click();
   check('the +10 button jumps ahead', await clock(), '0:10');

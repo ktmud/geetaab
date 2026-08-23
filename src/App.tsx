@@ -14,7 +14,6 @@ import {
   type SongSummary,
   type StoredSong,
 } from './store/library';
-import type { SongTab } from './music/tab';
 import { useT, useLanguage } from './i18n';
 import { useTheme } from './theme';
 import { ChordLibrary } from './ui/ChordLibrary';
@@ -22,7 +21,8 @@ import { Home } from './ui/Home';
 import { HowItWorks } from './ui/HowItWorks';
 import { Listening } from './ui/Listening';
 import { Practice } from './ui/Practice';
-import { TabView, type TabOptions } from './ui/TabView';
+import { TabView } from './ui/TabView';
+import { useArrangedSong, type TabOptions } from './ui/tabOptions';
 import { Backdrop } from './ui/Backdrop';
 import { GitHubIcon, GuitarMark, MoonIcon, SunIcon } from './ui/icons';
 import { formatLocation, parseLocation, routeOf } from './router';
@@ -32,7 +32,7 @@ type Screen =
   | { name: 'listening' }
   | { name: 'analyzing'; stage: string; fraction: number }
   | { name: 'tab' }
-  | { name: 'practice'; tab: SongTab }
+  | { name: 'practice' }
   | { name: 'chords' }
   | { name: 'how' }
   | { name: 'error'; error: 'recordingTooShort' | 'couldNotDecode' | 'analysisFailed'; detail?: string };
@@ -351,10 +351,20 @@ export function App() {
   const micSupported =
     typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
 
-  if (screen.name === 'practice' && session) {
+  /* Derived once here so the tab screen and the practice screen are looking at
+     the same arrangement: changing the strum from the practice sheet has to
+     show up in the tab behind it, not in a second copy of it. */
+  const song = useArrangedSong(session?.analysis ?? null, options);
+
+  if (screen.name === 'practice' && session && song) {
     return (
       <Practice
-        tab={screen.tab}
+        analysis={session.analysis}
+        song={song}
+        options={options}
+        onOptionsChange={updateOptions}
+        onRetempo={session.samples ? handleRetempo : undefined}
+        busy={busy}
         title={session.title}
         beats={session.analysis.beats}
         barPhase={session.analysis.barPhase}
@@ -471,15 +481,16 @@ export function App() {
           </div>
         ) : null}
 
-        {screen.name === 'tab' && session ? (
+        {screen.name === 'tab' && session && song ? (
           <TabView
             analysis={session.analysis}
+            song={song}
             title={session.title}
             options={options}
             busy={busy}
             onTitleChange={updateTitle}
             onOptionsChange={updateOptions}
-            onPractice={(tab) => setScreen({ name: 'practice', tab })}
+            onPractice={() => setScreen({ name: 'practice' })}
             onBack={() => setScreen({ name: 'home' })}
             onRetempo={session.samples ? handleRetempo : undefined}
           />

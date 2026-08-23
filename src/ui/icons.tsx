@@ -230,6 +230,25 @@ export function PhoneRotateIcon({ size = 24, className }: IconProps) {
   );
 }
 
+export function SlidersIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h9M17 18h3" />
+      <circle cx="15" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="15" cy="18" r="2" />
+    </svg>
+  );
+}
+
+export function CloseIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
 export function GitHubIcon({ size = 24, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">

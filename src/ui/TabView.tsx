@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../core/analyze';
 import { isNoChord } from '../core/chordTypes';
-import { chooseCapo, patternsFor } from '../music/arrange';
-import { levelsWorthOffering, reduceSegments, type TabLevel } from '../music/levels';
-import { buildTab, type SongTab } from '../music/tab';
+import type { SongTab } from '../music/tab';
+import { TabSettings } from './TabSettings';
+import type { ArrangedSong, TabOptions } from './tabOptions';
 import { songTabText } from '../music/tabText';
 import { engraveSystems } from '../music/tabEngrave';
 import { enterLandscape } from './landscape';
@@ -13,17 +13,10 @@ import { ChordCard } from './ChordDiagram';
 import { PrintSheet } from './PrintSheet';
 import { BackIcon, CheckIcon, PlayIcon, PrintIcon } from './icons';
 
-export interface TabOptions {
-  capo?: number;
-  simplify: boolean;
-  strumId?: string;
-  level?: TabLevel;
-}
-
-// Will be created inside the component using the hook
-
 export interface TabViewProps {
   analysis: AnalysisResult;
+  /** The arrangement, derived once above so practice shows the same one. */
+  song: ArrangedSong;
   title: string;
   options: TabOptions;
   onTitleChange: (title: string) => void;
@@ -37,6 +30,7 @@ export interface TabViewProps {
 
 export function TabView({
   analysis,
+  song,
   title,
   options,
   onTitleChange,
@@ -52,43 +46,9 @@ export function TabView({
   const [tabScope, setTabScope] = useState<'song' | 'loop'>('song');
   const [editingTitle, setEditingTitle] = useState(false);
 
-  const LEVEL_LABELS: Record<TabLevel, string> = {
-    easy: t.easy,
-    standard: t.standard,
-    faithful: t.faithful,
-  };
-
-  const LEVEL_HINTS: Record<TabLevel, string> = {
-    easy: t.easyHint,
-    standard: t.standardHint,
-    faithful: t.faithfulHint,
-  };
-
   const strumName = (id: string): string => t.strumNames[id] ?? id;
 
-  const tabs = useMemo(() => {
-    const patterns = patternsFor(analysis.beatsPerBar);
-    const strum = options.strumId ? patterns.find((p) => p.id === options.strumId) : undefined;
-    const base = { capo: options.capo, strum };
-    const standard = buildTab(analysis, { ...base, simplify: true });
-    const faithful = buildTab(analysis, { ...base, simplify: false });
-    const easy = buildTab(
-      { ...analysis, segments: reduceSegments(analysis.segments, analysis.beatsPerBar) },
-      { ...base, simplify: true },
-    );
-    return { easy, standard, faithful } as Record<TabLevel, SongTab>;
-  }, [analysis, options.capo, options.strumId]);
-
-  const offeredLevels = useMemo(() => levelsWorthOffering(tabs), [tabs]);
-  const wantedLevel: TabLevel = options.level ?? (options.simplify === false ? 'faithful' : 'standard');
-  const level: TabLevel = offeredLevels.includes(wantedLevel) ? wantedLevel : 'standard';
-  const tab = tabs[level];
-
-  const autoCapo = useMemo(
-    () => chooseCapo(analysis.segments, analysis.key, { simplify: level !== 'faithful' }).fret,
-    [analysis, level],
-  );
-  const patterns = patternsFor(tab.beatsPerBar);
+  const { tab } = song;
   const hardChords = tab.palette.filter((chord) => chord.shape.difficulty === 3);
   const lowConfidence = tab.confidence < 0.24;
   /**
@@ -255,92 +215,14 @@ export function TabView({
 
       <div className="card">
         <h2>{t.makeItFitHands}</h2>
-        <div className="controls-grid">
-          <div className="field">
-            <label htmlFor="capo">{t.capo}</label>
-            <select
-              id="capo"
-              className="input"
-              value={options.capo ?? autoCapo}
-              onChange={(event) => onOptionsChange({ ...options, capo: Number(event.target.value) })}
-            >
-              {Array.from({ length: 8 }, (_, fret) => (
-                <option key={fret} value={fret}>
-                  {fret === 0 ? t.noCapoText : t.fretNth(fret)}
-                  {fret === autoCapo ? t.suggested : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="strum">{t.strumming}</label>
-            <select
-              id="strum"
-              className="input"
-              value={tab.strum.id}
-              onChange={(event) => onOptionsChange({ ...options, strumId: event.target.value })}
-            >
-              {patterns.map((pattern) => (
-                <option key={pattern.id} value={pattern.id}>
-                  {strumName(pattern.id)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {offeredLevels.length > 1 ? (
-            <div className="field">
-              <label htmlFor="level">{t.level}</label>
-              <div className="segmented" id="level">
-                {offeredLevels.map((option) => (
-                  <button
-                    key={option}
-                    aria-pressed={level === option}
-                    onClick={() =>
-                      onOptionsChange({ ...options, level: option, simplify: option !== 'faithful' })
-                    }
-                  >
-                    {LEVEL_LABELS[option]}
-                  </button>
-                ))}
-              </div>
-              <span className="field-hint">{LEVEL_HINTS[level]}</span>
-            </div>
-          ) : null}
-
-          {onRetempo ? (
-            <div className="field">
-              <label>{t.tempoReading}</label>
-              <div className="btn-row">
-                <button
-                  className="btn"
-                  disabled={busy || analysis.tempo / 2 < 40}
-                  onClick={() => onRetempo(analysis.tempo / 2)}
-                >
-                  {t.halfTime}
-                </button>
-                <button
-                  className="btn"
-                  disabled={busy || analysis.tempo * 2 > 260}
-                  onClick={() => onRetempo(analysis.tempo * 2)}
-                >
-                  {t.doubleTime}
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-        <p className="faint" style={{ marginTop: 12, marginBottom: 0, fontSize: 13 }}>
-          {tab.capo > 0
-            ? t.withCapo(
-                tab.capo,
-                translateKeyName(tab.shapeKeyName, lang),
-                translateKeyName(tab.key.name, lang),
-                tab.capoOpenRatio,
-              )
-            : t.openShapes(tab.capoOpenRatio)}
-        </p>
+        <TabSettings
+          analysis={analysis}
+          song={song}
+          options={options}
+          onOptionsChange={onOptionsChange}
+          onRetempo={onRetempo}
+          busy={busy}
+        />
       </div>
 
       <div className="card">
