@@ -249,17 +249,26 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
     metronomeRef.current?.reset(transport.currentTime);
 
     // Count the player in at the practice tempo, not the song's, so the click
-    // they hear is the one they are about to play against.
+    // they hear is the one they are about to play against. Fast songs are
+    // counted in half time, the way a musician counts them: the detected BPM
+    // doubles on some recordings (the unresolvable tempo octave), and nobody
+    // can set their hand to a count that arrives more than twice a second.
+    const countStep = beatSeconds / rate < 0.5 ? beatSeconds * 2 : beatSeconds;
     const token = ++countInToken.current;
     for (let i = tab.beatsPerBar; i >= 1; i--) {
       setCountIn(i);
-      await wait((beatSeconds / rate) * 1000);
+      await wait((countStep / rate) * 1000);
       // Pausing during the count-in bumps the token; without this check the
       // count would finish in the background and start playback anyway.
       if (token !== countInToken.current || !transportRef.current) return;
     }
     setCountIn(null);
-    await transport.play();
+    try {
+      await transport.play();
+    } catch {
+      // Autoplay refused (no recent gesture): stay paused rather than crash.
+      return;
+    }
     setPlaying(true);
   };
 
@@ -275,6 +284,19 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
       void start();
     }
   };
+
+  // The first visit teaches; every visit after that goes straight into the
+  // count-in, still inside the click that opened the screen so autoplay
+  // policies see a fresh gesture. Declared after the transport effect above,
+  // so the transport exists by the time this runs.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current || hintOpen || !transportRef.current) return;
+    autoStarted.current = true;
+    void start();
+    // Mount-only by design: `start` is recreated every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const restart = (): void => {
     seekTo(loopRange?.start ?? 0);
@@ -531,7 +553,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
                     </li>
                   ))}
                 </ul>
-                <button className="btn btn-primary" onClick={dismissHint}>
+                <button className="btn btn-primary" onClick={() => void start()}>
                   {t.gotIt}
                 </button>
               </div>

@@ -1323,6 +1323,9 @@ input[type='range'] {
   gap: 5px;
   flex: 1;
   align-items: stretch;
+  /* When a bar holds more long names than one row can carry, a second row
+     inside the card beats names spilling past its edge. */
+  flex-wrap: wrap;
 }
 
 .bar-slot {
@@ -1333,8 +1336,11 @@ input[type='range'] {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px 2px;
-  min-width: 0;
+  padding: 4px 6px;
+  /* Never narrower than the chord name it holds: the beat-proportional
+     flex-grow shares out only the space left over. A half-beat Fmaj7 was
+     being squeezed to a sliver and overflowing the card. */
+  min-width: fit-content;
 }
 
 .bar-slot-name {
@@ -3428,4 +3434,29 @@ input[type='range'] {
     font-size: 10px;
     color: var(--text-faint);
   }
+}
+
+/* ---- dropping a file onto the home screen ---- */
+
+.drop-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+  pointer-events: none; /* the drop lands on the window handler, not the veil */
+}
+
+.drop-veil-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 26px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 2px dashed var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
 }

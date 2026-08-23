@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SongSummary } from '../store/library';
 import { easiestShape } from '../music/shapes';
 import type { ChordQuality } from '../core/chordTypes';
@@ -55,6 +55,49 @@ export function Home({
 }: HomeProps) {
   const t = useT();
   const fileInput = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  // dragenter/dragleave fire for every child crossed; a depth counter is the
+  // reliable way to know when the pointer has actually left the window.
+  const dragDepth = useRef(0);
+
+  useEffect(() => {
+    const hasFile = (event: DragEvent) =>
+      Array.from(event.dataTransfer?.types ?? []).includes('Files');
+    const enter = (event: DragEvent) => {
+      if (!hasFile(event)) return;
+      event.preventDefault();
+      dragDepth.current += 1;
+      setDragging(true);
+    };
+    const over = (event: DragEvent) => {
+      if (!hasFile(event)) return;
+      // Without this the browser navigates away to the dropped file.
+      event.preventDefault();
+    };
+    const leave = (event: DragEvent) => {
+      if (!hasFile(event)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragging(false);
+    };
+    const drop = (event: DragEvent) => {
+      if (!hasFile(event)) return;
+      event.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      const file = event.dataTransfer?.files?.[0];
+      if (file) onFile(file);
+    };
+    window.addEventListener('dragenter', enter);
+    window.addEventListener('dragover', over);
+    window.addEventListener('dragleave', leave);
+    window.addEventListener('drop', drop);
+    return () => {
+      window.removeEventListener('dragenter', enter);
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('dragleave', leave);
+      window.removeEventListener('drop', drop);
+    };
+  }, [onFile]);
 
   return (
     <div className="shell home">
@@ -107,6 +150,15 @@ export function Home({
           event.target.value = '';
         }}
       />
+
+      {dragging ? (
+        <div className="drop-veil" aria-hidden="true">
+          <div className="drop-veil-card">
+            <FileIcon size={28} />
+            <span>{t.dropToOpen}</span>
+          </div>
+        </div>
+      ) : null}
 
       {songs.length > 0 ? (
         <section className="home-section">

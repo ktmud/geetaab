@@ -11,7 +11,7 @@
  * pointing at an executable.
  */
 import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
@@ -217,6 +217,35 @@ try {
   );
   await page.emulateMedia({ media: 'screen' });
 
+  console.log('\n1c. dropping an audio file onto the home screen');
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  const droppedWav = await readFile(await writeFixture(dir));
+  const dragState = await page.evaluate(async (bytes) => {
+    const file = new File([new Uint8Array(bytes)], 'dropped-song.wav', { type: 'audio/wav' });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    const veil = document.querySelector('.drop-veil');
+    const shown = Boolean(veil) && veil.textContent.includes('Drop the audio file');
+    window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
+    return { shown };
+  }, [...droppedWav]);
+  checkThat('a file dragged over the page raises the drop veil', dragState.shown);
+  await page.getByText('Chords you need').waitFor({ timeout: 90000 });
+  const droppedTitle = await page.evaluate(
+    () => document.querySelector('.tab-title-input')?.value ?? '',
+  );
+  checkThat(
+    'and dropping it runs the whole pipeline to a tab',
+    String(droppedTitle).includes('dropped-song'),
+    JSON.stringify(droppedTitle),
+  );
+  // Section 2 continues from the demo tab, so put that exact state back.
+  await page.getByRole('button', { name: 'Home' }).click();
+  await page.getByRole('button', { name: 'try the demo' }).click();
+  await page.getByText('Chords you need').waitFor({ timeout: 90000 });
+
   console.log('\n2. practice transport');
   await page.getByRole('button', { name: /Practise this/ }).click();
   await page.waitForTimeout(400);
@@ -225,11 +254,11 @@ try {
   await page.getByRole('button', { name: 'Got it' }).click();
   const hintGone = await page.evaluate(() => document.querySelector('.practice-hint') === null);
   checkThat('and the hint dismisses', hintGone);
-  const laneBefore = await page.evaluate(() => document.querySelector('.lane-inner')?.style.transform);
-  await page.getByRole('button', { name: 'Play' }).click();
-  await page.waitForTimeout(900);
+  // OK does not leave the player to find the play button: it rolls straight
+  // into the count-in.
+  await page.waitForTimeout(600);
   const counting = await page.evaluate(() => document.querySelector('.countin')?.textContent ?? null);
-  checkThat('counts the player in', counting !== null, `showed ${counting}`);
+  checkThat('and rolls straight into the count-in', counting !== null, `showed ${counting}`);
   await page.getByRole('button', { name: 'Pause' }).click();
   await page.waitForTimeout(2500);
   const clock = () => page.evaluate(() => document.querySelector('.seek-time')?.textContent.trim());
@@ -239,6 +268,7 @@ try {
     clockAfterCancel.startsWith('0:00'),
     clockAfterCancel,
   );
+  const laneBefore = await page.evaluate(() => document.querySelector('.lane-inner')?.style.transform);
 
   console.log('\n2b. seeking');
   await page.getByRole('button', { name: 'Forward ten seconds' }).click();
