@@ -98,7 +98,7 @@ try {
 
   console.log('\n1. demo track through the worker');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
-  await page.getByText('Try the demo track').click();
+  await page.getByRole('button', { name: 'try the demo' }).click();
   await page.getByText('Chords you need').waitFor({ timeout: 90000 });
   const demo = await page.evaluate(() => ({
     chips: [...document.querySelectorAll('.tab-header .chip')].map((c) => c.textContent.trim()),
@@ -139,7 +139,7 @@ try {
   console.log('\n3. microphone capture');
   await page.setViewportSize({ width: 430, height: 932 });
   await page.getByRole('button', { name: 'Home' }).click();
-  await page.getByText('Listen with the mic').click();
+  await page.getByRole('button', { name: 'Listen with the mic' }).click();
   await page.waitForTimeout(4000);
   const live = await page.evaluate(() => ({
     chord: document.querySelector('.listen-chord')?.textContent.trim(),

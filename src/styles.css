@@ -1124,3 +1124,463 @@ input[type='range'] {
     height: 46px;
   }
 }
+
+/* ---------- home: hero visual ---------- */
+
+.hv {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-soft);
+  background:
+    radial-gradient(120% 140% at 12% 0%, rgba(255, 180, 77, 0.1), transparent 62%),
+    linear-gradient(170deg, var(--surface-2), var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.hv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 18px;
+}
+
+.hv-lit {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 100% 0 0);
+  animation: hv-reveal 7s cubic-bezier(0.4, 0, 0.5, 1) infinite;
+}
+
+@keyframes hv-reveal {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  46% {
+    clip-path: inset(0 0 0 0);
+  }
+  86% {
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+.hv-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hv-tag {
+  flex: none;
+  width: 44px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.hv-lit .hv-tag {
+  color: var(--accent);
+}
+
+.hv-wave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 60px;
+  min-width: 0;
+}
+
+.hv-wave i {
+  flex: 1;
+  border-radius: 2px;
+  background: var(--surface-3);
+  min-width: 0;
+}
+
+.hv-lit .hv-wave i {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+}
+
+.hv-chords {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hv-chord {
+  flex: 1;
+  height: 52px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-2);
+  color: var(--text-faint);
+  min-width: 0;
+}
+
+.hv-lit .hv-chord {
+  border-color: rgba(255, 180, 77, 0.55);
+  background: linear-gradient(180deg, rgba(255, 180, 77, 0.24), rgba(255, 148, 38, 0.09));
+  color: #ffe0b0;
+}
+
+.hv-scan {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, var(--accent) 14%, var(--accent) 86%, transparent);
+  box-shadow: 0 0 18px 3px rgba(255, 180, 77, 0.5);
+  opacity: 0;
+  animation: hv-scan 7s cubic-bezier(0.4, 0, 0.5, 1) infinite;
+}
+
+@keyframes hv-scan {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  46% {
+    left: calc(100% - 2px);
+    opacity: 1;
+  }
+  54% {
+    left: calc(100% - 2px);
+    opacity: 0;
+  }
+  100% {
+    left: 0;
+    opacity: 0;
+  }
+}
+
+/* Without motion the picture still has to make its point, so it rests on the
+   finished state rather than on the blank one. */
+@media (prefers-reduced-motion: reduce) {
+  .hv-lit {
+    animation: none;
+    clip-path: inset(0 0 0 0);
+  }
+
+  .hv-scan {
+    display: none;
+  }
+}
+
+/* ---------- home: layout ---------- */
+
+.home {
+  padding-bottom: 60px;
+}
+
+.home-hero {
+  padding: 26px 0 8px;
+}
+
+.hero-split {
+  display: grid;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+/* The headline runs the full width above the split, which is what keeps each
+   sentence on one line instead of stacking four short ones in a narrow column. */
+@media (min-width: 900px) {
+  .home-hero {
+    padding: 44px 0 20px;
+  }
+
+  .hero-split {
+    grid-template-columns: 1fr 1.05fr;
+    gap: 40px;
+    align-items: center;
+    margin-top: 26px;
+  }
+}
+
+.hero-actions {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.btn-hero {
+  width: 100%;
+  max-width: 340px;
+  justify-content: center;
+  padding: 17px 26px;
+  font-size: 16.5px;
+  border-radius: 999px;
+  box-shadow: 0 10px 30px -12px rgba(255, 148, 38, 0.75);
+}
+
+.hero-alt {
+  font-size: 13.5px;
+  color: var(--text-faint);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.link-button:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.home-section {
+  margin-top: 52px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-head p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-faint);
+}
+
+/* ---------- home: what you get ---------- */
+
+.feature-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+
+.feature-stage {
+  border-radius: var(--radius);
+  background: linear-gradient(170deg, var(--surface-2), rgba(30, 33, 48, 0.35));
+  border: 1px solid var(--line-soft);
+  padding: 14px 12px;
+  /* Fixed so the three cards' headings line up across the row. */
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.feature h3 {
+  margin: 0 0 5px;
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+}
+
+.feature p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.feature-shapes {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.feature-shape {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.feature-shape span {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.feature-loop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.feature-loop b {
+  padding: 7px 11px;
+  border-radius: 9px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.feature-loop i {
+  color: var(--text-faint);
+  font-style: normal;
+}
+
+.mini-lane {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  overflow: hidden;
+}
+
+.mini-lane-block {
+  position: absolute;
+  top: 16%;
+  height: 50%;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.mini-lane-block.on {
+  border-color: rgba(255, 180, 77, 0.6);
+  background: linear-gradient(180deg, rgba(255, 180, 77, 0.26), rgba(255, 148, 38, 0.1));
+  color: #ffe0b0;
+}
+
+.mini-lane-head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 27%;
+  width: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 12px 2px rgba(255, 180, 77, 0.5);
+}
+
+.mini-lane-beat {
+  position: absolute;
+  bottom: 14%;
+  width: 1px;
+  height: 12%;
+  background: var(--line);
+}
+
+/* ---------- home: steps ---------- */
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+  counter-reset: step;
+}
+
+/* Two by two, so the fourth step never sits alone on a row of its own. */
+@media (min-width: 720px) {
+  .steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.steps li {
+  position: relative;
+  padding: 16px 16px 16px 52px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 16px;
+  top: 15px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.steps strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+/* ---------- home: saved songs ---------- */
+
+.song-source {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  color: var(--text-faint);
+}
+
+.home-footer {
+  margin-top: 52px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
