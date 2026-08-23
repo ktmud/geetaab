@@ -17,7 +17,7 @@ final class SpectrogramImage {
   private var pixels: [UInt8]
   private(set) var columns = 0
 
-  init(maxColumns: Int = 2048) {
+  init(maxColumns: Int = RecordingModel.maxColumns) {
     self.maxColumns = maxColumns
     self.pixels = [UInt8](repeating: 0, count: maxColumns * SPECTRO_BINS * 4)
   }

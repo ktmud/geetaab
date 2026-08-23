@@ -90,10 +90,35 @@ one language and forgotten in the other.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 75 unit tests, no browser needed
+npm test           # 108 unit tests, no browser needed
 npm run build      # static bundle in dist/
 npm run smoke      # drives the built app in a real browser
 ```
+
+## On an iPhone
+
+`ios/` holds a native build: the same analysis and the same arrangement, in
+Swift, with the microphone configured the way a browser cannot configure it.
+
+Not for recording other apps. iOS has no supported way to capture what Spotify
+or Apple Music is playing — the only route to system audio is a ReplayKit
+broadcast extension, and DRM content is muted before it reaches one. What
+native buys is the other two things. Safari runs the microphone through a
+speech chain and ignores the constraints asking it not to: echo cancellation
+subtracts the phone's own speaker out of the signal, gain control pumps the
+noise floor up between strums, noise suppression carves holes in sustained
+chords. `AVAudioSession` in `.measurement` mode turns all of it off. And
+`AVAssetReader` opens an audio file directly, which reads better than any
+microphone take on any device — the bass chromagram works between 65 Hz and
+196 Hz, which is where every chord's root lives and is roughly what a phone
+speaker cannot produce.
+
+Two implementations of one algorithm is a liability unless something holds them
+together, so `scripts/golden.mjs` dumps what this pipeline produces at every
+stage and the Swift tests reproduce it from the same synthesized recording.
+They agree to 1.0e-7 — the last bit of single precision — and everything
+discrete matches exactly. `ios/README.md` has the details; `docs/editing-and-lyrics.md`
+sets out the editable-tab and lyric-binding design that ships there first.
 
 ## Checking the transcription against real songs
 
@@ -236,6 +261,8 @@ src/audio/    microphone, file decode, WAV encoding, transport, metronome, synth
 src/worker/   the analysis worker and its client
 src/ui/       screens and components
 src/store/    IndexedDB song library
+ios/          the iPhone app: a Swift port of the engine, and a SwiftUI shell
+docs/         design notes for work that spans both builds
 ```
 
 The chord shape database is verified by tests rather than by eye: every shape must

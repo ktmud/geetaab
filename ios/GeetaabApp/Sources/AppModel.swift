@@ -109,13 +109,13 @@ final class AppModel {
   func open(_ summary: SongSummary) {
     do {
       let stored = try store.load(summary.id)
-      var loaded = LoadedSong(stored: stored)
       // A song saved before an accuracy fix is re-analysed from its own audio
       // rather than shown with a tab the app no longer stands behind.
       if stored.isStale, stored.hasAudio {
         Task { await reanalyse(stored) }
         return
       }
+      var loaded = LoadedSong(stored: stored)
       rebuild(&loaded)
       current = loaded
       screen = .tab
@@ -209,12 +209,11 @@ final class AppModel {
     var easyAnalysis = corrected
     easyAnalysis.segments = reduceSegments(corrected.segments, beatsPerBar: corrected.beatsPerBar)
 
-    let options = { (analysis: AnalysisResult, simplify: Bool) -> BuildTabOptions in
-      BuildTabOptions(capo: loaded.stored.capo, simplify: simplify, strum: strum)
-    }
-    let easy = buildTab(easyAnalysis, options: options(easyAnalysis, simplify))
-    let standard = buildTab(corrected, options: options(corrected, simplify))
-    let faithful = buildTab(corrected, options: BuildTabOptions(capo: loaded.stored.capo, simplify: false, strum: strum))
+    let chosen = BuildTabOptions(capo: loaded.stored.capo, simplify: simplify, strum: strum)
+    let literal = BuildTabOptions(capo: loaded.stored.capo, simplify: false, strum: strum)
+    let easy = buildTab(easyAnalysis, options: chosen)
+    let standard = buildTab(corrected, options: chosen)
+    let faithful = buildTab(corrected, options: literal)
 
     loaded.tabs = [.easy: easy, .standard: standard, .faithful: faithful]
     loaded.levels = levelsWorthOffering(easy: easy, standard: standard, faithful: faithful)

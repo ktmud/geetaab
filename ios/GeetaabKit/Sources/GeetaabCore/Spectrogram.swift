@@ -66,6 +66,15 @@ public final class SpectrogramBinner {
     self.weights = flat
   }
 
+  /// Start a new take without building a new binner.
+  ///
+  /// The reference is what makes a whole take comparable to itself, so it has
+  /// to go when the take does — but the object must not, because the audio
+  /// thread holds a reference to it and replacing that is a data race.
+  public func reset() {
+    reference = 6
+  }
+
   /// Display values 0..1 for one capture chunk.
   public func column(_ chunk: [Float]) -> [Float] {
     let n = min(chunk.count, frame.count)

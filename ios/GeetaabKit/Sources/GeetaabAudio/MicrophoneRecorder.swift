@@ -248,8 +248,14 @@ public final class MicrophoneRecorder: @unchecked Sendable {
       ringFilled.pointee = 0
       gaps = []
       recording = !options.waitForMusic
-      gate = options.waitForMusic ? MusicGate() : nil
-      binner = options.emitSpectrum ? SpectrogramBinner(sampleRate: sampleRate) : nil
+    }
+    // The gate and the binner are read from the audio thread and the analysis
+    // queue, so they are emptied in place rather than replaced: swapping the
+    // object out from under a reader is a race, and a race in a capture path
+    // is the kind of bug that only shows up on someone else's phone.
+    analysisQueue.async { [weak self] in
+      self?.gate?.reset()
+      self?.binner?.reset()
     }
   }
 

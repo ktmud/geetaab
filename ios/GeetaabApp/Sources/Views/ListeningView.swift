@@ -26,8 +26,10 @@ struct ListeningView: View {
     }
     .task {
       await recorder.start { take in
-        stopping = true
-        Task {
+        // The recorder calls this from its own queue, so everything the view
+        // owns is touched from the main actor and nowhere else.
+        Task { @MainActor in
+          stopping = true
           await model.analyse(
             samples: take.samples, sampleRate: take.sampleRate,
             title: defaultTitle(), source: .microphone, gaps: take.gaps)

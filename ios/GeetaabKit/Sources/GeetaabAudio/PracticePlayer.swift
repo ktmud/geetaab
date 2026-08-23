@@ -69,8 +69,18 @@ public final class PracticePlayer: @unchecked Sendable {
     samples.withUnsafeBufferPointer { src in
       buffer.floatChannelData![0].update(from: src.baseAddress!, count: samples.count)
     }
+    let sameGraph = running && engine.isRunning && self.buffer?.format == format
     self.buffer = buffer
     self.duration = Double(samples.count) / sampleRate
+    self.startOffset = 0
+    // The chord library loads a fresh strum on every tap. Tearing the engine
+    // down and building it again for each one is both wasteful and audible, so
+    // a load that keeps the same format keeps the same graph.
+    if sameGraph {
+      player.stop()
+      click.stop()
+      return
+    }
     self.clickBuffer = Self.makeClick(format: format, frequency: 1600, seconds: 0.035, amplitude: 0.35)
     self.clickAccent = Self.makeClick(format: format, frequency: 2200, seconds: 0.045, amplitude: 0.5)
     try build(format: format)

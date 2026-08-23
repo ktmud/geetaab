@@ -10,7 +10,7 @@ import SwiftUI
 struct ChordEditorView: View {
   @Environment(AppModel.self) private var model
   @Environment(\.strings) private var t
-  @State private var editing: TabEvent?
+  @State private var editing: EditTarget?
 
   private var song: LoadedSong? { model.current }
   private var tab: SongTab? { song?.tab }
@@ -20,7 +20,7 @@ struct ChordEditorView: View {
       List {
         Section {
           ForEach(Array((tab?.events ?? []).enumerated()), id: \.offset) { _, event in
-            Button { editing = event } label: {
+            Button { editing = EditTarget(event: event) } label: {
               HStack {
                 Text(clock(event.startTime))
                   .font(.system(.caption, design: .monospaced))
@@ -74,13 +74,13 @@ struct ChordEditorView: View {
           Button(t.done) { model.screen = .tab }
         }
       }
-      .sheet(item: $editing) { event in
-        ChordPicker(event: event) { chord in
+      .sheet(item: $editing) { target in
+        ChordPicker(event: target.event) { chord in
           model.applyEdits { edits in
             edits.chords.append(
               ChordEdit(
-                id: UUID().uuidString, start: event.startTime, end: event.endTime, chord: chord,
-                replaced: event.chord?.sounding))
+                id: UUID().uuidString, start: target.event.startTime, end: target.event.endTime,
+                chord: chord, replaced: target.event.chord?.sounding))
           }
           editing = nil
         }
@@ -99,8 +99,13 @@ struct ChordEditorView: View {
   }
 }
 
-extension TabEvent: Identifiable {
-  public var id: String { "\(startBeat)-\(endBeat)-\(startTime)" }
+/// The event being edited, with an identity of its own.
+///
+/// `TabEvent` comes from the engine and is not the app's to conform to
+/// protocols on its behalf; a wrapper keeps the identity where it is used.
+private struct EditTarget: Identifiable {
+  let event: TabEvent
+  var id: String { "\(event.startBeat)-\(event.endBeat)-\(event.startTime)" }
 }
 
 private struct ChordPicker: View {

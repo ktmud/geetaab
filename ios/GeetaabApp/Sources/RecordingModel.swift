@@ -50,6 +50,8 @@ final class RecordingModel {
 
   let minimumSeconds: Double = 6
   let maximumSeconds: Double = 180
+  /// Matches ``SpectrogramImage``'s own cap, so the two cannot disagree.
+  static let maxColumns = 4096
 
   var ready: Bool { seconds >= minimumSeconds }
   var waiting: Bool { status == .waiting }
@@ -142,10 +144,12 @@ final class RecordingModel {
       updateNotice()
 
     case .spectrum(let column):
-      // Bounded so a three-minute take does not grow an unbounded array behind
-      // a view that can only draw a screen's worth anyway.
-      columns.append(column)
-      if columns.count > 2048 { columns.removeFirst(columns.count - 2048) }
+      // Bounded, but from the end rather than the front: the backdrop tracks
+      // how many columns it has already drawn, and dropping the oldest would
+      // put that count past the end of the array and freeze the picture for
+      // the rest of the take. The longest take this app allows produces well
+      // under the cap; past it the backdrop simply stops growing.
+      if columns.count < Self.maxColumns { columns.append(column) }
 
     case .began:
       status = .recording
