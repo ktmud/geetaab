@@ -316,7 +316,7 @@ export function App() {
             style={{ background: 'none', border: 'none', padding: 0 }}
           >
             <GuitarMark size={screen.name === 'home' ? 46 : 30} className="brand-mark" />
-            geetaab
+            <span className="brand-text">geetaab</span>
           </button>
           <span className="spacer" />
           {screen.name !== 'practice' && screen.name !== 'chords' ? (
@@ -330,9 +330,24 @@ export function App() {
             </button>
           ) : null}
           {screen.name !== 'practice' ? (
-            <button className="btn btn-ghost" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}>
-              {lang === 'en' ? '中文' : 'EN'}
-            </button>
+            <div className="lang-switch" role="group" aria-label={t.language}>
+              <button
+                type="button"
+                className={lang === 'en' ? 'on' : ''}
+                aria-pressed={lang === 'en'}
+                onClick={() => setLang('en')}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                className={lang === 'zh' ? 'on' : ''}
+                aria-pressed={lang === 'zh'}
+                onClick={() => setLang('zh')}
+              >
+                CN
+              </button>
+            </div>
           ) : null}
           {screen.name !== 'practice' ? (
             <button

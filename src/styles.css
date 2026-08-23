@@ -692,6 +692,19 @@ p {
   }
 }
 
+/* The narrowest phones still in use cannot hold the wordmark beside a nav
+   button and both switches; the mark alone carries the brand there. */
+@media (max-width: 380px) {
+  .brand-text {
+    display: none;
+  }
+
+  .lang-switch button {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
 .btn-danger {
   color: var(--bad);
   border-color: transparent;
@@ -3494,4 +3507,44 @@ input[type='range'] {
   color: var(--accent);
   font-weight: 600;
   box-shadow: var(--shadow-card);
+}
+
+/* Two letters, both visible, the current one lit — a toggle showing only the
+   other language never says which one you are in. */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.lang-switch button {
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 7px 8px;
+  border-radius: calc(var(--radius) - 3px);
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.lang-switch button:hover {
+  color: var(--text);
+}
+
+.lang-switch button.on {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.lang-switch button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }

@@ -582,7 +582,7 @@ try {
   check('chords button starts in English', chordButtonEnStart, 'Chords');
   await page.evaluate(() => {
     const buttons = document.querySelectorAll('.topbar button');
-    Array.from(buttons).find(b => b.textContent.includes('中文'))?.click();
+    Array.from(buttons).find(b => b.textContent.trim() === 'CN')?.click();
   });
   await page.waitForTimeout(300);
   const chordButtonZh = await page.evaluate(() => {

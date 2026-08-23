@@ -7,7 +7,7 @@ export const dictionary = {
     // Topbar and navigation
     chords: 'Chords',
     home: 'Home',
-    language: 'EN',
+    language: 'Language',
     lightTheme: 'Light',
     darkTheme: 'Dark',
     switchToLight: 'Switch to the light theme',
@@ -429,7 +429,7 @@ export const dictionary = {
     // Topbar and navigation
     chords: '和弦',
     home: '主页',
-    language: '中文',
+    language: '语言',
     lightTheme: '浅色',
     darkTheme: '深色',
     switchToLight: '切换到浅色主题',
