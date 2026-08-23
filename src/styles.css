@@ -2824,6 +2824,25 @@ input[type='range'] {
   --hw-raw-tint: rgb(var(--cool-rgb) / 0.055);
   --hw-decided-tint: rgb(var(--accent-fill-rgb) / 0.05);
   --hw-decided-tint-strong: rgb(var(--accent-fill-rgb) / 0.075);
+  /* This page is read, not glanced at: the string field drops back so the
+     diagonals stop crossing the prose. */
+  --backdrop-gain: 0.45;
+}
+
+/* The figures were a tint over nothing, so the backdrop's diagonals ran
+   straight through every drawing. Tint over an opaque surface instead. */
+.how-it-works .hw-fig,
+.how-it-works .hw-limits {
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--hw-raw-tint), var(--hw-raw-tint));
+}
+
+.how-it-works .hw-stage.decided .hw-fig {
+  background-image: linear-gradient(var(--hw-decided-tint), var(--hw-decided-tint));
+}
+
+.how-it-works .hw-limits {
+  background-image: linear-gradient(var(--hw-decided-tint-strong), var(--hw-decided-tint-strong));
 }
 
 .how-it-works .hw-lede {
