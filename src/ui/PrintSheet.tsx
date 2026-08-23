@@ -36,14 +36,14 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
           ? t.printCapo(tab.capo, translateKeyName(tab.shapeKeyName, lang))
           : t.printNoCapo}{' '}
         ·{' '}
-        {tab.strum.name}: {strumMarks.join(' ')}
+        {t.strumNames[tab.strum.id] ?? tab.strum.id}: {strumMarks.join(' ')}
       </p>
 
       <div className="print-palette">
         {tab.palette.map((chord, index) => (
           <div className="print-chord" key={index}>
             <b>{chord.shapeLabel}</b>
-            <ChordDiagram shape={chord.shape} width={64} title={t.printDiagramTitle(chord.shapeLabel)} />
+            <ChordDiagram shape={chord.shape} width={64} title={t.chordDiagramTitle(chord.shapeLabel)} />
             {chord.substitutedFrom ? (
               <span>{t.printSubFor(chord.label)}</span>
             ) : tab.capo > 0 ? (
@@ -76,7 +76,11 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
       <h2>{t.printTablature}</h2>
       {systems.map((system) => (
         <div className="print-sys" key={system.startBar}>
-          <i>{system.label}</i>
+          <i>
+            {system.bars > 1
+              ? t.systemBars(system.startBar + 1, system.startBar + system.bars)
+              : t.systemBar(system.startBar + 1)}
+          </i>
           <pre>{system.text}</pre>
         </div>
       ))}

@@ -1,3 +1,4 @@
+import { useT } from '../i18n';
 import type { ChordShape } from '../music/shapes';
 
 const STRINGS = 6;
@@ -17,6 +18,7 @@ export interface ChordDiagramProps {
  * convention is worse than no diagram, because the player will not notice.
  */
 export function ChordDiagram({ shape, width = 92, showFingers = true, title }: ChordDiagramProps) {
+  const t = useT();
   const fretted = shape.frets.filter((f) => f > 0);
   const maxFret = fretted.length ? Math.max(...fretted) : 0;
   const minFret = fretted.length ? Math.min(...fretted) : 0;
@@ -50,7 +52,7 @@ export function ChordDiagram({ shape, width = 92, showFingers = true, title }: C
       width={width}
       height={height}
       role="img"
-      aria-label={title ?? 'Chord diagram'}
+      aria-label={title ?? t.chordDiagram}
     >
       {title ? <title>{title}</title> : null}
 
@@ -176,10 +178,11 @@ export interface ChordCardProps {
 }
 
 export function ChordCard({ shape, name, sub, width = 92 }: ChordCardProps) {
+  const t = useT();
   return (
     <div className="diagram-card">
       <div className="diagram-name">{name}</div>
-      <ChordDiagram shape={shape} width={width} title={`${name} chord diagram`} />
+      <ChordDiagram shape={shape} width={width} title={t.chordDiagramTitle(name)} />
       {sub ? <div className="diagram-sub">{sub}</div> : null}
     </div>
   );

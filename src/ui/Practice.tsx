@@ -480,11 +480,11 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
               <ChordDiagram shape={active.chord.shape} width={150} />
               <div className="practice-now-sub">
                 {active.chord.substitutedFrom
-                  ? `stands in for ${active.chord.label}`
+                  ? t.subbedFor(active.chord.label)
                   : tab.capo > 0
-                    ? `sounds as ${active.chord.label}`
+                    ? t.soundsAs(active.chord.label)
                     : active.numeral
-                      ? `${active.numeral} of ${tab.key.name}`
+                      ? t.numeralOfKey(active.numeral, translateKeyName(tab.key.name, lang))
                       : ''}
               </div>
             </>
@@ -594,7 +594,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
             aria-valuemin={0}
             aria-valuemax={Math.round(duration)}
             aria-valuenow={Math.round(shown)}
-            aria-valuetext={`${formatTime(shown)} of ${formatTime(duration)}`}
+            aria-valuetext={t.seekPosition(formatTime(shown), formatTime(duration))}
             onPointerDown={onSeekPointerDown}
             onPointerMove={onSeekPointerMove}
             onPointerUp={endScrub}
@@ -662,7 +662,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
 
           <div className="speed-control" title={t.practiceSpeed}>
             <SpeedIcon size={15} />
-            <span className="ctl-label">Speed</span>
+            <span className="ctl-label">{t.speedLabel}</span>
             <input
               type="range"
               min={0.5}
@@ -680,7 +680,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
               className="transport-btn sm"
               onClick={() => setVolumeOpen((open) => !open)}
               aria-expanded={volumeOpen}
-              aria-label="Volume"
+              aria-label={t.volume}
               style={volumeOpen ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
             >
               <VolumeIcon size={17} />

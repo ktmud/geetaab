@@ -162,12 +162,19 @@ export function App() {
       }
       const wav = encodeWav(samples, sampleRate);
       void runAnalysis(samples, sampleRate, {
-        title: `Recording ${new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+        title: t.micRecordingTitle(
+          new Date().toLocaleString(lang === 'zh' ? 'zh-CN' : [], {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        ),
         source: 'microphone',
         audio: wav.size <= MAX_STORED_AUDIO_BYTES ? wav : undefined,
       });
     },
-    [runAnalysis],
+    [runAnalysis, t, lang],
   );
 
   const handleFile = useCallback(
@@ -202,11 +209,11 @@ export function App() {
       seed: 20240,
     });
     void runAnalysis(samples, sampleRate, {
-      title: 'Demo — four chords',
+      title: t.demoTitle,
       source: 'demo',
       audio: encodeWav(samples, sampleRate),
     });
-  }, [runAnalysis]);
+  }, [runAnalysis, t]);
 
   const handleOpenSong = useCallback((id: string) => {
     void loadSong(id).then(async (song) => {

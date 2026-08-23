@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { SongSummary } from '../store/library';
 import { easiestShape } from '../music/shapes';
 import type { ChordQuality } from '../core/chordTypes';
-import { useT } from '../i18n';
+import { useLanguage, useT } from '../i18n';
 import { ChordDiagram } from './ChordDiagram';
 import { HeroVisual } from './HeroVisual';
 import { FileIcon, MicIcon, SparkIcon, TrashIcon } from './icons';
@@ -22,12 +22,12 @@ function formatDuration(seconds: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-function formatWhen(timestamp: number): string {
+/** "today", "3 days ago", and a plain date once that stops being useful. */
+function formatWhen(timestamp: number, t: ReturnType<typeof useT>, lang: string): string {
   const days = Math.floor((Date.now() - timestamp) / 86400000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 30) return `${days} days ago`;
-  return new Date(timestamp).toLocaleDateString();
+  return (
+    t.daysAgo(days) || new Date(timestamp).toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined)
+  );
 }
 
 /** The shapes a song in Eb turns into once the capo goes on. */
@@ -54,6 +54,7 @@ export function Home({
   micSupported,
 }: HomeProps) {
   const t = useT();
+  const [lang] = useLanguage();
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   // dragenter/dragleave fire for every child crossed; a depth counter is the
@@ -183,7 +184,7 @@ export function Home({
                     <div className="song-row-meta">
                       {song.keyName} · {Math.round(song.tempo)} BPM ·{' '}
                       {song.capo > 0 ? t.capoText(song.capo) : t.noCapo} ·{' '}
-                      {formatDuration(song.duration)} · {formatWhen(song.createdAt)}
+                      {formatDuration(song.duration)} · {formatWhen(song.createdAt, t, lang)}
                     </div>
                   </button>
                   <button

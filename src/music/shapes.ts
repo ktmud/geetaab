@@ -10,6 +10,16 @@ export interface Barre {
   to: number;
 }
 
+/**
+ * The hint shown under a diagram, as data rather than a sentence.
+ *
+ * The interface reads in two languages, so the shape table names the fact and
+ * the dictionary writes it out.
+ */
+export type ShapeNote =
+  | { kind: 'fourStringF' }
+  | { kind: 'barre'; family: string; fret: number };
+
 export interface ChordShape {
   root: number;
   quality: ChordQuality;
@@ -20,8 +30,8 @@ export interface ChordShape {
   barre?: Barre;
   /** 1 = first week, 2 = a few weeks in, 3 = needs a full barre. */
   difficulty: 1 | 2 | 3;
-  /** Free-text hint shown under the diagram. */
-  note?: string;
+  /** Hint shown under the diagram, worded by the dictionary. */
+  note?: ShapeNote;
 }
 
 interface OpenShapeSpec {
@@ -31,7 +41,7 @@ interface OpenShapeSpec {
   fingers: number[];
   difficulty: 1 | 2 | 3;
   barre?: Barre;
-  note?: string;
+  note?: ShapeNote;
 }
 
 // Pitch classes: C0 D2 E4 F5 G7 A9 B11.
@@ -72,7 +82,7 @@ const OPEN_SHAPE_SPECS: OpenShapeSpec[] = [
     frets: [-1, -1, 3, 2, 1, 0],
     fingers: [0, 0, 3, 2, 1, 0],
     difficulty: 1,
-    note: 'The four-string F that gets you past the barre',
+    note: { kind: 'fourStringF' },
   },
   { root: 7, quality: 'maj', frets: [3, 2, 0, 0, 0, 3], fingers: [2, 1, 0, 0, 0, 3], difficulty: 1 },
   { root: 7, quality: 'dom7', frets: [3, 2, 0, 0, 0, 1], fingers: [3, 2, 0, 0, 0, 1], difficulty: 1 },
@@ -148,7 +158,7 @@ function movableShape(spec: MovableSpec, root: number, maxFret: number): ChordSh
     fingers: spec.fingers.slice(),
     barre: { fret, from, to: spec.barreTo },
     difficulty: 3,
-    note: `${spec.family}-shape barre at fret ${fret}`,
+    note: { kind: 'barre', family: spec.family, fret },
   };
 }
 

@@ -3,7 +3,7 @@ import { QUALITIES, SHARP_NAMES, chordName, type ChordQuality, type ChordSymbol 
 import { shapesFor, type ChordShape } from '../music/shapes';
 import { renderShapeStrum } from '../audio/synth';
 import { resumeAudio, sharedAudioContext } from '../audio/context';
-import { useT } from '../i18n';
+import { shapeNoteText, useT } from '../i18n';
 import { BackIcon, VolumeIcon } from './icons';
 import { ChordDiagram } from './ChordDiagram';
 
@@ -51,12 +51,8 @@ export function ChordLibrary({ onBack }: ChordLibraryProps) {
     sus2: t.sus2Quality,
   };
 
-  const levelText = (shape: ChordShape): string => {
-    if (shape.note) return shape.note;
-    if (shape.difficulty === 1) return t.openFirstWeek;
-    if (shape.difficulty === 2) return t.openPractice;
-    return t.fullBarre;
-  };
+  const levelText = (shape: ChordShape): string =>
+    t.levelText(shapeNoteText(shape.note, t), shape.difficulty);
 
   const everyChord = useMemo<Entry[]>(() => {
     const out: Entry[] = [];
@@ -146,7 +142,7 @@ export function ChordLibrary({ onBack }: ChordLibraryProps) {
                   <VolumeIcon size={13} />
                 </span>
                 <div className="diagram-name">{chordName(chord)}</div>
-                <ChordDiagram shape={shape} width={92} title={`${chordName(chord)} chord diagram`} />
+                <ChordDiagram shape={shape} width={92} title={t.chordDiagramTitle(chordName(chord))} />
                 <div className="diagram-sub">{tip}</div>
               </button>
             );
@@ -213,7 +209,7 @@ export function ChordLibrary({ onBack }: ChordLibraryProps) {
               <ChordDiagram
                 shape={entry.shape}
                 width={88}
-                title={`${chordName(entry.chord)} chord diagram`}
+                title={t.chordDiagramTitle(chordName(entry.chord))}
               />
               <div className="diagram-sub">{levelText(entry.shape)}</div>
             </button>

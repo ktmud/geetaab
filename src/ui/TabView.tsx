@@ -4,7 +4,7 @@ import { chooseCapo, patternsFor } from '../music/arrange';
 import { levelsWorthOffering, reduceSegments, type TabLevel } from '../music/levels';
 import { buildTab, type SongTab } from '../music/tab';
 import { songTabText, tabSystems } from '../music/tabText';
-import { useT, useLanguage, translateKeyName } from '../i18n';
+import { shapeNoteText, useT, useLanguage, translateKeyName } from '../i18n';
 import { ChordCard } from './ChordDiagram';
 import { PrintSheet } from './PrintSheet';
 import { BackIcon, CheckIcon, PlayIcon, PrintIcon } from './icons';
@@ -60,6 +60,8 @@ export function TabView({
     faithful: t.faithfulHint,
   };
 
+  const strumName = (id: string): string => t.strumNames[id] ?? id;
+
   const tabs = useMemo(() => {
     const patterns = patternsFor(analysis.beatsPerBar);
     const strum = options.strumId ? patterns.find((p) => p.id === options.strumId) : undefined;
@@ -95,14 +97,14 @@ export function TabView({
   }, [tab, tabScope]);
 
   const copyText = async (): Promise<void> => {
-    const text = songTabText(tab, title);
+    const text = songTabText(tab, title, { ...t.tabText, strumName: strumName(tab.strum.id) });
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       // Clipboard access can be refused; the textarea below is the fallback.
-      window.prompt('Copy the tab:', text);
+      window.prompt(t.copyTabPrompt, text);
     }
   };
 
@@ -154,9 +156,8 @@ export function TabView({
                 : t.noCapoText}
             </span>
             {Math.abs(analysis.tuning) > 0.12 ? (
-              <span className="chip" title="Measured tuning of the recording">
-                {analysis.tuning > 0 ? '+' : ''}
-                {Math.round(analysis.tuning * 100)}¢ off A440
+              <span className="chip" title={t.tuningTitle}>
+                {t.tuningChip(Math.round(analysis.tuning * 100))}
               </span>
             ) : null}
           </div>
@@ -205,7 +206,7 @@ export function TabView({
                   ? t.subbedFor(chord.label)
                   : tab.capo > 0
                     ? t.soundsAs(chord.label)
-                    : chord.shape.note
+                    : (shapeNoteText(chord.shape.note, t) ?? undefined)
               }
             />
           ))}
@@ -247,7 +248,7 @@ export function TabView({
             >
               {patterns.map((pattern) => (
                 <option key={pattern.id} value={pattern.id}>
-                  {pattern.name}
+                  {strumName(pattern.id)}
                 </option>
               ))}
             </select>
@@ -297,14 +298,19 @@ export function TabView({
         </div>
         <p className="faint" style={{ marginTop: 12, marginBottom: 0, fontSize: 13 }}>
           {tab.capo > 0
-            ? t.withCapo(tab.capo, translateKeyName(tab.shapeKeyName, lang), tab.capoOpenRatio)
+            ? t.withCapo(
+                tab.capo,
+                translateKeyName(tab.shapeKeyName, lang),
+                translateKeyName(tab.key.name, lang),
+                tab.capoOpenRatio,
+              )
             : t.openShapes(tab.capoOpenRatio)}
         </p>
       </div>
 
       <div className="card">
-        <h2>{tab.strum.name}</h2>
-        <p style={{ fontSize: 14 }}>{tab.strum.description}</p>
+        <h2>{strumName(tab.strum.id)}</h2>
+        <p style={{ fontSize: 14 }}>{t.strumDescriptions[tab.strum.id] ?? ''}</p>
         <StrumRow tab={tab} />
       </div>
 
@@ -318,7 +324,7 @@ export function TabView({
             >
               <div className="bar-head">
                 <span>{bar.index + 1}</span>
-                {bar.beats !== tab.beatsPerBar ? <span>{bar.beats} beats</span> : null}
+                {bar.beats !== tab.beatsPerBar ? <span>{t.barBeats(bar.beats)}</span> : null}
               </div>
               <div className="bar-slots">
                 {bar.slots.map((slot, index) => (
@@ -357,7 +363,11 @@ export function TabView({
           <div className="tablature">
             {systems.map((system) => (
               <div className="tab-sys" key={system.startBar}>
-                <div className="tab-sys-label">{system.label}</div>
+                <div className="tab-sys-label">
+                {system.bars > 1
+                  ? t.systemBars(system.startBar + 1, system.startBar + system.bars)
+                  : t.systemBar(system.startBar + 1)}
+              </div>
                 <pre className="tab-grid">{system.text}</pre>
               </div>
             ))}
