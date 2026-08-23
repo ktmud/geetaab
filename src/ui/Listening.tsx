@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { stateToChord } from '../core/analyze';
-import { chordName } from '../core/chordTypes';
+import { SHARP_NAMES, chordName } from '../core/chordTypes';
+import { pitchClassHue } from '../music/pitchColor';
 import { NC_STATE } from '../core/chords';
 import { Recorder, type LiveFrame } from '../audio/recorder';
 import { StopIcon } from './icons';
@@ -69,6 +70,7 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     finishRef.current = finish;
   }, [finish]);
 
+  const chroma = frame?.chroma ?? new Array(12).fill(0);
   const level = frame ? Math.min(1, Math.sqrt(frame.level * 6)) : 0;
   const clipping = (frame?.peak ?? 0) > 0.985;
   const quiet = frame !== null && frame.level < 0.004;
@@ -122,17 +124,32 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
         </div>
       </div>
 
-      <div className="chroma-bars" aria-hidden="true">
-        {(frame?.chroma ?? new Array(12).fill(0)).map((value, index) => {
-          const height = Math.max(3, Math.min(46, value * 110));
-          return (
+      <div>
+        <div className="chroma-bars" aria-hidden="true">
+          {chroma.map((value: number, index: number) => (
             <div
               key={index}
               className={`chroma-bar${value > 0.32 ? ' lit' : ''}`}
-              style={{ height }}
+              style={
+                {
+                  height: Math.max(3, Math.min(46, value * 110)),
+                  '--pc-hue': pitchClassHue(index),
+                } as CSSProperties
+              }
             />
-          );
-        })}
+          ))}
+        </div>
+        <div className="chroma-labels" aria-hidden="true">
+          {SHARP_NAMES.map((name, index) => (
+            <span
+              key={name}
+              className={chroma[index] > 0.32 ? 'on' : undefined}
+              style={{ '--pc-hue': pitchClassHue(index) } as CSSProperties}
+            >
+              {name}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="listen-timer">

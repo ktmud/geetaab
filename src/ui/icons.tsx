@@ -135,19 +135,22 @@ export function GuitarMark({ size = 26, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
-        <linearGradient id="geetaab-mark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffc069" />
-          <stop offset="100%" stopColor="#ff8a3d" />
+        <linearGradient id="geetaab-mark" x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0%" stopColor="#ffd487" />
+          <stop offset="46%" stopColor="#f5b03c" />
+          <stop offset="100%" stopColor="#dd7a26" />
         </linearGradient>
       </defs>
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#geetaab-mark)" />
-      <g stroke="#21160a" strokeWidth="1.4" strokeLinecap="round">
-        <path d="M7 6.5v11M12 6.5v11M17 6.5v11" />
+      <rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="url(#geetaab-mark)" />
+      {/* A nut across the top turns three lines into an unmistakable chord box. */}
+      <rect x="5.6" y="6.2" width="12.8" height="1.9" rx="0.95" fill="#2a1a08" />
+      <g stroke="#2a1a08" strokeWidth="1.15" strokeLinecap="round" opacity="0.92">
+        <path d="M8 8.4v9.8M12 8.4v9.8M16 8.4v9.8" />
       </g>
-      <g fill="#21160a">
-        <circle cx="7" cy="10" r="1.7" />
-        <circle cx="12" cy="14" r="1.7" />
-        <circle cx="17" cy="8.5" r="1.7" />
+      <g fill="#2a1a08">
+        <circle cx="8" cy="11.4" r="1.85" />
+        <circle cx="16" cy="11.4" r="1.85" />
+        <circle cx="12" cy="15.4" r="1.85" />
       </g>
     </svg>
   );

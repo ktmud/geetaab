@@ -18,6 +18,7 @@ import { Home } from './ui/Home';
 import { Listening } from './ui/Listening';
 import { Practice } from './ui/Practice';
 import { TabView, type TabOptions } from './ui/TabView';
+import { Backdrop } from './ui/Backdrop';
 import { GuitarMark } from './ui/icons';
 
 type Screen =
@@ -265,13 +266,14 @@ export function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
+      <Backdrop />
+      <header className={`topbar${screen.name === 'home' ? ' topbar-home' : ''}`}>
         <button
-          className="brand"
+          className={`brand${screen.name === 'home' ? ' brand-lg' : ''}`}
           onClick={() => setScreen({ name: 'home' })}
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
-          <GuitarMark size={26} className="brand-mark" />
+          <GuitarMark size={screen.name === 'home' ? 46 : 30} className="brand-mark" />
           geetaab
         </button>
         <span className="spacer" />

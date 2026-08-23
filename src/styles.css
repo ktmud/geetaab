@@ -1,34 +1,91 @@
+/* Self-hosted rather than linked from a font CDN: this app tells people no
+   audio leaves their device, and a third-party request on every page load would
+   make that claim less true than it sounds. */
+@font-face {
+  font-family: 'Fraunces';
+  src: url('./fonts/fraunces-var.woff2') format('woff2-variations');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('./fonts/archivo-var.woff2') format('woff2-variations');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('./fonts/plex-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --bg: #0d0e13;
-  --surface: #161822;
-  --surface-2: #1e2130;
-  --surface-3: #272b3d;
-  --line: #2e3346;
-  --line-soft: #232739;
+  /* Deep ink with a violet cast, and darker than a dark interface usually goes.
+     Warm brass on a cool ground has real contrast; the warm-on-warm version it
+     replaced had none, and read as sepia. */
+  --bg: #06070d;
+  --surface: #0d0f19;
+  --surface-2: #151827;
+  --surface-3: #1e2233;
+  --line: #2c3245;
+  --line-soft: #191d2b;
 
-  --text: #f3f4f9;
-  --text-dim: #a4abc2;
-  --text-faint: #6e768f;
+  --text: #eff1f7;
+  --text-dim: #a1a8bd;
+  --text-faint: #6a7189;
 
-  --accent: #ffb44d;
-  --accent-strong: #ff9426;
-  --accent-dim: rgba(255, 180, 77, 0.14);
-  --cool: #62c9ff;
-  --cool-dim: rgba(98, 201, 255, 0.14);
-  --good: #56d9a0;
-  --warn: #ffcf5c;
-  --bad: #ff7a7a;
+  /* Brass — the primary. High chroma so it lights up against the warm dark.
+     The channel tokens exist so every translucent tint derives from the palette
+     instead of being retyped, which is how the old blue survived a repaint. */
+  --accent: #f5b03c;
+  --accent-rgb: 245 176 60;
+  --accent-strong: #e07f2a;
+  --accent-strong-rgb: 224 127 42;
+  --accent-dim: rgb(var(--accent-rgb) / 0.15);
+  --accent-tint: #ffe3b4;
+  --on-accent: #2b1c08;
+
+  /* Verdigris — the complement, kept for "next" and informational states. */
+  --cool: #46c2a4;
+  --cool-rgb: 70 194 164;
+  --cool-dim: rgb(var(--cool-rgb) / 0.14);
+
+  --good: #6bd49b;
+  --warn: #f5c862;
+  --warn-rgb: 245 200 98;
+  --bad: #f0736b;
+  --bad-rgb: 240 115 107;
 
   --radius: 14px;
   --radius-sm: 9px;
   --radius-lg: 22px;
-  --shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
 
-  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  /* A warm serif carries the voice; a grotesque does the work; a mono holds the
+     tablature, where every column has to line up. */
+  --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   color-scheme: dark;
+}
+
+/* Fraunces has axes past weight; these settings are what stop it reading as a
+   generic serif. */
+.display,
+h1,
+h2,
+.brand {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: 'SOFT' 40, 'WONK' 1;
 }
 
 * {
@@ -43,7 +100,11 @@ body {
 }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(1100px 600px at 10% -10%, rgb(var(--accent-rgb) / 0.055), transparent 66%),
+    radial-gradient(820px 460px at 94% 2%, rgb(var(--cool-rgb) / 0.05), transparent 68%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
@@ -63,9 +124,64 @@ button {
 /* ---------- layout ---------- */
 
 .app {
+  position: relative;
+  z-index: 1;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* ---------- ambient backdrop ---------- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.backdrop-shape {
+  position: absolute;
+  display: block;
+}
+
+.backdrop-shape svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.backdrop-a {
+  width: 66vmax;
+  height: 66vmax;
+  top: -21vmax;
+  right: -16vmax;
+  color: var(--accent);
+  opacity: 0.075;
+  animation: backdrop-spin 260s linear infinite;
+}
+
+.backdrop-b {
+  width: 50vmax;
+  height: 50vmax;
+  bottom: -17vmax;
+  left: -13vmax;
+  color: var(--cool);
+  opacity: 0.07;
+  animation: backdrop-spin 380s linear infinite reverse;
+}
+
+@keyframes backdrop-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-shape {
+    animation: none;
+  }
 }
 
 .shell {
@@ -91,16 +207,30 @@ button {
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  font-size: 17px;
+  gap: 11px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  font-size: 21px;
+}
+
+.brand-lg {
+  gap: 14px;
+  font-size: 32px;
 }
 
 .brand-mark {
-  width: 26px;
-  height: 26px;
   flex: none;
+  filter: drop-shadow(0 4px 12px rgba(245, 176, 60, 0.22));
+}
+
+/* The landing page carries the full lockup, and gives up the sticky header for
+   it: nothing on that page needs a toolbar following it down the scroll. */
+.topbar-home {
+  position: static;
+  padding: 22px 18px 10px;
+  background: none;
+  backdrop-filter: none;
+  border-bottom: none;
 }
 
 .spacer {
@@ -110,11 +240,11 @@ button {
 /* ---------- type ---------- */
 
 h1 {
-  font-size: clamp(25px, 6vw, 42px);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  font-size: clamp(27px, 6.2vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
   margin: 0 0 12px;
-  font-weight: 700;
+  font-weight: 600;
   text-wrap: balance;
 }
 
@@ -125,10 +255,10 @@ h1 > span {
 }
 
 h2 {
-  font-size: 19px;
-  letter-spacing: -0.015em;
+  font-size: 22px;
+  letter-spacing: -0.01em;
   margin: 0 0 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 h3 {
@@ -150,12 +280,13 @@ p {
 }
 
 .eyebrow {
+  font-family: var(--mono);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   font-size: 11px;
-  font-weight: 700;
-  color: var(--text-faint);
-  margin-bottom: 10px;
+  font-weight: 400;
+  color: var(--accent);
+  margin-bottom: 12px;
 }
 
 .muted {
@@ -189,7 +320,7 @@ p {
 
 .btn:hover:not(:disabled) {
   background: var(--surface-3);
-  border-color: #3b4159;
+  border-color: #55443a;
 }
 
 .btn:active:not(:disabled) {
@@ -197,18 +328,28 @@ p {
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Fading the gradient leaves a muddy brown slab; dropping to a flat surface
+   reads as "not yet" instead of as a broken button. */
+.btn-primary:disabled {
+  background: var(--surface-2);
+  border-color: var(--line-soft);
+  color: var(--text-faint);
+  box-shadow: none;
+  opacity: 1;
 }
 
 .btn-primary {
   background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
   border-color: transparent;
-  color: #21160a;
+  color: var(--on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #ffc069 0%, #ff9f3d 100%);
+  background: linear-gradient(180deg, #ffc766 0%, #ef9034 100%);
   border-color: transparent;
 }
 
@@ -236,7 +377,7 @@ p {
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: rgba(255, 122, 122, 0.12);
+  background: rgb(var(--bad-rgb) / 0.12);
 }
 
 .btn-row {
@@ -252,6 +393,7 @@ p {
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
   padding: 18px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
 }
 
 .card + .card {
@@ -372,15 +514,15 @@ input[type='range'] {
 }
 
 .notice-warn {
-  background: rgba(255, 207, 92, 0.1);
-  border-color: rgba(255, 207, 92, 0.25);
-  color: #ffe1a3;
+  background: rgb(var(--warn-rgb) / 0.1);
+  border-color: rgb(var(--warn-rgb) / 0.25);
+  color: #ffeac2;
 }
 
 .notice-bad {
-  background: rgba(255, 122, 122, 0.1);
-  border-color: rgba(255, 122, 122, 0.28);
-  color: #ffc4c4;
+  background: rgb(var(--bad-rgb) / 0.1);
+  border-color: rgb(var(--bad-rgb) / 0.28);
+  color: #ffd0cc;
 }
 
 .notice-info {
@@ -435,7 +577,7 @@ input[type='range'] {
 }
 
 .action-card:hover:not(:disabled) {
-  border-color: #3b4159;
+  border-color: #55443a;
   background: var(--surface-2);
 }
 
@@ -460,8 +602,8 @@ input[type='range'] {
 }
 
 .action-primary {
-  border-color: rgba(255, 180, 77, 0.35);
-  background: linear-gradient(160deg, rgba(255, 180, 77, 0.13), rgba(255, 148, 38, 0.04));
+  border-color: rgb(var(--accent-rgb) / 0.35);
+  background: linear-gradient(160deg, rgb(var(--accent-rgb) / 0.13), rgb(var(--accent-strong-rgb) / 0.04));
 }
 
 .song-list {
@@ -532,8 +674,11 @@ input[type='range'] {
 }
 
 .listen-chord {
-  font-size: clamp(38px, 12vw, 60px);
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: 'SOFT' 40, 'WONK' 1;
+  font-size: clamp(38px, 12vw, 62px);
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1;
   z-index: 1;
@@ -568,11 +713,32 @@ input[type='range'] {
   background: var(--surface-3);
   border-radius: 3px 3px 0 0;
   min-height: 3px;
-  transition: height 0.12s linear, background 0.2s ease;
+  transition: height 0.12s linear, background 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Hue follows the circle of fifths, so musically neighbouring notes sit next to
+   each other on the colour wheel too. Only the notes actually sounding take
+   their colour; the rest stay neutral so the meter reads as a chord and not as
+   a rainbow. */
 .chroma-bar.lit {
-  background: var(--accent);
+  background: hsl(var(--pc-hue) 72% 58%);
+  box-shadow: 0 0 9px -3px hsl(var(--pc-hue) 72% 52% / 0.7);
+}
+
+.chroma-labels {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 3px;
+  width: min(340px, 88vw);
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.chroma-labels span.on {
+  color: hsl(var(--pc-hue) 72% 64%);
 }
 
 .tip-list {
@@ -722,7 +888,7 @@ input[type='range'] {
 }
 
 .bar.section-start {
-  border-color: rgba(255, 180, 77, 0.4);
+  border-color: rgb(var(--accent-rgb) / 0.4);
 }
 
 /* ---------- tablature ---------- */
@@ -776,7 +942,7 @@ input[type='range'] {
   font-size: 9px;
   font-weight: 600;
   color: var(--text-faint);
-  font-family: var(--mono);
+  font-family: var(--font);
 }
 
 .strum-step.gap {
@@ -862,7 +1028,7 @@ input[type='range'] {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: radial-gradient(120% 100% at 50% 0%, #15182a 0%, var(--bg) 60%);
+  background: radial-gradient(130% 100% at 50% 0%, #131728 0%, var(--bg) 64%);
   display: flex;
   flex-direction: column;
   padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
@@ -902,8 +1068,11 @@ input[type='range'] {
 }
 
 .practice-now-name {
-  font-size: clamp(28px, 6vh, 52px);
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: 'SOFT' 40, 'WONK' 1;
+  font-size: clamp(28px, 6vh, 54px);
+  font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1;
 }
@@ -965,13 +1134,13 @@ input[type='range'] {
 }
 
 .lane-block.active {
-  background: linear-gradient(180deg, rgba(255, 180, 77, 0.28), rgba(255, 148, 38, 0.12));
-  border-color: rgba(255, 180, 77, 0.6);
-  color: #ffe6bf;
+  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.28), rgb(var(--accent-strong-rgb) / 0.12));
+  border-color: rgb(var(--accent-rgb) / 0.6);
+  color: var(--accent-tint);
 }
 
 .lane-block.upcoming {
-  border-color: rgba(98, 201, 255, 0.35);
+  border-color: rgb(var(--cool-rgb) / 0.35);
 }
 
 .lane-block.nc {
@@ -999,7 +1168,7 @@ input[type='range'] {
   bottom: 0;
   width: 2px;
   background: var(--accent);
-  box-shadow: 0 0 16px 2px rgba(255, 180, 77, 0.55);
+  box-shadow: 0 0 16px 2px rgb(var(--accent-rgb) / 0.55);
   z-index: 3;
 }
 
@@ -1058,7 +1227,7 @@ input[type='range'] {
 .transport-btn.primary {
   background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
   border-color: transparent;
-  color: #21160a;
+  color: var(--on-accent);
   width: 54px;
   height: 54px;
 }
@@ -1133,7 +1302,7 @@ input[type='range'] {
   border-radius: var(--radius-lg);
   border: 1px solid var(--line-soft);
   background:
-    radial-gradient(120% 140% at 12% 0%, rgba(255, 180, 77, 0.1), transparent 62%),
+    radial-gradient(120% 140% at 12% 0%, rgb(var(--accent-rgb) / 0.1), transparent 62%),
     linear-gradient(170deg, var(--surface-2), var(--surface));
   box-shadow: var(--shadow);
 }
@@ -1231,9 +1400,9 @@ input[type='range'] {
 }
 
 .hv-lit .hv-chord {
-  border-color: rgba(255, 180, 77, 0.55);
-  background: linear-gradient(180deg, rgba(255, 180, 77, 0.24), rgba(255, 148, 38, 0.09));
-  color: #ffe0b0;
+  border-color: rgb(var(--accent-rgb) / 0.55);
+  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.24), rgb(var(--accent-strong-rgb) / 0.09));
+  color: var(--accent-tint);
 }
 
 .hv-scan {
@@ -1244,7 +1413,7 @@ input[type='range'] {
   width: 2px;
   border-radius: 2px;
   background: linear-gradient(180deg, transparent, var(--accent) 14%, var(--accent) 86%, transparent);
-  box-shadow: 0 0 18px 3px rgba(255, 180, 77, 0.5);
+  box-shadow: 0 0 18px 3px rgb(var(--accent-rgb) / 0.5);
   opacity: 0;
   animation: hv-scan 7s cubic-bezier(0.4, 0, 0.5, 1) infinite;
 }
@@ -1330,7 +1499,7 @@ input[type='range'] {
   padding: 17px 26px;
   font-size: 16.5px;
   border-radius: 999px;
-  box-shadow: 0 10px 30px -12px rgba(255, 148, 38, 0.75);
+  box-shadow: 0 10px 30px -12px rgb(var(--accent-strong-rgb) / 0.75);
 }
 
 .hero-alt {
@@ -1393,6 +1562,7 @@ input[type='range'] {
   border-radius: var(--radius-lg);
   border: 1px solid var(--line-soft);
   background: var(--surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
 }
 
 .feature-stage {
@@ -1485,9 +1655,9 @@ input[type='range'] {
 }
 
 .mini-lane-block.on {
-  border-color: rgba(255, 180, 77, 0.6);
-  background: linear-gradient(180deg, rgba(255, 180, 77, 0.26), rgba(255, 148, 38, 0.1));
-  color: #ffe0b0;
+  border-color: rgb(var(--accent-rgb) / 0.6);
+  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.26), rgb(var(--accent-strong-rgb) / 0.1));
+  color: var(--accent-tint);
 }
 
 .mini-lane-head {
@@ -1497,7 +1667,7 @@ input[type='range'] {
   left: 27%;
   width: 2px;
   background: var(--accent);
-  box-shadow: 0 0 12px 2px rgba(255, 180, 77, 0.5);
+  box-shadow: 0 0 12px 2px rgb(var(--accent-rgb) / 0.5);
 }
 
 .mini-lane-beat {
@@ -1536,6 +1706,7 @@ input[type='range'] {
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--text-dim);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
 }
 
 .steps li::before {
@@ -1553,7 +1724,7 @@ input[type='range'] {
   color: var(--accent);
   font-size: 12px;
   font-weight: 700;
-  font-family: var(--mono);
+  font-family: var(--font);
 }
 
 .steps strong {
