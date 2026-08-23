@@ -97,6 +97,12 @@ domain root, under `/<repo>/` on GitHub Pages, and behind a custom domain.
 Pushing to `main` builds and force-pushes `dist/` to the `gh-pages` branch as a
 single commit. Point Pages at that branch to publish.
 
+The custom domain lives in `public/CNAME`, which Vite copies into the build.
+GitHub stores a Pages domain as a CNAME file on the publishing branch, and this
+workflow replaces that branch wholesale on every deploy — a domain set only in
+the repository settings is wiped by the next push, which looks like the setting
+reverting itself.
+
 Microphone capture needs a secure context, so use `localhost` or HTTPS.
 
 ## How the analysis works
