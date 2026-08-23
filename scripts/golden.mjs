@@ -22,9 +22,12 @@ import { chordName } from '../src/core/chordTypes.ts';
 import { analyzeAudio, chordToneHistogram, bestChordForChroma } from '../src/core/analyze.ts';
 import { renderProgression, DEMO_PROGRESSION, renderShapeStrum } from '../src/audio/synth.ts';
 import { shapesFor, easiestShape } from '../src/music/shapes.ts';
-import { chooseCapo, toPlayableChord, patternsFor, suggestStrum } from '../src/music/arrange.ts';
+import { chooseCapo, toPlayableChord, patternsFor, patternById, suggestStrum } from '../src/music/arrange.ts';
 import { buildTab } from '../src/music/tab.ts';
 import { reduceSegments, levelsWorthOffering } from '../src/music/levels.ts';
+import { engraveTab, barsPerSystemFor, METRICS, stringY } from '../src/music/tabEngrave.ts';
+import { barTab, tabSystems, songTabText } from '../src/music/tabText.ts';
+import { pitchClassHue } from '../src/music/pitchColor.ts';
 import { isMusical, musicFeaturesFrom } from '../src/core/music.ts';
 
 /** A few numbers that a wrong port cannot reproduce by accident. */
@@ -217,7 +220,95 @@ for (const root of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
 out.patterns4 = patternsFor(4).map((p) => p.id);
 out.patterns3 = patternsFor(3).map((p) => p.id);
 out.suggestStrum = [60, 96, 150].map((bpm) => suggestStrum(bpm, 4).id);
+// patternById searches only the strums, so a picking id comes back as the
+// default. That is easy to "fix" in a port and wrong to: the web resolves a
+// player's choice at its own call site, against patternsFor. Recorded here so
+// the two cannot quietly disagree about it.
+out.patternById = ['held', 'classic', 'waltz', 'pick-simple', 'pick-alternating', 'nonsense'].map(
+  (id) => patternById(id).id,
+);
 out.shapeStrum = digest(renderShapeStrum([-1, 3, 2, 0, 1, 0], { sampleRate: 22050 }));
+
+// --- engraved tablature -----------------------------------------------------
+// Coordinates rather than characters, so a port that gets the arithmetic wrong
+// draws a plausible-looking staff with the wrong thing on it. Two systems is
+// enough to cover bar widths, the carried chord name, and the wrap.
+out.engrave = {
+  metrics: METRICS,
+  stringY: [1, 2, 3, 4, 5, 6].map(stringY),
+  barsPerSystem: {
+    quarters: barsPerSystemFor(4, patternById('quarters')),
+    eighths: barsPerSystemFor(4, patternById('eighths')),
+    classic: barsPerSystemFor(4, patternById('classic')),
+    waltz: barsPerSystemFor(3, patternById('waltz')),
+    pickAlternating: barsPerSystemFor(4, patternById('pick-alternating')),
+  },
+  systems: engraveTab(tabs.standard).slice(0, 2).map((system) => ({
+    startBar: system.startBar,
+    width: system.width,
+    contentWidth: system.contentWidth,
+    bars: system.bars.map((bar) => ({
+      index: bar.index,
+      x: bar.x,
+      width: bar.width,
+      names: bar.names.map((n) => ({
+        label: n.label,
+        x: n.x,
+        anchor: n.anchor,
+        frets: n.shape ? n.shape.frets : null,
+      })),
+      columns: bar.columns.map((c) => ({
+        x: c.x,
+        direction: c.direction,
+        accent: c.accent,
+        finger: c.finger ?? null,
+        notes: c.notes.map((n) => [n.string, n.fret, n.y]),
+      })),
+    })),
+  })),
+};
+// The picked layout writes one string per column, which is a different code
+// path from a strum and the one a port is most likely to get wrong.
+{
+  // Resolved the way the interface resolves a player's choice — patternById
+  // knows only the strums, and asking it for a picking pattern hands back
+  // quarters, which is how this fixture was wrong the first time.
+  const pickPattern = patternsFor(analysis.beatsPerBar).find((p) => p.id === 'pick-53231323');
+  const picked = buildTab(analysis, { strum: pickPattern });
+  out.engravePicked = engraveTab(picked).slice(0, 1).map((system) => ({
+    contentWidth: system.contentWidth,
+    columns: system.bars.flatMap((bar) =>
+      bar.columns.map((c) => ({
+        x: c.x,
+        finger: c.finger ?? null,
+        notes: c.notes.map((n) => [n.string, n.fret]),
+      })),
+    ),
+  }));
+}
+
+// --- plain-text tablature ---------------------------------------------------
+// What the share sheet hands over, and the one form of a tab that survives
+// being pasted into a message. Column alignment is the whole value, so it is
+// compared as exact strings.
+out.tabText = {
+  bar0: barTab(tabs.standard.bars[0], tabs.standard.strum),
+  systems: tabSystems(tabs.standard.bars, tabs.standard.strum, 2)
+    .slice(0, 2)
+    .map((s) => ({ label: s.label, startBar: s.startBar, bars: s.bars, text: s.text })),
+  song: songTabText(tabs.standard, 'Reference song').split('\n'),
+};
+{
+  const pickPattern = patternsFor(analysis.beatsPerBar).find((p) => p.id === 'pick-alternating');
+  const picked = buildTab(analysis, { strum: pickPattern });
+  out.tabTextPicked = barTab(picked.bars[0], picked.strum);
+}
+
+// --- pitch colour -----------------------------------------------------------
+// Hue walks the circle of fifths rather than the chromatic scale, so a song is
+// the same colours in both builds. That is a claim worth checking rather than
+// repeating in a comment.
+out.pitchClassHue = Array.from({ length: 12 }, (_, pc) => pitchClassHue(pc));
 
 // --- a song that changes twice a bar ----------------------------------------
 // The demo progression holds each chord for a whole bar, so it never reaches
