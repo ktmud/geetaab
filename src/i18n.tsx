@@ -241,6 +241,8 @@ export const dictionary = {
     // Practice screen
     turnPhoneSideways: 'Turn your phone sideways',
     sidewaysNeeded: 'Practice mode scrolls the chords past a playhead, and that needs the long edge of the screen.',
+    sidewaysLockHint:
+      'If turning it does nothing, rotation lock is on: swipe down from the top-right corner and tap the padlock.',
     exit: 'Exit',
     next: 'next',
     nextChord: (name: string) => `${name}, the next chord`,
@@ -335,10 +337,11 @@ export const dictionary = {
     hwStageLabel: (n: number) => `Stage ${n}`,
     hwStages89: 'Stages 8–9',
     hwNodes: ['Listen', 'FFT', 'Chroma', 'Match', 'Smooth', 'Tempo', 'Key', 'Adapt', 'Chart'],
+    hwLegend: ['Measuring', 'Deciding', 'Rewriting for your hands'],
     hwOverviewAria:
-      'Diagram: the nine-stage signal path from raw audio to a finished chord chart, teal for raw measurement turning amber at the point a chord is decided.',
+      'Diagram: the nine-stage signal path from raw audio to a finished chord chart, coloured in three runs — verdigris while the app is only measuring, brass once it commits to an answer, copper once that answer is rewritten for a beginner.',
     hwOverviewCaption:
-      'The complete signal path from raw audio to final chord chart. Teal indicates raw measurement; copper indicates final decisions. From stage 5 onward, raw measurements become trustworthy answers.',
+      'The complete signal path, in three runs of colour. Stages 1–4 only measure — nothing is committed to yet. From stage 5 the flicker is smoothed into answers the app will stand behind. The last two stages leave the recording behind entirely and ask a different question: what should your hands do?',
 
     hwS1Title: 'Listen Before Recording',
     hwS1P1:
@@ -461,22 +464,49 @@ export const dictionary = {
     hwS89Caption:
       'The final step\'s output: a readable chord chart, already adjusted for beginner fingers. Chord names sit above each bar, strumming direction below.',
 
+    hwDeepChromaTitle: 'Go deeper: why twelve numbers and not the whole spectrum',
+    hwDeepChromaP1:
+      'A guitar playing one note does not produce one frequency. It produces that note plus a stack of overtones above it, and the loudest of those overtones is an octave up — the same letter name. Every other instrument in the mix is doing the same thing at the same time. Read the raw spectrum and a single C major chord looks like dozens of peaks scattered across ten octaves.',
+    hwDeepChromaP2:
+      'Folding octaves together throws away which C it was and keeps only that it was a C, which is exactly the part a chord name cares about. Twelve numbers is not a simplification of the spectrum so much as a translation of it into the alphabet chords are written in. The cost is real and worth naming: the app can no longer tell a chord from its own inversion, which is why a slash chord like G/B comes back as plain G.',
+
+    hwDeepCentreTitle: 'Go deeper: why every template has its average subtracted',
+    hwDeepCentreP1:
+      'Real recordings never give twelve clean numbers. Cymbals, room noise, a singer\'s breath and the tail of the previous chord all put a little energy into every one of the twelve bins, so the measured fingerprint sits on a raised floor. Compare that against templates made of ones and zeros and the floor is free score — and it is worth more to whichever template has more ones in it.',
+    hwDeepCentreP2:
+      'That is why an uncentred version of this app read almost every plain triad as a seventh chord: a seventh has four notes to collect noise with, a triad only three. Subtracting each template\'s own average makes its non-chord tones count against it, so a flat noise floor scores zero everywhere and only real structure moves the number. It was the single largest accuracy gain in this pipeline, and it is one line of arithmetic.',
+
+    hwDeepViterbiTitle: 'Go deeper: why not just take the best chord in each frame',
+    hwDeepViterbiP1:
+      'Because the best chord in each frame changes several times a second. Frames land in the gap between strums, on a passing bass note, on the vocal\'s vibrato — and each of those makes some other chord fit slightly better for a twentieth of a second. Written down literally, a four-chord song becomes hundreds of changes, and no human wrote it that way.',
+    hwDeepViterbiP2:
+      'Viterbi scores whole paths instead of single frames, charging a fixed cost for every change. A better-fitting chord has to be better by more than that cost, and stay better, before it is worth switching to. What survives is the handful of sustained changes a player would actually write on the page. The cost is the whole trade: too low and the chart is confetti, too high and real changes are absorbed into their neighbours — this app\'s value was chosen by measuring both failures against time-aligned annotations, not by eye.',
+
+    hwDeepOctaveTitle: 'Go deeper: why 70 BPM and 140 BPM are the same recording',
+    hwDeepOctaveP1:
+      'Tempo is read from where the loudness peaks repeat. But a bar of down-up strumming at 70 BPM puts a peak in exactly the places a bar at 140 BPM would: the eighth notes of the slow reading are the quarter notes of the fast one. The onset curve is identical. Nothing in the audio distinguishes them, in the same way nothing in a photograph of a spinning wheel tells you which way it is turning.',
+    hwDeepOctaveP2:
+      'What could break the tie is context a listener has and a signal does not — that this is a ballad, that a foot would tap here and not there. Every mechanical substitute we could think of was measured against 360 recordings with annotated tempi, and each one broke more songs than it fixed. So the app makes its best call, says what it chose, and puts half-time and double-time buttons on the tab screen for when you disagree.',
+
     hwLimitsTitle: 'Honest Limits',
     hwLimitsIntro:
-      'This app has been tested against real, independently-published guitar tabs across many genres (Chinese pop ballads, a Taylor Swift song, a film score). It is good, not perfect. Worth knowing:',
+      'This app is measured two ways: against independently-published tabs for real songs (Chinese pop ballads, a Taylor Swift song, a film score) and against GuitarSet, a research corpus of acoustic-guitar recordings labelled second by second. It is good, not perfect. Worth knowing:',
     hwLimitTerms: [
-      'Accuracy: 94% average',
+      'Accuracy: two different rulers',
       'Genuine hard problems',
       'Only 84 chord qualities modeled',
     ],
     hwLimitAccuracyLead:
-      ' Across seven real songs against published tabs, root-and-major/minor-family agreement averaged ',
+      ' comes as two numbers, because the generous one flatters. Ask only "is this chord somewhere in the song" and fifteen songs with published tabs average ',
+    hwLimitAccuracyMid:
+      '. Ask instead "is the right chord sounding at this very instant" — the strict reading, checked on a 10 ms grid against second-by-second annotations — and accompaniment recordings average ',
     hwLimitAccuracyTail:
-      ', ranging 87%–99%. The algorithm puts a beginner\'s hand on the right basic chord shape the overwhelming majority of the time.',
+      ', rising to 84% on the singer-songwriter style closest to what this app gets used for. The distance between the two numbers is exactly how much the generous one flatters, which is why both are published.',
     hwLimitHardIntro: ' (not bugs) were found and honestly disclosed:',
     hwLimitHardItems: [
       'A chord quality differing by one note one semitone away (like Em vs Esus2) is fundamentally the hardest pair to tell from a 12-number fingerprint, especially in fingerpicked passages where notes don\'t sound at once.',
-      'Telling a song\'s home key (I) from its dominant (V) — the two are harmonic cousins — is a known hard problem for this style of key detection, similar to the "is this 70 BPM or 140 BPM" tempo octave ambiguity that no signal analysis fully resolves.',
+      'Telling a song\'s home key (I) from its dominant (V) — the two are harmonic cousins — is a known hard problem for this style of key detection.',
+      'Whether a song is at 70 BPM or 140 BPM is genuinely undecidable from the signal: the same strumming produces the same onset pattern either way. Every tie-break we could think of was measured on 360 annotated recordings and each broke more songs than it fixed, so the tab screen simply offers half-time and double-time buttons.',
     ],
     hwLimitVocab:
       ' (no add9, no diminished, no augmented) — a chord outside this vocabulary comes back as the closest thing inside it.',
@@ -731,6 +761,7 @@ export const dictionary = {
     // Practice screen
     turnPhoneSideways: '把手机横过来',
     sidewaysNeeded: '练习时，和弦要从播放头下面走过去，得用屏幕的长边才够。',
+    sidewaysLockHint: '要是转了没反应，多半是开着方向锁定：从右上角往下滑，点一下那个小锁。',
     exit: '退出',
     next: '下一个',
     nextChord: (name: string) => `下一个和弦：${name}`,
@@ -810,10 +841,11 @@ export const dictionary = {
     hwStageLabel: (n: number) => `第 ${n} 阶段`,
     hwStages89: '第 8、9 阶段',
     hwNodes: ['检测', 'FFT', '色度', '匹配', '平滑', '节拍', '调性', '改编', '成谱'],
+    hwLegend: ['测量', '判断', '改写成你弹得下来的样子'],
     hwOverviewAria:
-      '示意图：从原始音频到成品和弦谱的九个阶段。青色代表尚未定论的测量，进入决策阶段后转为琥珀色。',
+      '示意图：从原始音频到成品和弦谱的九个阶段，按三段上色——青色是只在测量的阶段，琥珀色是已经拿定主意的阶段，深铜色是把结论改写成初学者弹法的阶段。',
     hwOverviewCaption:
-      '整条信号通路。青色是还在测量的部分，琥珀色是已经拿定主意的部分；从第 5 阶段起，逐帧的测量变成了可以写进谱子的答案。',
+      '整条信号通路，颜色分三段。第 1 到 4 阶段只做测量，还没下任何结论；从第 5 阶段起，逐帧的抖动被收成可以写进谱子的答案；最后两个阶段离开录音本身，改问另一个问题：你的手该怎么放。',
 
     hwS1Title: '先听懂，再开录',
     hwS1P1:
@@ -926,16 +958,45 @@ export const dictionary = {
     hwS89Caption:
       '最后一步的产出：一张读得懂的和弦谱，已经按手指够得着的方式调整过。和弦名标在每小节上方，下方是扫弦方向。',
 
+    hwDeepChromaTitle: '想深一点：为什么是十二个数，而不是整张频谱',
+    hwDeepChromaP1:
+      '吉他弹一个音，出来的从来不是一个频率，而是这个音加上它上面一整摞泛音，其中最响的那个正好高八度——名字还是同一个字母。合奏里每件乐器都在同时干这件事。所以直接看频谱，一个 C 大三和弦会摊成几十个峰，散落在十个八度里。',
+    hwDeepChromaP2:
+      '把八度折叠起来，就是扔掉「这是第几个 C」，只留下「这是个 C」——而和弦名在意的恰好只有后面这半句。十二个数与其说是把频谱简化了，不如说是把它翻译成了和弦本来就在用的那套字母。代价是实打实的，也得说清楚：这样一来就分不出和弦和它自己的转位，所以 G/B 这类斜杠和弦回来时只剩一个 G。',
+
+    hwDeepCentreTitle: '想深一点：为什么每张模板都要减去自己的平均值',
+    hwDeepCentreP1:
+      '真实录音永远给不出干干净净的十二个数。镲片、房间噪声、歌手的换气、上一个和弦没散尽的尾音，都会往这十二个格子里各塞一点能量，于是量出来的指纹是架在一层地板上的。拿它去比对一张只有 0 和 1 的模板，这层地板就成了白送的分——而且谁的 1 多，谁白拿得多。',
+    hwDeepCentreP2:
+      '这正是这个应用没做中心化那会儿，几乎把每个三和弦都读成七和弦的原因：七和弦有四个音去接噪声，三和弦只有三个。把每张模板减去它自己的平均值之后，非和弦音就开始扣分了——一层平坦的噪声在哪张模板上都得零分，只有真正的结构才推得动数字。这是整条流水线上单项收益最大的一次改动，而它只是一句算术。',
+
+    hwDeepViterbiTitle: '想深一点：为什么不能每一帧直接取最像的和弦',
+    hwDeepViterbiP1:
+      '因为「每一帧最像的和弦」一秒钟要换好几次。有的帧正好落在两下扫弦之间，有的落在一个经过低音上，有的落在人声的颤音里——每一种都会让另一个和弦在那二十分之一秒里贴合得稍微好一点。照字面写下来，一首四个和弦的歌会变成几百次变化，而没有人是那样记谱的。',
+    hwDeepViterbiP2:
+      'Viterbi 算的不是单帧，而是整条路径的总分，每换一次和弦就固定扣一笔。一个更贴合的和弦必须好过这笔代价，而且要一直好下去，才值得换过去。留下来的，就是演奏者真会写在谱上的那几次持续变化。这笔代价本身就是全部的取舍：定低了，谱面碎成纸屑；定高了，真实的变化被并进旁边的和弦——这个应用里的取值是拿逐秒标注的录音把两种失败都量过之后定的，不是看着顺眼定的。',
+
+    hwDeepOctaveTitle: '想深一点：为什么 70 BPM 和 140 BPM 是同一段录音',
+    hwDeepOctaveP1:
+      '速度是从响度峰值多久重复一次读出来的。可是 70 BPM 的一小节下上扫弦，峰值出现的位置，和 140 BPM 的一小节完全重合：慢的那种读法里的八分音符，正是快的那种读法里的四分音符。起音曲线一模一样。音频里没有任何东西能把两者分开，就像一张车轮的照片说不出它在往哪边转。',
+    hwDeepOctaveP2:
+      '真正能打破这个平局的，是听的人有、而信号里没有的那些背景：这是一首抒情歌、脚会在这里点而不是在那里点。我们能想到的机械替代办法，都在 360 段有标注速度的录音上量过，每一种弄坏的歌都比修好的多。所以这个应用给出它最有把握的那个答案，明说自己选了哪个，再在曲谱页放上减半和加倍两个按钮——你不同意的时候按一下就行。',
+
     hwLimitsTitle: '它做不到什么',
     hwLimitsIntro:
-      '这个应用在多种曲风上做过检验，对照的是别人独立发布的真实吉他谱（华语流行民谣、一首 Taylor Swift、一段电影配乐）。它好用，但不完美。有几件事得先说清楚：',
-    hwLimitTerms: ['平均准确率 94%', '真正的难题', '只建模了 84 种和弦'],
-    hwLimitAccuracyLead: '：七首真实歌曲对照已发布的谱，根音加大三／小三族的一致率平均为 ',
-    hwLimitAccuracyTail: '，区间是 87% 到 99%。也就是说，绝大多数时候，它都能把你的手放在对的和弦上。',
+      '这个应用用两套材料检验过：一套是别人独立发布的真实吉他谱（华语流行民谣、一首 Taylor Swift、一段电影配乐），一套是 GuitarSet——逐秒标注了和弦的原声吉他研究语料。它好用，但不完美。有几件事得先说清楚：',
+    hwLimitTerms: ['准确率：两把尺子', '真正的难题', '只建模了 84 种和弦'],
+    hwLimitAccuracyLead:
+      '。宽的那把只问「这个和弦在不在这首歌里」，十五首有正式出版谱的歌平均 ',
+    hwLimitAccuracyMid:
+      '。严的那把问「这一刻响的是不是对的和弦」，在 10 毫秒的网格上逐刻对答案，伴奏类录音平均 ',
+    hwLimitAccuracyTail:
+      '，其中最贴近本应用使用场景的民谣弹唱是 84%。两个数之间的差，就是宽口径夸大了多少——所以两个我们都写出来。',
     hwLimitHardIntro: '有两处，都不是 bug，而是这套方法本身的极限：',
     hwLimitHardItems: [
       '只差一个音、而且这个音只差半音的两种和弦性质（比如 Em 和 Esus2），是十二数指纹最难分辨的一对——尤其在指弹段落，音本来就不是同时响的。',
-      '分不分得清一首歌的主调（I）和属调（V）——这两个是和声上的近亲——是这类调性检测公认的难题，性质上类似「这首歌到底是 70 BPM 还是 140 BPM」的速度八度歧义，任何信号分析都无法彻底解决。',
+      '分不分得清一首歌的主调（I）和属调（V）——这两个是和声上的近亲——是这类调性检测公认的难题。',
+      '一首歌到底是 70 BPM 还是 140 BPM，从信号本身真的定不下来：同一套扫弦，两种记法产生的起音包络一模一样。我们能想到的判别办法都在 360 段有标注速度的录音上量过，每一种弄坏的歌都比修好的多，所以曲谱页干脆给了减半和加倍两个按钮。',
     ],
     hwLimitVocab: '（没有 add9，没有减和弦，没有增和弦）——词汇表之外的和弦，会用表里最接近的那个顶上。',
     hwClosing:

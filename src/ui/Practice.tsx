@@ -10,6 +10,7 @@ import {
 import { Metronome, ClockTransport, MediaTransport, type Transport } from '../audio/player';
 import { resumeAudio } from '../audio/context';
 import { translateKeyName, useLanguage, useT } from '../i18n';
+import { enterLandscape, exitLandscape } from './landscape';
 import { pluckStringOf } from '../music/pick';
 import type { SongTab } from '../music/tab';
 import { ChordDiagram } from './ChordDiagram';
@@ -20,7 +21,7 @@ import {
   PauseIcon,
   PlayIcon,
   RewindIcon,
-  RotateIcon,
+  PhoneRotateIcon,
   SkipBackTenIcon,
   SkipForwardTenIcon,
   SpeedIcon,
@@ -134,17 +135,13 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
     return () => observer.disconnect();
   }, []);
 
-  // Fullscreen and orientation lock are best-effort: desktop browsers refuse the
-  // lock outright and iOS Safari refuses both, so neither can gate the screen.
+  // The screen is taken sideways from inside the tap that opened it (see
+  // landscape.ts — full screen is only granted while the gesture is live). This
+  // is the second attempt, for the paths that arrive here without one, and the
+  // cleanup that hands the orientation back either way.
   useEffect(() => {
-    const root = document.documentElement;
-    void root.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => undefined);
-    const orientation = screen.orientation as (ScreenOrientation & { lock?: (o: string) => Promise<void> }) | undefined;
-    void orientation?.lock?.('landscape').catch(() => undefined);
-    return () => {
-      orientation?.unlock?.();
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-    };
+    void enterLandscape();
+    return exitLandscape;
   }, []);
 
   useEffect(() => {
@@ -442,11 +439,14 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
     return (
       <div className="rotate-hint">
         <div>
-          <RotateIcon size={68} />
+          <PhoneRotateIcon size={68} />
           <h2>{t.turnPhoneSideways}</h2>
-          <p style={{ maxWidth: 320, margin: '0 auto 18px' }}>
+          <p style={{ maxWidth: 320, margin: '0 auto 6px' }}>
             {t.sidewaysNeeded}
           </p>
+          {/* Reaching this screen at all usually means the phone refused to
+              turn, and by far the commonest reason is rotation lock. */}
+          <p className="rotate-lock-hint">{t.sidewaysLockHint}</p>
           <button className="btn" onClick={onExit}>
             {t.backToTab}
           </button>

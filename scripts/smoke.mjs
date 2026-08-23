@@ -204,6 +204,43 @@ try {
     sheet.systems >= 4 && sheet.diagrams >= 4 && sheet.bars >= 8,
     `${sheet.systems} systems, ${sheet.diagrams} diagrams, ${sheet.bars} chart bars`,
   );
+  // The tab is engraved, not typed: six drawn string lines with the numbers
+  // sitting on them. The plain-text version still exists behind Copy, which is
+  // what a forum post needs, but nothing on the page or the sheet is a <pre>.
+  const staff = await page.evaluate(() => {
+    const svg = document.querySelector('.tab-sys .tab-staff');
+    if (!svg) return null;
+    const label = svg.getAttribute('aria-label') ?? '';
+    return {
+      strings: svg.querySelectorAll('.tab-staff-string').length,
+      barlines: svg.querySelectorAll('.tab-staff-barline').length,
+      frets: svg.querySelectorAll('.tab-staff-fret').length,
+      names: [...svg.querySelectorAll('.tab-staff-name')].map((n) => n.textContent),
+      clefs: [...svg.querySelectorAll('.tab-staff-clef')].map((n) => n.textContent).join(''),
+      boxes: svg.querySelectorAll('.tab-box').length,
+      dots: svg.querySelectorAll('.tab-box-dot').length,
+      label,
+      bars: svg.querySelectorAll('.tab-staff-barline').length,
+      printStaves: document.querySelectorAll('.print-sheet .print-sys .tab-staff').length,
+      leftoverPre: document.querySelectorAll('.tab-sys pre, .print-sheet pre').length,
+    };
+  });
+  checkThat(
+    'the tablature is drawn on a six-line staff, not typed out of hyphens',
+    Boolean(staff) && staff.strings === 6 && staff.barlines >= 2 && staff.frets > 0 && staff.leftoverPre === 0,
+    JSON.stringify(staff && { ...staff, names: staff.names.length }),
+  );
+  checkThat('marked TAB down the left, the way printed tablature marks itself', staff?.clefs === 'TAB', staff?.clefs);
+  checkThat(
+    'every chord is announced by name and by the box that shows how to hold it',
+    staff?.names.length > 0 && staff.boxes === staff.names.length && staff.dots > 0,
+    `${staff?.names.join(' ')} · ${staff?.boxes} boxes, ${staff?.dots} dots`,
+  );
+  checkThat(
+    'a line holds more than a couple of bars, and the sheet draws the same staff',
+    staff?.bars >= 3 && staff.printStaves >= 2 && Boolean(staff.label),
+    `${staff?.bars} bar lines · ${staff?.printStaves} printed · "${staff?.label}"`,
+  );
   await page.emulateMedia({ media: 'print' });
   const printSwap = await page.evaluate(() => ({
     sheet: getComputedStyle(document.querySelector('.print-sheet')).display !== 'none',
@@ -321,17 +358,29 @@ try {
   // The point of deriving the pattern rather than printing string numbers: the
   // bass moves with the chord. G is rooted on the sixth string, D on the fourth.
   const picked = await page.evaluate(() => {
-    const systems = [...document.querySelectorAll('.tab-sys pre')].map((el) => el.textContent);
-    const bassRow = (text, label) => {
-      const line = text.split('\n').find((l) => l.startsWith(label));
-      return line && /\|-[0-9]/.test(line);
-    };
-    return { lowE: bassRow(systems[0] ?? '', 'E'), dString: bassRow(systems[0] ?? '', 'D') };
+    const staves = [...document.querySelectorAll('.tab-sys .tab-staff')];
+    const strings = new Set();
+    let columns = 0;
+    let notes = 0;
+    for (const svg of staves) {
+      for (const text of svg.querySelectorAll('.tab-staff-fret')) {
+        strings.add(Number(text.dataset.string));
+      }
+      columns += svg.querySelectorAll('.tab-staff-col').length;
+      notes += svg.querySelectorAll('.tab-staff-fret').length;
+    }
+    return { strings: [...strings].sort((a, b) => a - b), columns, notes };
   });
   checkThat(
     'the tablature roots each chord on its own bass string',
-    picked.lowE && picked.dString,
-    JSON.stringify(picked),
+    // The demo is G, D, Am, C: the sixth string for G and the fourth for D.
+    picked.strings.includes(6) && picked.strings.includes(4),
+    JSON.stringify(picked.strings),
+  );
+  checkThat(
+    'and a picked column carries one string, not the whole chord',
+    picked.columns > 0 && picked.notes === picked.columns,
+    `${picked.notes} notes over ${picked.columns} columns`,
   );
   await page.getByRole('button', { name: /Practise this/ }).click();
   await page.waitForTimeout(400);
@@ -770,6 +819,38 @@ try {
       captions: document.querySelectorAll('.how-it-works figure figcaption').length,
     };
   });
+  const deeper = await page.evaluate(() => {
+    const items = [...document.querySelectorAll('.hw-deeper')];
+    const before = items.map((d) => d.open);
+    items[0]?.querySelector('summary')?.click();
+    const legend = [...document.querySelectorAll('.hw-legend li')].map((li) => li.textContent.trim());
+    const fig = document.querySelector('.hw-fig svg');
+    const box = fig?.getBoundingClientRect();
+    const natural = Number(fig?.getAttribute('viewBox')?.split(/\s+/)[2] ?? 0);
+    return {
+      count: items.length,
+      shutToStart: before.every((open) => open === false),
+      opens: items[0]?.open === true,
+      legend,
+      figWidth: Math.round(box?.width ?? 0),
+      natural,
+    };
+  });
+  checkThat(
+    'the hard ideas have a second layer, shut until it is asked for',
+    deeper.count >= 2 && deeper.shutToStart && deeper.opens,
+    JSON.stringify({ count: deeper.count, shut: deeper.shutToStart, opens: deeper.opens }),
+  );
+  checkThat(
+    'the overview says which colour means what',
+    deeper.legend.length === 3,
+    deeper.legend.join(' · '),
+  );
+  checkThat(
+    'and a diagram is never drawn bigger than the size its type was set for',
+    deeper.natural > 0 && deeper.figWidth <= deeper.natural + 1,
+    `${deeper.figWidth}px drawn against ${deeper.natural} natural`,
+  );
   checkThat(
     'the explainer draws nine stages, nine sized diagrams and their captions',
     explainer.stages === 9 &&

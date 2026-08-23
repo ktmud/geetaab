@@ -1,7 +1,8 @@
 import { translateKeyName, useLanguage, useT } from '../i18n';
 import type { SongTab } from '../music/tab';
-import { tabSystems } from '../music/tabText';
+import { barsPerSystemFor, engraveSystems } from '../music/tabEngrave';
 import { ChordDiagram } from './ChordDiagram';
+import { TabStaff } from './TabStaff';
 
 export interface PrintSheetProps {
   tab: SongTab;
@@ -19,7 +20,13 @@ export interface PrintSheetProps {
 export function PrintSheet({ tab, title }: PrintSheetProps) {
   const t = useT();
   const [lang] = useLanguage();
-  const systems = tabSystems(tab.bars, tab.strum, 2);
+  // Paper is wider than a phone, so it gets a wider target and more bars to a
+  // line; the count itself still comes from how busy this song's bars are.
+  const systems = engraveSystems(
+    tab.bars,
+    tab.strum,
+    barsPerSystemFor(tab.beatsPerBar, tab.strum, 520),
+  );
   const strumMarks: string[] = [];
   for (let beat = 0; beat < tab.beatsPerBar; beat += 0.5) {
     const step = tab.strum.steps.find((s) => Math.abs(s.beat - beat) < 1e-6);
@@ -74,16 +81,17 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
       </div>
 
       <h2>{t.printTablature}</h2>
-      {systems.map((system) => (
-        <div className="print-sys" key={system.startBar}>
-          <i>
-            {system.bars > 1
-              ? t.systemBars(system.startBar + 1, system.startBar + system.bars)
-              : t.systemBar(system.startBar + 1)}
-          </i>
-          <pre>{system.text}</pre>
-        </div>
-      ))}
+      {systems.map((system) => {
+        const label =
+          system.bars.length > 1
+            ? t.systemBars(system.startBar + 1, system.startBar + system.bars.length)
+            : t.systemBar(system.startBar + 1);
+        return (
+          <div className="print-sys" key={system.startBar}>
+            <TabStaff system={system} label={label} scale={1.25} />
+          </div>
+        );
+      })}
 
       <p className="print-foot">
         {t.printFoot}

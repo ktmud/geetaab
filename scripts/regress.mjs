@@ -40,7 +40,10 @@
    - `sheet`, an ORDERED sheet extracted from a published tab PDF by
      scripts/sheets.mjs, adds order: the `order` column is the fraction of the
      sheet's chord changes recovered in playing order (order-preserving
-     alignment, best transposition when `transpose` is "auto"). `barRatio` is
+     alignment, best transposition when `transpose` is "auto"). Read it with
+     `oprec` beside it — the fraction of DETECTED changes that landed in the
+     sheet — because order recall alone rewards guessing, and `oF1`, their
+     harmonic mean, is the number that does not. `barRatio` is
      the median count of detected bars per matched sheet bar — it sits near 1
      on a correct beat grid and near 2 when the tempo ran double, so it is a
      tempo-octave check that needs no BPM ground truth. `sheetBars` windows
@@ -238,6 +241,17 @@ for (const song of manifest.songs ?? []) {
     const align = bestShiftAlignment(sheetSeq, detSeq, shifts);
     row.order = +((align.matched.length / (sheetSeq.length || 1)) * 100).toFixed(1);
     row.orderPrec = +((align.matched.length / (detSeq.length || 1)) * 100).toFixed(1);
+    // Order recall alone rewards guessing: emit twice as many changes and more
+    // of the sheet's sequence is bound to be covered. Measured on this corpus,
+    // dropping the decoder's change cost from 2.2 to 1.2 lifts order recall
+    // from 84.2 to 86.9 while nearly quadrupling one-chord sandwiches, and
+    // time-aligned recall on GuitarSet — which cannot be gamed that way,
+    // because a spurious chord is wrong at every instant it covers — falls.
+    // So the number to read is the harmonic mean of the two.
+    row.orderF1 =
+      row.order + row.orderPrec > 0
+        ? +((2 * row.order * row.orderPrec) / (row.order + row.orderPrec)).toFixed(1)
+        : 0;
     const ratios = align.matched
       .map(({ sheet: si, detected: di }) => {
         const bars = detSeq[di].beats / (res.beatsPerBar || 4);
@@ -266,9 +280,9 @@ const pad = (v, n) => String(v ?? '—').padEnd(n);
 const num = (v, n) => String(v ?? '—').padStart(n);
 const TEMPO_MARK = { correct: '=', half: '1/2', double: '2x', twothirds: '2/3', threehalves: '3/2', other: '?' };
 console.log(
-  `\n${pad('song', 18)}${num('family', 7)}${num('Δ', 6)}${num('recall', 7)}${num('order', 7)}${num('bars', 6)}${num('exact', 7)}${num('med', 5)}${num('sand', 5)}${num('ch/min', 7)}${num('T', 5)}  key`,
+  `\n${pad('song', 18)}${num('family', 7)}${num('Δ', 6)}${num('recall', 7)}${num('order', 7)}${num('oprec', 7)}${num('oF1', 6)}${num('bars', 6)}${num('exact', 7)}${num('med', 5)}${num('sand', 5)}${num('ch/min', 7)}${num('T', 5)}  key`,
 );
-console.log('-'.repeat(104));
+console.log('-'.repeat(117));
 
 const regressions = [];
 const expectationFailures = [];
@@ -289,6 +303,8 @@ for (const { song, row } of rows) {
       num(mark, 6) +
       num(row.recall, 7) +
       num(row.order, 7) +
+      num(row.orderPrec, 7) +
+      num(row.orderF1, 6) +
       num(row.barRatio, 6) +
       num(row.exact, 7) +
       num(row.medianBeats, 5) +
@@ -307,13 +323,15 @@ if (scored.length) {
     ? (recalled.reduce((s, { row }) => s + row.recall, 0) / recalled.length).toFixed(2)
     : null;
   const ordered = rows.filter(({ row }) => row.order != null);
-  const meanOrder = ordered.length
-    ? (ordered.reduce((s, { row }) => s + row.order, 0) / ordered.length).toFixed(2)
-    : null;
+  const meanOf = (key) =>
+    ordered.length ? (ordered.reduce((s, { row }) => s + row[key], 0) / ordered.length).toFixed(2) : null;
+  const meanOrder = meanOf('order');
+  const meanPrec = meanOf('orderPrec');
+  const meanF1 = meanOf('orderF1');
   const sand = rows.reduce((s, { row }) => s + row.sandwiched, 0);
-  console.log('-'.repeat(104));
+  console.log('-'.repeat(117));
   console.log(
-    `${pad('mean of ' + scored.length, 18)}${num(mean.toFixed(2), 7)}${num('', 6)}${num(meanRecall, 7)}${num(meanOrder, 7)}${num('', 6)}${num('', 7)}${num('', 5)}${num(sand, 5)}`,
+    `${pad('mean of ' + scored.length, 18)}${num(mean.toFixed(2), 7)}${num('', 6)}${num(meanRecall, 7)}${num(meanOrder, 7)}${num(meanPrec, 7)}${num(meanF1, 6)}${num('', 6)}${num('', 7)}${num('', 5)}${num(sand, 5)}`,
   );
   const tempoed = rows.filter(({ row }) => row.tempoClass);
   if (tempoed.length) {
