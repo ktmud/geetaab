@@ -14,6 +14,7 @@ import {
   type StoredSong,
 } from './store/library';
 import type { SongTab } from './music/tab';
+import { useT, useLanguage } from './i18n';
 import { ChordLibrary } from './ui/ChordLibrary';
 import { Home } from './ui/Home';
 import { Listening } from './ui/Listening';
@@ -46,6 +47,8 @@ interface Session {
 const MAX_STORED_AUDIO_BYTES = 48 * 1024 * 1024;
 
 export function App() {
+  const t = useT();
+  const [lang, setLang] = useLanguage();
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [session, setSession] = useState<Session | null>(null);
   const [options, setOptions] = useState<TabOptions>({ simplify: true });
@@ -120,7 +123,7 @@ export function App() {
       } catch (error) {
         setScreen({
           name: 'error',
-          message: error instanceof Error ? error.message : 'The analysis failed.',
+          message: error instanceof Error ? error.message : t.analysisFailed,
         });
       } finally {
         setBusy(false);
@@ -132,7 +135,7 @@ export function App() {
   const handleRecording = useCallback(
     (samples: Float32Array, sampleRate: number) => {
       if (samples.length < sampleRate * 3) {
-        setScreen({ name: 'error', message: 'That recording was too short to work with.' });
+        setScreen({ name: 'error', message: t.recordingTooShort });
         return;
       }
       const wav = encodeWav(samples, sampleRate);
@@ -148,7 +151,7 @@ export function App() {
   const handleFile = useCallback(
     async (file: File) => {
       setBusy(true);
-      setScreen({ name: 'analyzing', stage: 'reading the file', fraction: 0.01 });
+      setScreen({ name: 'analyzing', stage: t.readingFile, fraction: 0.01 });
       try {
         const decoded = await decodeAudioFile(file);
         // Keep the original file rather than the decoded samples: it is already
@@ -161,7 +164,7 @@ export function App() {
       } catch {
         setScreen({
           name: 'error',
-          message: 'That file could not be decoded. Try an MP3, M4A, WAV or OGG.',
+          message: t.couldNotDecode,
         });
         setBusy(false);
       }
@@ -286,14 +289,19 @@ export function App() {
             geetaab
           </button>
           <span className="spacer" />
-          {screen.name !== 'chords' ? (
+          {screen.name !== 'practice' && screen.name !== 'chords' ? (
             <button className="btn btn-ghost" onClick={() => setScreen({ name: 'chords' })}>
-              Chords
+              {t.chords}
             </button>
           ) : null}
-          {screen.name !== 'home' ? (
+          {screen.name !== 'practice' && screen.name !== 'home' ? (
             <button className="btn btn-ghost" onClick={() => setScreen({ name: 'home' })}>
-              Home
+              {t.home}
+            </button>
+          ) : null}
+          {screen.name !== 'practice' ? (
+            <button className="btn btn-ghost" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}>
+              {lang === 'en' ? '中文' : 'EN'}
             </button>
           ) : null}
         </header>
@@ -321,13 +329,13 @@ export function App() {
         {screen.name === 'analyzing' ? (
           <div className="shell">
             <div className="card" style={{ marginTop: 40 }}>
-              <div className="eyebrow">Working it out</div>
+              <div className="eyebrow">{t.workingItOut}</div>
               <h2 style={{ textTransform: 'capitalize' }}>{screen.stage}…</h2>
               <div className="progress-track" style={{ marginTop: 14 }}>
                 <div className="progress-fill" style={{ width: `${Math.round(screen.fraction * 100)}%` }} />
               </div>
               <p className="faint" style={{ marginTop: 14, marginBottom: 0, fontSize: 13 }}>
-                All of this runs on your device. Nothing is uploaded.
+                {t.allRunsDevice}
               </p>
             </div>
           </div>
@@ -350,17 +358,17 @@ export function App() {
         {screen.name === 'error' ? (
           <div className="shell">
             <div className="card" style={{ marginTop: 40 }}>
-              <h2>That did not work</h2>
+              <h2>{t.thatDidNotWork}</h2>
               <p>{screen.message}</p>
               <button className="btn btn-primary" onClick={() => setScreen({ name: 'home' })}>
-                Start over
+                {t.startOver}
               </button>
             </div>
           </div>
     ) : null}
 
         <footer className="app-footer">
-          <span>geetaab is open source</span>
+          <span>{t.geetaabOpenSource}</span>
           <a href="https://github.com/ktmud/geetaab" target="_blank" rel="noreferrer">
             <GitHubIcon size={15} /> ktmud/geetaab
           </a>

@@ -35,6 +35,10 @@ processing that ship with the page.
    order, and the full vocabulary filterable by quality, root and whether it needs
    a barre — every diagram playable aloud with the exact voicing it draws.
 
+## Bilingual interface
+
+The app supports English and Simplified Chinese (中文). The initial language is determined by the browser's locale setting: if it starts with "zh", the UI opens in Chinese; otherwise in English. The language choice is remembered in localStorage and persists across sessions. A language toggle button in the top bar (on all non-practice screens) lets you switch between English and 中文 at any time.
+
 ## Running it
 
 ```bash

@@ -4,6 +4,7 @@ import { chooseCapo, patternsFor } from '../music/arrange';
 import { levelsWorthOffering, reduceSegments, type TabLevel } from '../music/levels';
 import { buildTab, type SongTab } from '../music/tab';
 import { songTabText, tabSystems } from '../music/tabText';
+import { useT, useLanguage, translateKeyName } from '../i18n';
 import { ChordCard } from './ChordDiagram';
 import { PrintSheet } from './PrintSheet';
 import { BackIcon, CheckIcon, PlayIcon, PrintIcon } from './icons';
@@ -15,17 +16,7 @@ export interface TabOptions {
   level?: TabLevel;
 }
 
-const LEVEL_LABELS: Record<TabLevel, string> = {
-  easy: 'Easy',
-  standard: 'Standard',
-  faithful: 'Faithful',
-};
-
-const LEVEL_HINTS: Record<TabLevel, string> = {
-  easy: 'Fewer, plainer changes — extensions and quick passing chords folded away.',
-  standard: 'Every change the song makes, on shapes a beginner can finger.',
-  faithful: 'Exactly what the recording plays — sevenths, suspensions and all.',
-};
+// Will be created inside the component using the hook
 
 export interface TabViewProps {
   analysis: AnalysisResult;
@@ -51,9 +42,23 @@ export function TabView({
   onRetempo,
   busy,
 }: TabViewProps) {
+  const t = useT();
+  const [lang] = useLanguage();
   const [copied, setCopied] = useState(false);
   const [tabScope, setTabScope] = useState<'song' | 'loop'>('song');
   const [editingTitle, setEditingTitle] = useState(false);
+
+  const LEVEL_LABELS: Record<TabLevel, string> = {
+    easy: t.easy,
+    standard: t.standard,
+    faithful: t.faithful,
+  };
+
+  const LEVEL_HINTS: Record<TabLevel, string> = {
+    easy: t.easyHint,
+    standard: t.standardHint,
+    faithful: t.faithfulHint,
+  };
 
   const tabs = useMemo(() => {
     const patterns = patternsFor(analysis.beatsPerBar);
@@ -105,7 +110,7 @@ export function TabView({
     <div className="shell">
       <div className="btn-row" style={{ marginBottom: 14 }}>
         <button className="btn btn-ghost" onClick={onBack}>
-          <BackIcon size={17} /> Back
+          <BackIcon size={17} /> {t.back}
         </button>
       </div>
 
@@ -121,13 +126,13 @@ export function TabView({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') event.currentTarget.blur();
               }}
-              aria-label="Song title"
-              placeholder="Name this song"
+              aria-label={t.songTitle}
+              placeholder={t.nameThisSong}
             />
             {editingTitle ? (
               <button
                 className="title-confirm"
-                aria-label="Confirm the title"
+                aria-label={t.confirmTitle}
                 // Mouse-down, not click: the input's blur would unmount this
                 // button before a click could ever land on it.
                 onMouseDown={(event) => {
@@ -158,21 +163,19 @@ export function TabView({
 
       {lowConfidence ? (
         <div className="notice notice-warn" style={{ marginTop: 16 }}>
-          The harmony came through faintly, so these chords are a rough guess. A cleaner recording —
-          or an audio file instead of a room recording — will do much better.
+          {t.lowConfidence}
         </div>
       ) : null}
 
       {analysis.freeTime ? (
         <div className="notice notice-info" style={{ marginTop: 16 }}>
-          This one plays freely — there was no steady pulse to lock onto, so the tempo and bar grid
-          are approximate. The chord sequence itself is what to trust.
+          {t.freeTime}
         </div>
       ) : null}
 
       {tab.loop ? (
         <div className="card" style={{ marginTop: 18 }}>
-          <div className="eyebrow">The whole song, mostly</div>
+          <div className="eyebrow">{t.theWholeSong}</div>
           <div className="loop-summary">
             {tab.loop.bars.map((bar, index) => (
               <span key={index} style={{ display: 'contents' }}>
@@ -182,14 +185,13 @@ export function TabView({
             ))}
           </div>
           <p className="faint" style={{ marginTop: 10, marginBottom: 0, fontSize: 13 }}>
-            This {tab.loop.length}-bar loop covers {Math.round(tab.loop.coverage * 100)}% of what you
-            recorded. Learn it once and you have most of the song.
+            {t.wholeLoop(tab.loop.length, tab.loop.coverage)}
           </p>
         </div>
       ) : null}
 
       <div className="card">
-        <h2>Chords you need</h2>
+        <h2>{t.chordsYouNeed}</h2>
         <div className="palette">
           {tab.palette.map((chord, index) => (
             <ChordCard
@@ -198,9 +200,9 @@ export function TabView({
               name={chord.shapeLabel}
               sub={
                 chord.substitutedFrom
-                  ? `easier stand-in for ${chord.label}`
+                  ? t.subbedFor(chord.label)
                   : tab.capo > 0
-                    ? `sounds as ${chord.label}`
+                    ? t.soundsAs(chord.label)
                     : chord.shape.note
               }
             />
@@ -208,18 +210,16 @@ export function TabView({
         </div>
         {hardChords.length > 0 ? (
           <div className="notice notice-info" style={{ marginTop: 14 }}>
-            {hardChords.map((c) => c.shapeLabel).join(', ')}{' '}
-            {hardChords.length === 1 ? 'still needs' : 'still need'} a barre. Try another capo
-            position below, or play just the top four strings until the shape settles.
+            {t.stillNeeds(hardChords.map((c) => c.shapeLabel).join(', '), hardChords.length)}
           </div>
         ) : null}
       </div>
 
       <div className="card">
-        <h2>Make it fit your hands</h2>
+        <h2>{t.makeItFitHands}</h2>
         <div className="controls-grid">
           <div className="field">
-            <label htmlFor="capo">Capo</label>
+            <label htmlFor="capo">{t.capo}</label>
             <select
               id="capo"
               className="input"
@@ -228,15 +228,15 @@ export function TabView({
             >
               {Array.from({ length: 8 }, (_, fret) => (
                 <option key={fret} value={fret}>
-                  {fret === 0 ? 'No capo' : `Fret ${fret}`}
-                  {fret === autoCapo ? ' — suggested' : ''}
+                  {fret === 0 ? t.noCapoText : t.fretNth(fret)}
+                  {fret === autoCapo ? t.suggested : ''}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="field">
-            <label htmlFor="strum">Strumming</label>
+            <label htmlFor="strum">{t.strumming}</label>
             <select
               id="strum"
               className="input"
@@ -253,7 +253,7 @@ export function TabView({
 
           {offeredLevels.length > 1 ? (
             <div className="field">
-              <label htmlFor="level">Level</label>
+              <label htmlFor="level">{t.level}</label>
               <div className="segmented" id="level">
                 {offeredLevels.map((option) => (
                   <button
@@ -273,21 +273,21 @@ export function TabView({
 
           {onRetempo ? (
             <div className="field">
-              <label>Tempo reading</label>
+              <label>{t.tempoReading}</label>
               <div className="btn-row">
                 <button
                   className="btn"
                   disabled={busy || analysis.tempo / 2 < 40}
                   onClick={() => onRetempo(analysis.tempo / 2)}
                 >
-                  Half time
+                  {t.halfTime}
                 </button>
                 <button
                   className="btn"
                   disabled={busy || analysis.tempo * 2 > 260}
                   onClick={() => onRetempo(analysis.tempo * 2)}
                 >
-                  Double time
+                  {t.doubleTime}
                 </button>
               </div>
             </div>
@@ -295,8 +295,8 @@ export function TabView({
         </div>
         <p className="faint" style={{ marginTop: 12, marginBottom: 0, fontSize: 13 }}>
           {tab.capo > 0
-            ? `With the capo on fret ${tab.capo} you finger the shapes of ${tab.shapeKeyName}, and the room hears ${tab.key.name}. ${Math.round(tab.capoOpenRatio * 100)}% of the song lands on open chords.`
-            : `Open shapes already cover ${Math.round(tab.capoOpenRatio * 100)}% of this song, so a capo would not buy you much.`}
+            ? t.withCapo(tab.capo, translateKeyName(tab.shapeKeyName, lang), tab.capoOpenRatio)
+            : t.openShapes(tab.capoOpenRatio)}
         </p>
       </div>
 
@@ -307,7 +307,7 @@ export function TabView({
       </div>
 
       <div className="card">
-        <h2>Chord chart</h2>
+        <h2>{t.chordChart}</h2>
         <div className="bars">
           {tab.bars.map((bar) => (
             <div
@@ -340,14 +340,14 @@ export function TabView({
       {tab.bars.length > 0 ? (
         <div className="card">
           <div className="tab-card-head">
-            <h2>Tablature</h2>
+            <h2>{t.tablature}</h2>
             {tab.loop ? (
               <div className="segmented">
                 <button aria-pressed={tabScope === 'song'} onClick={() => setTabScope('song')}>
-                  Whole song
+                  {t.wholeSong}
                 </button>
                 <button aria-pressed={tabScope === 'loop'} onClick={() => setTabScope('loop')}>
-                  Just the loop
+                  {t.justLoop}
                 </button>
               </div>
             ) : null}
@@ -362,10 +362,10 @@ export function TabView({
           </div>
           <div className="btn-row" style={{ marginTop: 12 }}>
             <button className="btn" onClick={() => window.print()}>
-              <PrintIcon size={16} /> Print the tab
+              <PrintIcon size={16} /> {t.printTab}
             </button>
             <button className="btn" onClick={copyText}>
-              {copied ? 'Copied' : 'Copy the whole tab as text'}
+              {copied ? t.copied : t.copyTab}
             </button>
           </div>
         </div>
@@ -375,7 +375,7 @@ export function TabView({
 
       <div className="sticky-cta">
         <button className="btn btn-primary btn-lg" onClick={() => onPractice(tab)}>
-          <PlayIcon size={18} /> Practise this
+          <PlayIcon size={18} /> {t.practiseThis}
         </button>
       </div>
     </div>

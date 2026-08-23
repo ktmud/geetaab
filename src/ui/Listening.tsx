@@ -3,6 +3,7 @@ import { stateToChord } from '../core/analyze';
 import { SHARP_NAMES, chordName } from '../core/chordTypes';
 import { pitchClassHue } from '../music/pitchColor';
 import { NC_STATE } from '../core/chords';
+import { useT } from '../i18n';
 import { Recorder, type LiveFrame } from '../audio/recorder';
 import { SpectroPainter } from './spectroPainter';
 import { StopIcon } from './icons';
@@ -16,6 +17,7 @@ export interface ListeningProps {
 }
 
 export function Listening({ onDone, onCancel }: ListeningProps) {
+  const t = useT();
   const recorderRef = useRef<Recorder | null>(null);
   const painterRef = useRef<SpectroPainter | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,10 +53,10 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
       if (cancelled) return;
       const message =
         err instanceof DOMException && err.name === 'NotAllowedError'
-          ? 'Microphone access was blocked. Allow it in your browser settings, then try again.'
+          ? t.microphone
           : err instanceof Error
             ? err.message
-            : 'The microphone could not be opened.';
+            : t.microphone;
       setError(message);
     });
 
@@ -103,11 +105,11 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     return (
       <div className="shell">
         <div className="card">
-          <h2>The microphone did not open</h2>
+          <h2>{t.microphone}</h2>
           <p>{error}</p>
           <div className="btn-row">
             <button className="btn btn-primary" onClick={onCancel}>
-              Back
+              {t.back}
             </button>
           </div>
         </div>
@@ -122,7 +124,7 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
           chord readout stays the subject and this stays the room it happens in. */}
       <canvas ref={canvasRef} className={`listen-spectro${waiting ? '' : ' on'}`} aria-hidden="true" />
 
-      <div className="eyebrow">{waiting ? 'Waiting for the song' : 'Recording'}</div>
+      <div className="eyebrow">{waiting ? t.waitingForSong : t.recording}</div>
 
       <div className={`listen-ring${waiting ? ' waiting' : ''}`}>
         <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -143,7 +145,7 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
         </svg>
         <div>
           <div className="listen-chord">{chordLabel}</div>
-          <div className="listen-chord-sub">hearing now</div>
+          <div className="listen-chord-sub">{t.hearingNow}</div>
         </div>
       </div>
 
@@ -182,41 +184,39 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
       </div>
 
       {clipping ? (
-        <div className="notice notice-warn">Too loud — move further from the speaker.</div>
+        <div className="notice notice-warn">{t.tooLoud}</div>
       ) : quiet ? (
-        <div className="notice notice-info">Very quiet. Move closer, or turn the song up.</div>
+        <div className="notice notice-info">{t.veryQuiet}</div>
       ) : waiting && heardSomething ? (
         <div className="notice notice-info">
-          I can hear the room, but not a song yet. Recording starts on its own when the music does.
+          {t.hearRoom}
         </div>
       ) : null}
 
       {waiting ? (
         <>
           <button className="btn btn-primary btn-lg" disabled>
-            Play the song — I’ll start with it
+            {t.playTheSong}
           </button>
           <button className="btn" onClick={() => recorderRef.current?.startNow()}>
-            Record anyway
+            {t.recordAnyway}
           </button>
         </>
       ) : (
         <button className="btn btn-primary btn-lg" onClick={finish} disabled={!ready || stopping}>
           <StopIcon size={18} />
-          {stopping ? 'Working…' : ready ? 'Stop and build the tab' : `Keep going… ${MIN_SECONDS - Math.floor(seconds)}s`}
+          {stopping ? t.workingText : ready ? t.stopBuildTab : t.keepGoing(MIN_SECONDS - Math.floor(seconds))}
         </button>
       )}
 
       <button className="btn btn-ghost" onClick={onCancel}>
-        Cancel
+        {t.cancel}
       </button>
 
       <ul className="tip-list card" style={{ maxWidth: 460 }}>
-        <li>Recording waits for the music, so start the song whenever you are ready.</li>
-        <li>Point the phone at the speaker, about an arm's length away.</li>
-        <li>Catch a chorus. Thirty seconds of the part you want to play is plenty.</li>
-        <li>Quiet room, no singing along — voices confuse the harmony.</li>
-        <li>Songs built on a guitar or piano read best; heavy production reads worst.</li>
+        {t.recordingTips.map((tip, index) => (
+          <li key={index}>{tip}</li>
+        ))}
       </ul>
     </div>
   );

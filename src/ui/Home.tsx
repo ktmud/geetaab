@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { SongSummary } from '../store/library';
 import { easiestShape } from '../music/shapes';
 import type { ChordQuality } from '../core/chordTypes';
+import { useT } from '../i18n';
 import { ChordDiagram } from './ChordDiagram';
 import { HeroVisual } from './HeroVisual';
 import { FileIcon, MicIcon, SparkIcon, TrashIcon } from './icons';
@@ -52,22 +53,21 @@ export function Home({
   onDeleteSong,
   micSupported,
 }: HomeProps) {
+  const t = useT();
   const fileInput = useRef<HTMLInputElement>(null);
 
   return (
     <div className="shell home">
       <section className="home-hero">
-        <div className="eyebrow">Guitar tabs, by ear</div>
+        <div className="eyebrow">{t.eyebrowGuitarTabs}</div>
         <h1>
-          <span>Play a song near your mic.</span>
-          <span>Get a tab you can actually play.</span>
+          <span>{t.h1PlayNearMic}</span>
+          <span>{t.h1GetTab}</span>
         </h1>
         <div className="hero-split">
           <div className="hero-copy">
             <p className="lede">
-              geetaab works out the chords, the key and the tempo, then rewrites the song in shapes
-              a beginner already knows — capo included. Then you practise it karaoke-style,
-              sideways, at whatever speed you can keep up with.
+              {t.ledeParagraph}
             </p>
 
             <div className="hero-actions">
@@ -77,16 +77,16 @@ export function Home({
                 disabled={!micSupported}
               >
                 <MicIcon size={19} />
-                Listen with the mic
+                {t.listenWithMic}
               </button>
               <div className="hero-alt">
-                {micSupported ? 'or ' : 'Your browser blocks microphone access — '}
+                {micSupported ? t.orText : t.blocksMicrophone}
                 <button className="link-button" onClick={() => fileInput.current?.click()}>
-                  open an audio file
+                  {t.openAudioFile}
                 </button>
                 {' · '}
                 <button className="link-button" onClick={onDemo}>
-                  try the demo
+                  {t.tryDemo}
                 </button>
               </div>
             </div>
@@ -111,8 +111,8 @@ export function Home({
       {songs.length > 0 ? (
         <section className="home-section">
           <div className="section-head">
-            <h2>Your songs</h2>
-            <p>Stored on this device only.</p>
+            <h2>{t.yourSongs}</h2>
+            <p>{t.storedOnDevice}</p>
           </div>
           <div className="song-list">
             {songs.map((song) => {
@@ -130,15 +130,15 @@ export function Home({
                     <div className="song-row-title">{song.title}</div>
                     <div className="song-row-meta">
                       {song.keyName} · {Math.round(song.tempo)} BPM ·{' '}
-                      {song.capo > 0 ? `capo ${song.capo}` : 'no capo'} ·{' '}
+                      {song.capo > 0 ? t.capoText(song.capo) : t.noCapo} ·{' '}
                       {formatDuration(song.duration)} · {formatWhen(song.createdAt)}
                     </div>
                   </button>
                   <button
                     className="btn btn-danger"
                     onClick={() => onDeleteSong(song.id)}
-                    aria-label={`Delete ${song.title}`}
-                    title="Delete"
+                    aria-label={t.deleteLabel(song.title)}
+                    title={t.deleteTitle}
                   >
                     <TrashIcon size={17} />
                   </button>
@@ -151,8 +151,8 @@ export function Home({
 
       <section className="home-section">
         <div className="section-head">
-          <h2>What comes out</h2>
-          <p>Every example below is real output, not a mock-up.</p>
+          <h2>{t.whatComesOut}</h2>
+          <p>{t.everyExampleReal}</p>
         </div>
         <div className="feature-grid">
           <article className="feature">
@@ -170,10 +170,9 @@ export function Home({
               </div>
             </div>
             <div>
-              <h3>Shapes you already know</h3>
+              <h3>{t.shapesYouKnow}</h3>
               <p>
-                A song in E♭ has four barre chords in it. geetaab puts a capo on the third fret and
-                hands you C, G, Am and an Fmaj7 instead.
+                {t.shapesDescription}
               </p>
             </div>
           </article>
@@ -191,10 +190,9 @@ export function Home({
               </div>
             </div>
             <div>
-              <h3>The loop, not the whole song</h3>
+              <h3>{t.loopNotWhole}</h3>
               <p>
-                Most songs are one progression repeated. geetaab finds it and tells you how much of
-                the track it covers, so you learn four bars instead of three minutes.
+                {t.loopDescription}
               </p>
             </div>
           </article>
@@ -218,10 +216,9 @@ export function Home({
               </div>
             </div>
             <div>
-              <h3>Practise sideways</h3>
+              <h3>{t.practiceSideways}</h3>
               <p>
-                Turn the phone landscape and the chords scroll past a playhead, with a count-in, a
-                click, section looping and slow-down that keeps the pitch.
+                {t.sidewaysDescription}
               </p>
             </div>
           </article>
@@ -230,36 +227,31 @@ export function Home({
 
       <section className="home-section">
         <div className="section-head">
-          <h2>How it works</h2>
-          <p>No server, no model download. It all happens in this tab.</p>
+          <h2>{t.howItWorks}</h2>
+          <p>{t.noServerDownload}</p>
         </div>
         <ol className="steps">
           <li>
-            <strong>It listens</strong>
-            Twelve pitch classes are measured several times a second, with the recording's own
-            tuning worked out first — so a song mastered slightly sharp still reads correctly.
+            <strong>{t.listens}</strong>
+            {t.listensDescription}
           </li>
           <li>
-            <strong>It finds the pulse</strong>
-            Note onsets give the tempo, and a beat tracker lays a grid over the whole recording so
-            chord changes land on beats instead of between them.
+            <strong>{t.findsThePulse}</strong>
+            {t.findsDescription}
           </li>
           <li>
-            <strong>It picks the chords</strong>
-            Each beat is matched against chord templates that model real overtones, then smoothed
-            into the handful of changes a player would write down.
+            <strong>{t.picksChords}</strong>
+            {t.picksDescription}
           </li>
           <li>
-            <strong>It rewrites for your hands</strong>
-            A capo goes wherever it puts the most of the song on open shapes, and what is left gets
-            the substitutions a teacher would make.
+            <strong>{t.rewritesHands}</strong>
+            {t.rewritesDescription}
           </li>
         </ol>
       </section>
 
       <footer className="home-footer">
-        Everything runs in this browser tab: no audio is uploaded, and your songs are stored on this
-        device only. The chords are a machine transcription — trust your ears over them.
+        {t.everythingRunsBrowser}
       </footer>
     </div>
   );

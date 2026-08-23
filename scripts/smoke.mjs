@@ -327,7 +327,35 @@ try {
   checkThat('a string rings', sawPluck);
   checkThat('and settles back straight', sawStill);
 
-  console.log('\n6. console');
+  console.log('\n6. language toggle');
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  const chordButtonEnStart = await page.evaluate(() => {
+    const buttons = document.querySelectorAll('.topbar button');
+    return Array.from(buttons).find(b => b.textContent.trim() === 'Chords')?.textContent.trim() || null;
+  });
+  check('chords button starts in English', chordButtonEnStart, 'Chords');
+  await page.evaluate(() => {
+    const buttons = document.querySelectorAll('.topbar button');
+    Array.from(buttons).find(b => b.textContent.includes('中文'))?.click();
+  });
+  await page.waitForTimeout(300);
+  const chordButtonZh = await page.evaluate(() => {
+    const buttons = document.querySelectorAll('.topbar button');
+    return Array.from(buttons).find(b => b.textContent.includes('和弦'))?.textContent.trim() || null;
+  });
+  checkThat('chords button switches to Chinese', chordButtonZh && chordButtonZh.includes('和弦'), chordButtonZh);
+  await page.evaluate(() => {
+    const buttons = document.querySelectorAll('.topbar button');
+    Array.from(buttons).find(b => b.textContent.trim() === 'EN')?.click();
+  });
+  await page.waitForTimeout(300);
+  const chordButtonBackEn = await page.evaluate(() => {
+    const buttons = document.querySelectorAll('.topbar button');
+    return Array.from(buttons).find(b => b.textContent.trim() === 'Chords')?.textContent.trim() || null;
+  });
+  check('chords button switches back to English', chordButtonBackEn, 'Chords');
+
+  console.log('\n7. console');
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {
   await browser?.close();

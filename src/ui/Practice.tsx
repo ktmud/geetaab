@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { Metronome, ClockTransport, MediaTransport, type Transport } from '../audio/player';
 import { resumeAudio } from '../audio/context';
+import { useT } from '../i18n';
 import type { SongTab } from '../music/tab';
 import { ChordDiagram } from './ChordDiagram';
 import {
@@ -68,6 +69,7 @@ export interface PracticeProps {
 const PLAYHEAD_FRACTION = 0.26;
 
 export function Practice({ tab, title, beats, barPhase, audio, onExit }: PracticeProps) {
+  const t = useT();
   const laneRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -415,13 +417,12 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
       <div className="rotate-hint">
         <div>
           <RotateIcon size={68} />
-          <h2>Turn your phone sideways</h2>
+          <h2>{t.turnPhoneSideways}</h2>
           <p style={{ maxWidth: 320, margin: '0 auto 18px' }}>
-            Practice mode scrolls the chords past a playhead, and that needs the long edge of the
-            screen.
+            {t.sidewaysNeeded}
           </p>
           <button className="btn" onClick={onExit}>
-            Back to the tab
+            {t.backToTab}
           </button>
         </div>
       </div>
@@ -432,7 +433,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
     <div className="practice">
       <div className="practice-hud">
         <button className="btn btn-ghost" onClick={onExit} style={{ padding: '4px 8px' }}>
-          <BackIcon size={17} /> Exit
+          <BackIcon size={17} /> {t.exit}
         </button>
         <strong style={{ fontSize: 13 }}>{title}</strong>
         <span className="chip">{tab.key.name}</span>
@@ -470,20 +471,20 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
           <div className="practice-next">
             {next?.chord ? (
               <>
-                <span className="practice-next-label">next</span>
+                <span className="practice-next-label">{t.next}</span>
                 <ChordDiagram
                   shape={next.chord.shape}
                   width={54}
                   showFingers={false}
-                  title={`${next.chord.shapeLabel}, the next chord`}
+                  title={t.nextChord(next.chord.shapeLabel)}
                 />
                 <span className="practice-next-name">
                   {next.chord.shapeLabel}
-                  {beatsToNext !== null && beatsToNext > 0 ? ` · in ${beatsToNext}` : ''}
+                  {beatsToNext !== null && beatsToNext > 0 ? t.nextIn(beatsToNext) : ''}
                 </span>
               </>
             ) : (
-              <span className="practice-next-label">last chord</span>
+              <span className="practice-next-label">{t.lastChord}</span>
             )}
           </div>
         </div>
@@ -522,24 +523,16 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
           {hintOpen && countIn === null ? (
             <div className="practice-hint">
               <div className="practice-hint-card">
-                <h3>How this screen works</h3>
+                <h3>{t.howThisWorks}</h3>
                 <ul>
-                  <li>
-                    Press play for a {tab.beatsPerBar}-beat count-in, then change chords as each
-                    block reaches the amber line.
-                  </li>
-                  <li>
-                    The bar below scrubs the song, and ±10 jumps around it. The loop button repeats
-                    the section you are in.
-                  </li>
-                  <li>
-                    Speed already starts where the changes are playable, and slows the song
-                    without changing its pitch. Volume sits behind the speaker button.
-                  </li>
-                  <li>Space plays and pauses · ← → skip five seconds.</li>
+                  {t.practiceHints.map((hint, i) => (
+                    <li key={i}>
+                      {typeof hint === 'function' ? hint(tab.beatsPerBar) : hint}
+                    </li>
+                  ))}
                 </ul>
                 <button className="btn btn-primary" onClick={dismissHint}>
-                  Got it
+                  {t.gotIt}
                 </button>
               </div>
             </div>
@@ -548,7 +541,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
       </div>
 
       <div className="strum-strip" aria-hidden="true">
-        <span className="strum-strip-label">strum</span>
+        <span className="strum-strip-label">{t.strum}</span>
         <div className="strum-strip-steps">
           {strumSlots.map((slot, index) => (
             <span
@@ -562,7 +555,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
           ))}
         </div>
         <span className="strum-strip-bar mono">
-          Bar {currentBar} of {tab.bars.length}
+          {t.barOf(currentBar, tab.bars.length)}
         </span>
       </div>
 
@@ -574,7 +567,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
             ref={seekbarRef}
             role="slider"
             tabIndex={0}
-            aria-label="Song position"
+            aria-label={t.songPosition}
             aria-valuemin={0}
             aria-valuemax={Math.round(duration)}
             aria-valuenow={Math.round(shown)}
@@ -603,23 +596,23 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
         </div>
 
         <div className="dock-row">
-          <button className="transport-btn" onClick={restart} aria-label="Back to the start">
+          <button className="transport-btn" onClick={restart} aria-label={t.backStart}>
             <RewindIcon size={19} />
           </button>
-          <button className="transport-btn" onClick={() => skipBy(-10)} aria-label="Back ten seconds">
+          <button className="transport-btn" onClick={() => skipBy(-10)} aria-label={t.backTenSeconds}>
             <SkipBackTenIcon size={20} />
           </button>
           <button
             className="transport-btn primary"
             onClick={toggle}
-            aria-label={playing ? 'Pause' : 'Play'}
+            aria-label={playing ? t.pause : t.play}
           >
             {playing || countIn !== null ? <PauseIcon size={22} /> : <PlayIcon size={22} />}
           </button>
           <button
             className="transport-btn"
             onClick={() => skipBy(10)}
-            aria-label="Forward ten seconds"
+            aria-label={t.forwardTenSeconds}
           >
             <SkipForwardTenIcon size={20} />
           </button>
@@ -627,7 +620,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
             className="transport-btn"
             onClick={toggleLoop}
             aria-pressed={loopRange !== null}
-            aria-label="Loop this section"
+            aria-label={t.loopSection}
             style={loopRange ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
           >
             <LoopIcon size={19} />
@@ -636,7 +629,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
             className="transport-btn"
             onClick={() => setClickOn((on) => !on)}
             aria-pressed={clickOn}
-            aria-label="Metronome"
+            aria-label={t.metronome}
             style={clickOn ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
           >
             <MetronomeIcon size={19} />
@@ -644,7 +637,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
 
           <span className="spacer" />
 
-          <div className="speed-control" title="Play the song slower without changing its pitch">
+          <div className="speed-control" title={t.practiceSpeed}>
             <SpeedIcon size={15} />
             <span className="ctl-label">Speed</span>
             <input
@@ -654,7 +647,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
               step={0.05}
               value={rate}
               onChange={(event) => setRate(Number(event.target.value))}
-              aria-label="Practice speed"
+              aria-label={t.practiceSpeed}
             />
             <span className="speed-value">{Math.round(rate * 100)}%</span>
           </div>
@@ -678,7 +671,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
                   step={0.05}
                   value={volume}
                   onChange={(event) => setVolume(Number(event.target.value))}
-                  aria-label="Playback volume"
+                  aria-label={t.playbackVolume}
                 />
                 <span className="volume-value mono">{Math.round(volume * 100)}%</span>
               </div>
