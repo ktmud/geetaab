@@ -3,6 +3,7 @@ import {
   aggregateByBeats,
   aggregateEnergyByBeats,
   bridgeShortGaps,
+  consolidateSegments,
   decodeChords,
   mergeAdjacent,
   pathToSegments,
@@ -235,8 +236,10 @@ function decodeOnGrid(
     seg.endBeat = seg.endIndex;
   }
   refineSegments(raw, treble.data, bass.data, treble.count);
+  const merged = mergeAdjacent(raw);
+  consolidateSegments(merged, treble.data, bass.data, treble.count);
   return {
-    segments: bridgeShortGaps(mergeAdjacent(raw)),
+    segments: bridgeShortGaps(mergeAdjacent(merged)),
     path,
     beatCount: treble.count,
     beatEnergy,

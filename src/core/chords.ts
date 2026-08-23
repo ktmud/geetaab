@@ -462,6 +462,124 @@ export function refineSegments(
   }
 }
 
+/** Chord qualities that read as one working family when consolidating. */
+const QUALITY_POOL: Record<ChordQuality, 'maj' | 'min' | 'sus'> = {
+  maj: 'maj',
+  dom7: 'maj',
+  maj7: 'maj',
+  min: 'min',
+  min7: 'min',
+  sus4: 'sus',
+  sus2: 'sus',
+};
+
+/** Qualities a doubtful segment may be folded into: the simple, common ones. */
+const CONSOLIDATE_TARGETS: ChordQuality[] = ['maj', 'min', 'min7'];
+
+export interface ConsolidateOptions {
+  /** Deficit a same-family (colour-only) relabel may overcome. */
+  marginSame?: number;
+  /** Deficit a cross-family relabel may overcome. */
+  marginCross?: number;
+  /** How much more established the target must be than the incumbent. */
+  supportRatio?: number;
+  bassWeight?: number;
+}
+
+/**
+ * Fold rarely-seen qualities into the chord the song has already established
+ * at the same root.
+ *
+ * A published tab writes the functional chord; the recording underneath it
+ * drifts. In a fingerpicked verse the accompanist plays root and fifth while
+ * the melody supplies a ninth or a fourth, and the honest local reading of
+ * that bar is Esus2 or C#7 even though every other verse names it Em or C#m7.
+ * A human transcriber resolves this with the song's own vocabulary — "that
+ * bar is the same Em as always" — which is exactly the evidence used here:
+ * the same root elsewhere in the song, carrying several times the duration,
+ * and a template score within a small margin on this segment's interior.
+ *
+ * Two deliberate asymmetries keep this from doing harm. Only simple qualities
+ * (maj, min, min7) can be targets, so a systematic misreading can never pile
+ * onto a decorated colour; and a plain maj/min/min7 segment never flips across
+ * the major/minor line, because a key-change chorus makes locally-right chords
+ * globally rare — the one situation where song-level statistics lie.
+ */
+export function consolidateSegments(
+  segments: ChordSegment[],
+  treble: Float32Array,
+  bass: Float32Array,
+  beatCount: number,
+  opts: ConsolidateOptions = {},
+): void {
+  const marginSame = opts.marginSame ?? 0.05;
+  const marginCross = opts.marginCross ?? 0.075;
+  const supportRatio = opts.supportRatio ?? 2;
+
+  // Durations are frozen at their pre-consolidation values: each decision is
+  // made against what the first pass heard, not against earlier relabels.
+  const stateDur = new Float32Array(CHORD_STATES);
+  const poolDur = new Map<string, number>();
+  for (const seg of segments) {
+    if (seg.chord.root < 0) continue;
+    const dur = seg.end - seg.start;
+    stateDur[chordToState(seg.chord)] += dur;
+    const key = `${seg.chord.root}:${QUALITY_POOL[seg.chord.quality]}`;
+    poolDur.set(key, (poolDur.get(key) ?? 0) + dur);
+  }
+
+  for (const seg of segments) {
+    if (seg.chord.root < 0) continue;
+    const b0 = seg.startBeat ?? 0;
+    const b1 = Math.min(beatCount, seg.endBeat ?? b0 + 1);
+    const span = b1 - b0;
+    if (span < 1) continue;
+    let lo = b0;
+    let hi = span >= 3 ? b1 - 1 : b1;
+    if (span >= 4) lo = b0 + 1;
+    if (hi <= lo) {
+      lo = b0;
+      hi = b1;
+    }
+    const t = medianChromaRange(treble, lo, hi);
+    const b = medianChromaRange(bass, lo, hi);
+    const scored = scoreChords(t, b, 1, undefined, { bassWeight: opts.bassWeight ?? 0.3 });
+
+    const root = seg.chord.root;
+    const quality = seg.chord.quality;
+    const incState = chordToState(seg.chord);
+    const incScore = scored.scores[incState];
+    const ownPool = QUALITY_POOL[quality];
+    const ownPoolDur = poolDur.get(`${root}:${ownPool}`) ?? 0;
+    const plain = quality === 'maj' || quality === 'min' || quality === 'min7';
+    const incFamily = quality === 'min' || quality === 'min7' ? 'min' : 'maj';
+
+    let best: { state: number; score: number } | null = null;
+    for (const target of CONSOLIDATE_TARGETS) {
+      if (target === quality) continue;
+      const targetFamily = target === 'maj' ? 'maj' : 'min';
+      if (plain && targetFamily !== incFamily) continue;
+      const state = root * QUALITIES.length + QUALITIES.indexOf(target);
+      const targetDur = stateDur[state];
+      if (targetDur <= 0) continue;
+      const targetPool = QUALITY_POOL[target];
+      if (targetPool === ownPool) {
+        if (targetDur < supportRatio * stateDur[incState]) continue;
+      } else {
+        const targetPoolDur = poolDur.get(`${root}:${targetPool}`) ?? 0;
+        if (targetPoolDur < supportRatio * ownPoolDur) continue;
+      }
+      const margin = targetFamily === incFamily ? marginSame : marginCross;
+      if (incScore - scored.scores[state] > margin) continue;
+      if (!best || scored.scores[state] > best.score) best = { state, score: scored.scores[state] };
+    }
+    if (best) {
+      seg.chord = stateToChord(best.state);
+      seg.confidence = best.score;
+    }
+  }
+}
+
 /**
  * Absorb sub-second no-chord gaps whose neighbours agree on the chord.
  *
