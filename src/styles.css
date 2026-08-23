@@ -1333,10 +1333,18 @@ input[type='range'] {
   line-height: 1.35;
 }
 
+/* A grid, not wrapped flex: these cards carry a line of advice underneath and
+   flex sized each one to its own sentence, so a row of eight chords came out
+   eight different widths. The tips are the widest thing in them, hence the
+   wider track than the bare-diagram grid below. */
 .palette {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
+}
+
+.palette .chord-tile {
+  min-width: 0;
 }
 
 /* ---------- chord chart ---------- */
