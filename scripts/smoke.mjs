@@ -923,6 +923,49 @@ try {
     await page.evaluate(() => document.querySelector('.how-it-works') === null),
   );
 
+  console.log('\n7b. the page ends where the page ends');
+  // Two ways a page grew a dead tail: a 96px reserve for a Practise dock that
+  // only one screen has, and a footer that was not pinned to the bottom of the
+  // min-height box, so a viewport taller than the content left blank under it.
+  const tails = [];
+  for (const [hash, label, height] of [
+    ['#/', 'home', 932],
+    ['#/chords', 'the chord library', 932],
+    ['#/how', 'the explainer', 932],
+    ['#/', 'a screen taller than the home page', 2400],
+  ]) {
+    await page.setViewportSize({ width: 430, height });
+    await page.goto(`${ORIGIN}/${hash}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(250);
+    tails.push({
+      label,
+      ...(await page.evaluate(() => {
+        const footer = document.querySelector('.app-footer');
+        const shell = document.querySelector('.shell');
+        const fr = footer.getBoundingClientRect();
+        return {
+          reserve: parseFloat(getComputedStyle(shell).paddingBottom),
+          gap: Math.round(fr.top - shell.getBoundingClientRect().bottom),
+          below: document.documentElement.scrollHeight - Math.round(fr.bottom + window.scrollY),
+          restsOnTheBottom: Math.abs(fr.bottom - window.innerHeight) <= 1,
+        };
+      })),
+    });
+  }
+  await page.setViewportSize({ width: 430, height: 932 });
+  checkThat(
+    'no screen without a dock reserves room for one',
+    tails.every((t) => t.reserve <= 32 && t.gap <= 2),
+    tails.map((t) => `${t.label} ${t.reserve}px`).join(', '),
+  );
+  checkThat(
+    'and the footer sits on the bottom of the screen, not with the screen below it',
+    tails.every((t) => t.below === 0 && t.restsOnTheBottom),
+    tails.map((t) => `${t.label} ${t.below}px below`).join(', '),
+  );
+
   console.log('\n8. console');
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {

@@ -459,8 +459,15 @@ button {
 .shell {
   width: min(980px, 100%);
   margin: 0 auto;
-  padding: 20px 18px 96px;
+  padding: 20px 18px 24px;
   flex: 1;
+}
+
+/* The tab screen keeps a Practise button docked over the bottom of the page, so
+   its last card needs a tail to clear. Every other screen was carrying that
+   tail too, which read as the page not knowing it had ended. */
+.shell.has-dock {
+  padding-bottom: 96px;
 }
 
 .topbar {
@@ -2389,10 +2396,6 @@ input[type='range'] {
 
 /* ---------- home: layout ---------- */
 
-.home {
-  padding-bottom: 60px;
-}
-
 .home-hero {
   padding: 26px 0 8px;
 }
@@ -2695,6 +2698,12 @@ input[type='range'] {
 /* ---------- app footer ---------- */
 
 .app-footer {
+  /* .app is a column at least one viewport tall, so on any page shorter than
+     the screen the footer would otherwise sit directly under the content with
+     the rest of that height left blank beneath it — which is what it looks
+     like on a phone, where the address bar collapsing makes the viewport grow
+     under a page that has already been laid out. */
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3736,13 +3745,6 @@ input[type='range'] {
   .hw-fig svg {
     min-width: 0;
   }
-}
-
-/* The 96px tail on .shell keeps the last card clear of the practice dock.
-   The home screen has no dock, and its own closing note plus the page footer
-   already give the page an ending. */
-.shell.home {
-  padding-bottom: 24px;
 }
 
 /* Chinese does not italicise for emphasis — a slanted Han face is a synthesised
