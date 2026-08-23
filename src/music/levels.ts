@@ -37,7 +37,75 @@ export function reduceSegments(segments: ChordSegment[], beatsPerBar: number): C
       ? { ...seg }
       : { ...seg, chord: { root: seg.chord.root, quality: REDUCED_QUALITY[seg.chord.quality] } },
   );
-  return mergeAdjacent(absorbShort(mergeAdjacent(reduced), beatsPerBar));
+  const eased = mergeAdjacent(absorbShort(mergeAdjacent(reduced), beatsPerBar));
+  return mergeAdjacent(holdThroughFastChanges(eased, segments));
+}
+
+/** Above this, a first-year player is changing chords faster than they can
+ * think; only then does the hold pass step in. */
+const EASY_MAX_CHANGES_PER_MINUTE = 21;
+
+/** A typical chord shorter than this marks a genuinely fast harmonic rhythm.
+ * A song of unhurried bar-length chords can sit above the rate gate at a
+ * brisk tempo — the demo progression does — and should still be left alone. */
+const EASY_FAST_MEDIAN_SECONDS = 2.25;
+
+/**
+ * Coarsen a genuinely fast song to roughly its own bar.
+ *
+ * Some songs really do change every two beats, sheet and all — absorbing
+ * "passing" chords cannot help there because nothing is passing. What a
+ * teacher does instead is halve the harmonic rhythm: play the downbeat chord
+ * and hold it through the next change. The hold unit is twice the analysis's
+ * median chord length, which is the song's own bar wherever the sheet changes
+ * twice a bar — and, usefully, is immune to the beat grid coming back an
+ * octave high, because the median doubles right along with the beat count.
+ *
+ * A chord as long as the unit is never absorbed — the pass thins genuinely
+ * quick changes, it does not swallow established harmony — and a song already
+ * at a beginner-manageable rate is returned untouched.
+ */
+function holdThroughFastChanges(
+  segments: ChordSegment[],
+  source: ChordSegment[],
+): ChordSegment[] {
+  const chords = segments.filter((s) => s.chord.root >= 0);
+  if (chords.length < 2) return segments;
+  const span = chords[chords.length - 1].end - chords[0].start;
+  if (span <= 0 || (chords.length / span) * 60 <= EASY_MAX_CHANGES_PER_MINUTE) return segments;
+
+  const sourceChords = source.filter((s) => s.chord.root >= 0);
+  if (sourceChords.length === 0) return segments;
+  const secs = sourceChords.map((s) => s.end - s.start).sort((a, b) => a - b);
+  if (secs[secs.length >> 1] >= EASY_FAST_MEDIAN_SECONDS) return segments;
+
+  const lens = sourceChords
+    .map((s) => (s.endBeat ?? 0) - (s.startBeat ?? 0))
+    .sort((a, b) => a - b);
+  const median = lens[lens.length >> 1];
+  const unit = Math.max(2, Math.round(2 * median));
+
+  const out: ChordSegment[] = [];
+  let heldStart = -Infinity; // startBeat of the last change the player makes
+  for (const seg of segments) {
+    const previous = out[out.length - 1];
+    if (seg.chord.root < 0) {
+      out.push({ ...seg });
+      heldStart = -Infinity; // silence ends the hold: the next chord is fresh
+      continue;
+    }
+    const start = seg.startBeat ?? 0;
+    const beats = (seg.endBeat ?? 0) - start;
+    if (previous && previous.chord.root >= 0 && start - heldStart < unit && beats < unit) {
+      previous.end = seg.end;
+      previous.endBeat = seg.endBeat;
+      previous.endIndex = seg.endIndex;
+      continue;
+    }
+    out.push({ ...seg });
+    heldStart = start;
+  }
+  return out;
 }
 
 function absorbShort(segments: ChordSegment[], beatsPerBar: number): ChordSegment[] {
