@@ -587,6 +587,9 @@ p {
   padding: 11px 16px;
   font-size: 14px;
   font-weight: 600;
+  /* A label is one line. Squeezed in a tight topbar, 中文 was breaking between
+     its two characters and pushing the bar to two rows. */
+  white-space: nowrap;
   transition: background 0.14s ease, border-color 0.14s ease, transform 0.08s ease;
 }
 
@@ -668,6 +671,24 @@ p {
   .btn-theme {
     padding-left: 11px;
     padding-right: 11px;
+  }
+
+  /* Give the row back the width the labels need: a smaller wordmark, tighter
+     gaps, and ghost buttons that keep their tap target while losing the
+     padding they only had for looks. */
+  .topbar {
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .brand {
+    font-size: 18px;
+    gap: 8px;
+  }
+
+  .topbar .btn {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 }
 
