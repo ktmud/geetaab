@@ -29,6 +29,10 @@ jobs:
       - name: Push the build to gh-pages
         run: |
           set -euo pipefail
+          # The custom domain rides in the build (public/CNAME). Refuse to
+          # deploy without it: a push that erased the file would silently
+          # detach geetaab.com, which is worse than a failed deploy.
+          test -s dist/CNAME
           # Jekyll would otherwise drop any file or directory starting with _.
           touch dist/.nojekyll
           cd dist
