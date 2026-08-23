@@ -31,6 +31,7 @@ type Screen =
 interface Session {
   id: string;
   title: string;
+  createdAt: number;
   analysis: AnalysisResult;
   audio?: Blob;
   source: StoredSong['source'];
@@ -63,7 +64,8 @@ export function App() {
       const record: StoredSong = {
         id: next.id,
         title: next.title,
-        createdAt: Date.now(),
+        // Editing a title must not reorder the library or rewrite its history.
+        createdAt: next.createdAt,
         analysis: next.analysis,
         capo: nextOptions.capo,
         strumId: nextOptions.strumId,
@@ -80,7 +82,13 @@ export function App() {
     async (
       samples: Float32Array,
       sampleRate: number,
-      meta: { title: string; source: StoredSong['source']; audio?: Blob; id?: string },
+      meta: {
+        title: string;
+        source: StoredSong['source'];
+        audio?: Blob;
+        id?: string;
+        createdAt?: number;
+      },
       tempoHint?: number,
     ) => {
       setBusy(true);
@@ -93,6 +101,7 @@ export function App() {
         const next: Session = {
           id: meta.id ?? newSongId(),
           title: meta.title,
+          createdAt: meta.createdAt ?? Date.now(),
           analysis,
           audio: meta.audio,
           source: meta.source,
@@ -176,6 +185,7 @@ export function App() {
       setSession({
         id: song.id,
         title: song.title,
+        createdAt: song.createdAt,
         analysis: song.analysis,
         audio: song.audio,
         source: song.source,
@@ -229,6 +239,7 @@ export function App() {
           source: current.source,
           audio: current.audio,
           id: current.id,
+          createdAt: current.createdAt,
         },
         bpm,
       );

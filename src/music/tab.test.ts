@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeAudio } from '../core/analyze';
 import { DEMO_PROGRESSION, renderProgression } from '../audio/synth';
-import { buildTab } from './tab';
+import { buildTab, findLoop } from './tab';
 import { barTab, songTabText } from './tabText';
 
 const audio = renderProgression([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], {
@@ -71,5 +71,40 @@ describe('tablature text', () => {
     expect(text).toContain('Chords you need');
     expect(text).toMatch(/G\s+3 2 0 0 0 3/);
     expect(text).toContain('The loop (4 bars');
+  });
+});
+
+describe('findLoop', () => {
+  const bars = (signatures: string[]) =>
+    signatures.map((signature, index) => ({
+      index,
+      startBeat: index * 4,
+      beats: 4,
+      startTime: index * 2,
+      endTime: (index + 1) * 2,
+      slots: [],
+      signature,
+    }));
+
+  it('confirms a four-bar loop from only two bars of repeat', () => {
+    // What a short microphone capture leaves you with.
+    const loop = findLoop(bars(['Eb', 'Bb', 'Cm', 'Ab', 'Eb', 'Bb']));
+    expect(loop?.length).toBe(4);
+    expect(loop?.bars).toEqual(['Eb', 'Bb', 'Cm', 'Ab']);
+  });
+
+  it('reports nothing when the song never repeats', () => {
+    expect(findLoop(bars(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Am']))).toBeNull();
+  });
+
+  it('prefers the four-bar loop over the two-bar fragment inside it', () => {
+    const loop = findLoop(bars(['G', 'D', 'Am', 'C', 'G', 'D', 'Am', 'C', 'G', 'D', 'Am', 'C']));
+    expect(loop?.length).toBe(4);
+    expect(loop?.coverage).toBe(1);
+  });
+
+  it('ignores a lone repeated pair that is not the progression', () => {
+    const loop = findLoop(bars(['C', 'C', 'F', 'G', 'Am', 'Em', 'F', 'G']));
+    expect(loop).toBeNull();
   });
 });

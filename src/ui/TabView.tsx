@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../core/analyze';
-import { patternsFor } from '../music/arrange';
+import { chooseCapo, patternsFor } from '../music/arrange';
 import { buildTab, type SongTab } from '../music/tab';
 import { barTab, songTabText } from '../music/tabText';
 import { ChordCard } from './ChordDiagram';
@@ -44,7 +44,10 @@ export function TabView({
     return buildTab(analysis, { capo: options.capo, simplify: options.simplify, strum });
   }, [analysis, options]);
 
-  const autoCapo = useMemo(() => buildTab(analysis, { simplify: options.simplify }).capo, [analysis, options.simplify]);
+  const autoCapo = useMemo(
+    () => chooseCapo(analysis.segments, analysis.key, { simplify: options.simplify }).fret,
+    [analysis, options.simplify],
+  );
   const patterns = patternsFor(tab.beatsPerBar);
   const loopBars = tab.bars.slice(0, Math.min(tab.bars.length, tab.loop?.length ?? 4));
   const hardChords = tab.palette.filter((chord) => chord.shape.difficulty === 3);

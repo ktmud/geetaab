@@ -5,10 +5,3 @@ dist/
 .vite/
 coverage/
 *.tsbuildinfo
-
-# local browser-driving scratch scripts
-.drive.mjs
-.capo.mjs
-.practice.mjs
-.zoom.mjs
-.makewav.ts

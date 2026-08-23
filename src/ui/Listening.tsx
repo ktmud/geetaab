@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { stateToChord } from '../core/analyze';
 import { chordName } from '../core/chordTypes';
 import { NC_STATE } from '../core/chords';
@@ -55,16 +55,19 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     };
   }, []);
 
-  const finish = (): void => {
+  const finish = useCallback((): void => {
     const recorder = recorderRef.current;
-    if (!recorder || stopping) return;
+    if (!recorder) return;
+    recorderRef.current = null;
     setStopping(true);
     void recorder.stop().then(({ samples, sampleRate }) => {
-      recorderRef.current = null;
       onDone(samples, sampleRate);
     });
-  };
-  finishRef.current = finish;
+  }, [onDone]);
+
+  useEffect(() => {
+    finishRef.current = finish;
+  }, [finish]);
 
   const level = frame ? Math.min(1, Math.sqrt(frame.level * 6)) : 0;
   const clipping = (frame?.peak ?? 0) > 0.985;

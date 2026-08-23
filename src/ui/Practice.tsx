@@ -139,7 +139,12 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
         innerRef.current.style.transform = `translate3d(${offset}px, 0, 0)`;
       }
 
-      metronomeRef.current?.schedule(time, transport.rate);
+      if (transport.playing) {
+        metronomeRef.current?.schedule(time, transport.rate);
+      } else {
+        // Otherwise a pause would still let the last scheduled clicks through.
+        metronomeRef.current?.reset(time);
+      }
 
       const index = findEventIndex(time);
       if (index !== lastEvent) {

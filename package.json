@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "smoke": "vite-node scripts/smoke.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

@@ -177,7 +177,13 @@ function layOutBars(
     }
     start += beatsPerBar;
   }
-  return bars;
+  // A recording that opens or closes on silence leaves bars with nothing in
+  // them; numbering those would have the player counting through empty air.
+  let first = 0;
+  while (first < bars.length && bars[first].slots.length === 0) first++;
+  let last = bars.length - 1;
+  while (last >= first && bars[last].slots.length === 0) last--;
+  return bars.slice(first, last + 1).map((bar, i) => ({ ...bar, index: i }));
 }
 
 function buildPalette(events: TabEvent[]): PlayableChord[] {
@@ -201,9 +207,10 @@ export function findLoop(bars: TabBar[]): SongLoop | null {
   const signatures = bars.map((b) => b.signature).filter((s) => s.length > 0);
   if (signatures.length < 4) return null;
 
-  let best: SongLoop | null = null;
+  let best: { loop: SongLoop; repeat: number } | null = null;
   for (const length of [4, 2, 8]) {
-    if (signatures.length < length * 2) continue;
+    // Two bars past the pattern is the least that can confirm it repeats.
+    if (signatures.length < length + 2) continue;
 
     const firstSeen = new Map<string, number>();
     const counts = new Map<string, number>();
@@ -220,28 +227,38 @@ export function findLoop(bars: TabBar[]): SongLoop | null {
         topKey = k;
       }
     }
-    if (topCount < 2) continue;
+    if (!topKey) continue;
 
-    // Coverage is how much of the song this loop *predicts*, tiled from where it
-    // first appears. Counting overlapping occurrences instead would let an
-    // eight-bar loop outscore the four-bar loop it is simply made of.
     const pattern = topKey.split(' | ');
     const start = firstSeen.get(topKey) ?? 0;
-    let matches = 0;
+    const predicts = (i: number): boolean =>
+      signatures[i] === pattern[(((i - start) % length) + length) % length];
+
+    // Score the pattern only on the bars it did not come from. Any window
+    // trivially matches itself, so counting those would let a song that never
+    // repeats at all report a loop, and would let an eight-bar window outscore
+    // the four-bar loop it is simply made of.
+    let outside = 0;
+    let outsideMatches = 0;
+    let total = 0;
     for (let i = 0; i < signatures.length; i++) {
-      const expected = pattern[(((i - start) % length) + length) % length];
-      if (signatures[i] === expected) matches++;
+      if (predicts(i)) total++;
+      if (i >= start && i < start + length) continue;
+      outside++;
+      if (predicts(i)) outsideMatches++;
     }
-    const coverage = matches / signatures.length;
+    if (outside === 0) continue;
+    const repeat = outsideMatches / outside;
+
     // Prefer the shortest loop that explains the song; a four-bar answer beats
     // an eight-bar one that is just the same thing said twice.
-    const score = coverage + (length === 4 ? 0.05 : 0);
-    const bestScore = best ? best.coverage + (best.length === 4 ? 0.05 : 0) : -1;
+    const score = repeat + (length === 4 ? 0.05 : 0);
+    const bestScore = best ? best.repeat + (best.loop.length === 4 ? 0.05 : 0) : -1;
     if (score > bestScore) {
-      best = { bars: pattern, length, coverage };
+      best = { loop: { bars: pattern, length, coverage: total / signatures.length }, repeat };
     }
   }
-  return best && best.coverage >= 0.35 ? best : null;
+  return best && best.repeat >= 0.6 ? best.loop : null;
 }
 
 /** Six-line tablature rows for one chord shape under a strumming pattern. */
