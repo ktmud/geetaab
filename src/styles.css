@@ -110,11 +110,18 @@ button {
 /* ---------- type ---------- */
 
 h1 {
-  font-size: clamp(28px, 6vw, 42px);
-  line-height: 1.08;
+  font-size: clamp(25px, 6vw, 42px);
+  line-height: 1.1;
   letter-spacing: -0.03em;
   margin: 0 0 12px;
   font-weight: 700;
+  text-wrap: balance;
+}
+
+/* Each sentence balances on its own, so a line break never lands mid-sentence. */
+h1 > span {
+  display: block;
+  text-wrap: balance;
 }
 
 h2 {

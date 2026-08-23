@@ -41,9 +41,8 @@ export function Home({
       <section className="hero">
         <div className="eyebrow">Guitar tabs, by ear</div>
         <h1>
-          Play a song near your mic.
-          <br />
-          Get a tab you can actually play.
+          <span>Play a song near your mic.</span>
+          <span>Get a tab you can actually play.</span>
         </h1>
         <p className="lede">
           geetab listens to the harmony, works out the chords, the key and the tempo, then rewrites
