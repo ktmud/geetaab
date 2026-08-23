@@ -119,14 +119,34 @@ try {
   checkThat('counts the player in', counting !== null, `showed ${counting}`);
   await page.getByRole('button', { name: 'Pause' }).click();
   await page.waitForTimeout(2500);
-  const clockAfterCancel = await page.evaluate(
-    () => document.querySelector('.practice-hud .mono')?.textContent.trim(),
-  );
+  const clock = () => page.evaluate(() => document.querySelector('.seek-time')?.textContent.trim());
+  const clockAfterCancel = await clock();
   checkThat(
     'pausing during the count-in does not start playback',
     clockAfterCancel.startsWith('0:00'),
     clockAfterCancel,
   );
+
+  console.log('\n2b. seeking');
+  await page.getByRole('button', { name: 'Forward ten seconds' }).click();
+  check('the +10 button jumps ahead', await clock(), '0:10');
+  await page.getByRole('button', { name: 'Back ten seconds' }).click();
+  check('the -10 button comes back, clamped at zero', await clock(), '0:00');
+  const bar = await page.locator('.seekbar').boundingBox();
+  await page.mouse.move(bar.x + bar.width * 0.55, bar.y + bar.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bar.x + bar.width * 0.7, bar.y + bar.height / 2, { steps: 4 });
+  await page.mouse.up();
+  const afterDrag = await clock();
+  checkThat('dragging the bar scrubs the song', afterDrag !== '0:00', `now at ${afterDrag}`);
+  await page.getByRole('button', { name: 'Volume' }).click();
+  await page.getByRole('slider', { name: 'Playback volume' }).fill('0.5');
+  const volume = await page.evaluate(() => document.querySelector('.volume-value')?.textContent.trim());
+  check('the tucked-away volume control', volume, '50%');
+  await page.getByRole('button', { name: 'Volume' }).click();
+  await page.getByRole('button', { name: 'Back to the start' }).click();
+  check('back to the start', await clock(), '0:00');
+
   await page.getByRole('button', { name: 'Play' }).click();
   await page.waitForTimeout(6000);
   const laneAfter = await page.evaluate(() => document.querySelector('.lane-inner')?.style.transform);
@@ -144,10 +164,25 @@ try {
   const live = await page.evaluate(() => ({
     chord: document.querySelector('.listen-chord')?.textContent.trim(),
     lit: document.querySelectorAll('.chroma-bar.lit').length,
+    eyebrow: document.querySelector('.eyebrow')?.textContent.trim(),
   }));
   checkThat('live chord readout while recording', live.chord !== '···', `heard ${live.chord}`);
   checkThat('chroma meter responds', live.lit > 0, `${live.lit} bars lit`);
+  checkThat(
+    'the take starts by itself once music is heard',
+    live.eyebrow === 'Recording',
+    `eyebrow says "${live.eyebrow}"`,
+  );
   await page.waitForTimeout(9000);
+  const spectro = await page.evaluate(() => {
+    const canvas = document.querySelector('.listen-spectro');
+    if (!canvas) return { on: false, lit: 0 };
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let lit = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > 12) lit++;
+    return { on: canvas.classList.contains('on'), lit };
+  });
+  checkThat('the whole-take spectrogram paints behind the screen', spectro.on && spectro.lit > 400, `${spectro.lit} px lit`);
   await page.getByRole('button', { name: /Stop and build the tab/ }).click();
   await page.getByText('Chords you need').waitFor({ timeout: 90000 });
   const mic = await page.evaluate(() => ({

@@ -1,7 +1,11 @@
 import { bestChordForChroma } from '../core/analyze';
 import { averageChroma, computeChromagram, CHROMA_SAMPLE_RATE } from '../core/chroma';
 import { resample } from '../core/dsp';
+import { MusicGate, musicFeaturesFrom } from '../core/music';
 import { audioContextCtor } from './context';
+import { SpectrogramBinner } from './spectrogram';
+
+export type RecorderStatus = 'waiting' | 'recording';
 
 export interface LiveFrame {
   /** RMS level, 0..1, for the meter. */
@@ -12,7 +16,10 @@ export interface LiveFrame {
   /** Chord lattice state of the current best guess. */
   chordState: number;
   chordScore: number;
+  /** Seconds of the take so far; zero while still waiting for music. */
   seconds: number;
+  /** Whether the take has started, or the recorder is still holding for music. */
+  status: RecorderStatus;
 }
 
 const WORKLET_SOURCE = `
@@ -48,6 +55,14 @@ export interface RecorderOptions {
   liveWindowSeconds?: number;
   maxSeconds?: number;
   onMaxReached?: () => void;
+  /**
+   * Hold the take until the microphone actually hears music. The audio heard
+   * while holding is not kept — apart from the live window, which is flushed
+   * into the take when the music starts so the first strum is never clipped.
+   */
+  waitForMusic?: boolean;
+  /** One log-frequency spectrum column per captured chunk of the take. */
+  onSpectrum?: (column: Float32Array) => void;
 }
 
 /**
@@ -62,11 +77,18 @@ export class Recorder {
   private stream: MediaStream | null = null;
   private node: AudioNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
+  /** The take. Empty until recording begins. */
   private chunks: Float32Array[] = [];
   private total = 0;
+  /** The most recent audio, kept regardless of phase for the live readout. */
+  private ring: Float32Array[] = [];
+  private ringTotal = 0;
   private timer: number | null = null;
   private opts: RecorderOptions;
   private stopped = true;
+  private recording = false;
+  private gate: MusicGate | null = null;
+  private binner: SpectrogramBinner | null = null;
 
   constructor(opts: RecorderOptions = {}) {
     this.opts = opts;
@@ -81,7 +103,11 @@ export class Recorder {
   }
 
   get isRecording(): boolean {
-    return !this.stopped;
+    return !this.stopped && this.recording;
+  }
+
+  get status(): RecorderStatus {
+    return this.recording ? 'recording' : 'waiting';
   }
 
   async start(): Promise<void> {
@@ -104,7 +130,12 @@ export class Recorder {
     this.source = ctx.createMediaStreamSource(this.stream);
     this.chunks = [];
     this.total = 0;
+    this.ring = [];
+    this.ringTotal = 0;
     this.stopped = false;
+    this.recording = !this.opts.waitForMusic;
+    this.gate = this.opts.waitForMusic ? new MusicGate() : null;
+    this.binner = this.opts.onSpectrum ? new SpectrogramBinner(ctx.sampleRate) : null;
 
     this.node = await this.createCaptureNode(ctx);
     this.source.connect(this.node);
@@ -118,11 +149,37 @@ export class Recorder {
     this.timer = window.setInterval(() => this.emitLiveFrame(), interval);
   }
 
+  /** Start the take by hand, without waiting for the gate to hear music. */
+  startNow(): void {
+    this.beginRecording();
+  }
+
+  private beginRecording(): void {
+    if (this.recording || this.stopped) return;
+    this.recording = true;
+    // The live window becomes the head of the take: the gate needs most of a
+    // second to be sure, and that second contains the song's first strum.
+    this.chunks = [...this.ring];
+    this.total = this.ringTotal;
+    if (this.binner && this.opts.onSpectrum) {
+      for (const chunk of this.chunks) this.opts.onSpectrum(this.binner.column(chunk));
+    }
+  }
+
   private async createCaptureNode(ctx: AudioContext): Promise<AudioNode> {
     const accept = (data: Float32Array): void => {
       if (this.stopped) return;
+      this.ring.push(data);
+      this.ringTotal += data.length;
+      const keep = (this.opts.liveWindowSeconds ?? 1.5) * ctx.sampleRate;
+      while (this.ring.length > 1 && this.ringTotal - this.ring[0].length >= keep) {
+        this.ringTotal -= this.ring[0].length;
+        this.ring.shift();
+      }
+      if (!this.recording) return;
       this.chunks.push(data);
       this.total += data.length;
+      if (this.binner && this.opts.onSpectrum) this.opts.onSpectrum(this.binner.column(data));
       const max = this.opts.maxSeconds;
       if (max && this.total / ctx.sampleRate >= max) {
         this.opts.onMaxReached?.();
@@ -152,10 +209,10 @@ export class Recorder {
 
   private recentSamples(seconds: number): Float32Array {
     const want = Math.floor(seconds * this.sampleRate);
-    const out = new Float32Array(Math.min(want, this.total));
+    const out = new Float32Array(Math.min(want, this.ringTotal));
     let filled = out.length;
-    for (let i = this.chunks.length - 1; i >= 0 && filled > 0; i--) {
-      const chunk = this.chunks[i];
+    for (let i = this.ring.length - 1; i >= 0 && filled > 0; i--) {
+      const chunk = this.ring[i];
       const take = Math.min(filled, chunk.length);
       out.set(chunk.subarray(chunk.length - take), filled - take);
       filled -= take;
@@ -165,7 +222,7 @@ export class Recorder {
 
   private emitLiveFrame(): void {
     const onFrame = this.opts.onFrame;
-    if (!onFrame || this.stopped) return;
+    if (this.stopped) return;
     const window = this.opts.liveWindowSeconds ?? 1.5;
     const recent = this.recentSamples(window);
     if (recent.length < this.sampleRate * 0.3) return;
@@ -189,13 +246,22 @@ export class Recorder {
     normalize(bass);
     const best = bestChordForChroma(treble, bass);
 
-    onFrame({
+    if (this.gate && !this.recording) {
+      // The gate reads the same analysis the readout just ran; hearing music
+      // for a few windows in a row is what starts the take.
+      if (this.gate.push(musicFeaturesFrom(chroma, level, best.score))) {
+        this.beginRecording();
+      }
+    }
+
+    onFrame?.({
       level,
       peak,
       chroma: Array.from(treble),
       chordState: best.state,
       chordScore: best.score,
       seconds: this.seconds,
+      status: this.status,
     });
   }
 
@@ -228,6 +294,8 @@ export class Recorder {
     }
     this.chunks = [];
     this.total = 0;
+    this.ring = [];
+    this.ringTotal = 0;
     this.teardown();
     await this.ctx?.close().catch(() => undefined);
     this.ctx = null;

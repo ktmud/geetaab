@@ -81,6 +81,58 @@ export function RewindIcon({ size = 24, className }: IconProps) {
   );
 }
 
+export function SkipBackTenIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <text
+        x="12"
+        y="16"
+        textAnchor="middle"
+        fontSize="8.5"
+        fontWeight="700"
+        fill="currentColor"
+        stroke="none"
+        fontFamily="inherit"
+      >
+        10
+      </text>
+    </svg>
+  );
+}
+
+export function SkipForwardTenIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <text
+        x="12"
+        y="16"
+        textAnchor="middle"
+        fontSize="8.5"
+        fontWeight="700"
+        fill="currentColor"
+        stroke="none"
+        fontFamily="inherit"
+      >
+        10
+      </text>
+    </svg>
+  );
+}
+
+export function VolumeIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" />
+      <path d="M15 8.8a4.6 4.6 0 0 1 0 6.4" />
+      <path d="M17.8 6a8.4 8.4 0 0 1 0 12" />
+    </svg>
+  );
+}
+
 export function MetronomeIcon({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

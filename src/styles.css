@@ -632,6 +632,64 @@ input[type='range'] {
   text-align: center;
 }
 
+/* The whole take, painted behind everything on the screen. Negative z-index
+   keeps it under every card and control inside the app's stacking context,
+   which is what makes it a room tone rather than a rival for attention. */
+.listen-spectro {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent);
+}
+
+.listen-spectro.on {
+  opacity: 0.48;
+}
+
+.listen-ring.waiting svg {
+  animation: listen-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes listen-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bad);
+  margin-right: 10px;
+  animation: rec-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listen-ring.waiting svg,
+  .rec-dot {
+    animation: none;
+  }
+}
+
 .listen-ring {
   position: relative;
   width: min(260px, 68vw);
@@ -668,10 +726,17 @@ input[type='range'] {
 }
 
 .listen-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--mono);
   font-size: 30px;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+.listen-timer.idle {
+  color: var(--text-faint);
 }
 
 .chroma-bars {
@@ -1156,8 +1221,86 @@ input[type='range'] {
   border-top: 8px solid var(--accent);
 }
 
+/* The dock leads with where you are in the song; everything else is second. */
 .practice-dock {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.seek-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.seek-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  min-width: 38px;
+  text-align: center;
+}
+
+/* The hit area is a fat invisible band around a slim track, so a thumb can
+   land on it mid-song without the bar dominating the screen visually. */
+.seekbar {
+  position: relative;
+  flex: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+  border-radius: 999px;
+}
+
+.seekbar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.seekbar-track {
+  position: relative;
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.seekbar-loop {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  border-radius: 999px;
+  background: rgb(var(--cool-rgb) / 0.28);
+  border: 1px solid rgb(var(--cool-rgb) / 0.5);
+}
+
+.seekbar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+}
+
+.seekbar-handle {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  border: 2.5px solid var(--accent-strong);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.dock-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1206,12 +1349,50 @@ input[type='range'] {
   height: 54px;
 }
 
+.transport-btn.sm {
+  width: 38px;
+  height: 38px;
+}
+
 .speed-control {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 150px;
-  flex: 1;
+}
+
+.speed-control input {
+  width: 96px;
+}
+
+.volume-wrap {
+  position: relative;
+  display: flex;
+}
+
+.volume-pop {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+  z-index: 6;
+}
+
+.volume-pop input {
+  width: 130px;
+}
+
+.volume-value {
+  font-size: 12px;
+  color: var(--text-dim);
+  min-width: 38px;
+  text-align: right;
 }
 
 .speed-value {
@@ -1265,6 +1446,16 @@ input[type='range'] {
   .transport-btn.primary {
     width: 46px;
     height: 46px;
+  }
+  .transport-btn.sm {
+    width: 34px;
+    height: 34px;
+  }
+  .seekbar {
+    height: 22px;
+  }
+  .practice-dock {
+    gap: 5px;
   }
 }
 

@@ -22,6 +22,7 @@ export interface Chromagram {
   bass: Float32Array;
   frames: number;
   frameRate: number;
+  fftSize: number;
   hopSize: number;
   sampleRate: number;
   /** Broadband energy per frame, used to gate silence into "no chord". */
@@ -209,6 +210,7 @@ export function computeChromagram(
     bass,
     frames,
     frameRate: sampleRate / hopSize,
+    fftSize,
     hopSize,
     sampleRate,
     energy,

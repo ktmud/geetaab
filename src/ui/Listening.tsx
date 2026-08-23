@@ -4,6 +4,7 @@ import { SHARP_NAMES, chordName } from '../core/chordTypes';
 import { pitchClassHue } from '../music/pitchColor';
 import { NC_STATE } from '../core/chords';
 import { Recorder, type LiveFrame } from '../audio/recorder';
+import { SpectroPainter } from './spectroPainter';
 import { StopIcon } from './icons';
 
 const MAX_SECONDS = 180;
@@ -16,6 +17,8 @@ export interface ListeningProps {
 
 export function Listening({ onDone, onCancel }: ListeningProps) {
   const recorderRef = useRef<Recorder | null>(null);
+  const painterRef = useRef<SpectroPainter | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [frame, setFrame] = useState<LiveFrame | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +27,23 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
 
   useEffect(() => {
     let cancelled = false;
+    const painter = new SpectroPainter();
+    painterRef.current = painter;
+    if (canvasRef.current) painter.attach(canvasRef.current);
+
     const recorder = new Recorder({
       onFrame: (f) => {
         if (!cancelled) setFrame(f);
       },
       maxSeconds: MAX_SECONDS,
       onMaxReached: () => finishRef.current?.(),
+      // The take should be the song, not the shuffling before it: hold until
+      // the microphone hears music, keeping the last moment so the first strum
+      // still makes it in.
+      waitForMusic: true,
+      onSpectrum: (column) => {
+        if (!cancelled) painter.push(column);
+      },
     });
     recorderRef.current = recorder;
 
@@ -53,6 +67,8 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
       clearInterval(timer);
       void recorder.cancel();
       recorderRef.current = null;
+      painter.dispose();
+      painterRef.current = null;
     };
   }, []);
 
@@ -70,10 +86,12 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     finishRef.current = finish;
   }, [finish]);
 
+  const waiting = (frame?.status ?? 'waiting') === 'waiting';
   const chroma = frame?.chroma ?? new Array(12).fill(0);
   const level = frame ? Math.min(1, Math.sqrt(frame.level * 6)) : 0;
   const clipping = (frame?.peak ?? 0) > 0.985;
   const quiet = frame !== null && frame.level < 0.004;
+  const heardSomething = frame !== null && !quiet;
   const chord = frame && frame.chordState !== NC_STATE ? stateToChord(frame.chordState) : null;
   const chordLabel = chord && (frame?.chordScore ?? 0) > 0.12 ? chordName(chord) : '···';
   const ready = seconds >= MIN_SECONDS;
@@ -99,9 +117,14 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
 
   return (
     <div className="shell listen">
-      <div className="eyebrow">Listening</div>
+      {/* The whole take so far, stretched across the viewport behind the
+          controls. It sits at the bottom of the app's stacking context, so the
+          chord readout stays the subject and this stays the room it happens in. */}
+      <canvas ref={canvasRef} className={`listen-spectro${waiting ? '' : ' on'}`} aria-hidden="true" />
 
-      <div className="listen-ring">
+      <div className="eyebrow">{waiting ? 'Waiting for the song' : 'Recording'}</div>
+
+      <div className={`listen-ring${waiting ? ' waiting' : ''}`}>
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--surface-3)" strokeWidth="6" />
           <circle
@@ -152,7 +175,8 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
         </div>
       </div>
 
-      <div className="listen-timer">
+      <div className={`listen-timer${waiting ? ' idle' : ''}`}>
+        {waiting ? null : <span className="rec-dot" aria-hidden="true" />}
         {String(Math.floor(seconds / 60)).padStart(2, '0')}:
         {String(Math.floor(seconds % 60)).padStart(2, '0')}
       </div>
@@ -161,18 +185,34 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
         <div className="notice notice-warn">Too loud — move further from the speaker.</div>
       ) : quiet ? (
         <div className="notice notice-info">Very quiet. Move closer, or turn the song up.</div>
+      ) : waiting && heardSomething ? (
+        <div className="notice notice-info">
+          I can hear the room, but not a song yet. Recording starts on its own when the music does.
+        </div>
       ) : null}
 
-      <button className="btn btn-primary btn-lg" onClick={finish} disabled={!ready || stopping}>
-        <StopIcon size={18} />
-        {stopping ? 'Working…' : ready ? 'Stop and build the tab' : `Keep going… ${MIN_SECONDS - Math.floor(seconds)}s`}
-      </button>
+      {waiting ? (
+        <>
+          <button className="btn btn-primary btn-lg" disabled>
+            Play the song — I’ll start with it
+          </button>
+          <button className="btn" onClick={() => recorderRef.current?.startNow()}>
+            Record anyway
+          </button>
+        </>
+      ) : (
+        <button className="btn btn-primary btn-lg" onClick={finish} disabled={!ready || stopping}>
+          <StopIcon size={18} />
+          {stopping ? 'Working…' : ready ? 'Stop and build the tab' : `Keep going… ${MIN_SECONDS - Math.floor(seconds)}s`}
+        </button>
+      )}
 
       <button className="btn btn-ghost" onClick={onCancel}>
         Cancel
       </button>
 
       <ul className="tip-list card" style={{ maxWidth: 460 }}>
+        <li>Recording waits for the music, so start the song whenever you are ready.</li>
         <li>Point the phone at the speaker, about an arm's length away.</li>
         <li>Catch a chorus. Thirty seconds of the part you want to play is plenty.</li>
         <li>Quiet room, no singing along — voices confuse the harmony.</li>

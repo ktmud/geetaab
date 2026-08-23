@@ -5,6 +5,8 @@ export interface Transport {
   readonly playing: boolean;
   readonly duration: number;
   rate: number;
+  /** Playback loudness 0..1. Silent on transports with nothing to play. */
+  volume: number;
   play(): Promise<void>;
   pause(): void;
   seek(seconds: number): void;
@@ -59,6 +61,15 @@ export class MediaTransport implements Transport {
     setPreservesPitch(this.el, true);
   }
 
+  get volume(): number {
+    return this.el.volume;
+  }
+
+  set volume(value: number) {
+    // iOS ignores element volume by design; everywhere else this is the knob.
+    this.el.volume = Math.min(1, Math.max(0, value));
+  }
+
   async play(): Promise<void> {
     await this.el.play();
   }
@@ -111,6 +122,8 @@ export class ClockTransport implements Transport {
   private startedAt = 0;
   private running = false;
   private _rate = 1;
+  /** Held so the control reads back; there is no audio for it to change. */
+  volume = 1;
   readonly duration: number;
 
   constructor(duration: number) {

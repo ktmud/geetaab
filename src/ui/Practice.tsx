@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { Metronome, ClockTransport, MediaTransport, type Transport } from '../audio/player';
 import { resumeAudio } from '../audio/context';
 import type { SongTab } from '../music/tab';
@@ -11,6 +19,9 @@ import {
   PlayIcon,
   RewindIcon,
   RotateIcon,
+  SkipBackTenIcon,
+  SkipForwardTenIcon,
+  VolumeIcon,
 } from './icons';
 
 export interface PracticeProps {
@@ -34,6 +45,8 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
 
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
+  const [volume, setVolume] = useState(1);
+  const [volumeOpen, setVolumeOpen] = useState(false);
   const [clickOn, setClickOn] = useState(!audio);
   const [activeIndex, setActiveIndex] = useState(0);
   const [beatIndex, setBeatIndex] = useState(0);
@@ -42,6 +55,10 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   const [portrait, setPortrait] = useState(false);
   const [laneWidth, setLaneWidth] = useState(800);
   const [position, setPosition] = useState(0);
+  /** Position previewed under the finger while the seek bar is being dragged. */
+  const [scrub, setScrub] = useState<number | null>(null);
+  const seekbarRef = useRef<HTMLDivElement>(null);
+  const scrubbingRef = useRef(false);
 
   const beatSeconds = 60 / tab.tempo;
   const pxPerSecond = useMemo(() => {
@@ -101,6 +118,13 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   useEffect(() => {
     if (transportRef.current) transportRef.current.rate = rate;
   }, [rate]);
+
+  useEffect(() => {
+    if (transportRef.current) transportRef.current.volume = volume;
+    // The click follows the master knob so "quieter" means the whole practice
+    // session, not the song alone under an unmoved metronome.
+    if (metronomeRef.current) metronomeRef.current.volume = 0.35 * volume;
+  }, [volume]);
 
   useEffect(() => {
     if (metronomeRef.current) metronomeRef.current.enabled = clickOn;
@@ -208,11 +232,60 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   };
 
   const restart = (): void => {
+    seekTo(loopRange?.start ?? 0);
+  };
+
+  const seekTo = (time: number): void => {
     const transport = transportRef.current;
-    if (!transport) return;
-    const target = loopRange?.start ?? 0;
+    if (!transport || duration <= 0) return;
+    const target = Math.min(Math.max(0, time), duration);
+    // Dragging out of the looped bars is a decision to leave them; keeping the
+    // loop would snap playback straight back and make the bar feel broken.
+    if (loopRange && (target < loopRange.start || target >= loopRange.end)) setLoopRange(null);
     transport.seek(target);
     metronomeRef.current?.reset(target);
+    setPosition(target);
+  };
+
+  const skipBy = (delta: number): void => {
+    seekTo((transportRef.current?.currentTime ?? 0) + delta);
+  };
+
+  const timeAtPointer = (clientX: number): number => {
+    const el = seekbarRef.current;
+    if (!el || duration <= 0) return 0;
+    const rect = el.getBoundingClientRect();
+    const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return fraction * duration;
+  };
+
+  const onSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    scrubbingRef.current = true;
+    const time = timeAtPointer(event.clientX);
+    setScrub(time);
+    seekTo(time);
+  };
+
+  const onSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (!scrubbingRef.current) return;
+    const time = timeAtPointer(event.clientX);
+    setScrub(time);
+    seekTo(time);
+  };
+
+  const endScrub = (): void => {
+    scrubbingRef.current = false;
+    setScrub(null);
+  };
+
+  const onSeekKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'ArrowLeft') skipBy(-5);
+    else if (event.key === 'ArrowRight') skipBy(5);
+    else if (event.key === 'Home') seekTo(0);
+    else if (event.key === 'End') seekTo(duration);
+    else return;
+    event.preventDefault();
   };
 
   const toggleLoop = (): void => {
@@ -237,6 +310,8 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   const next = events.slice(activeIndex + 1).find((event) => event.chord);
   const beatsToNext = next ? Math.max(0, Math.round((next.startTime - position) / beatSeconds)) : null;
   const barBeat = ((beatIndex - barPhase) % tab.beatsPerBar + tab.beatsPerBar) % tab.beatsPerBar;
+  const shown = scrub ?? Math.min(position, duration);
+  const fillPercent = duration > 0 ? Math.min(100, (shown / duration) * 100) : 0;
 
   if (portrait) {
     return (
@@ -274,9 +349,6 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
             />
           ))}
         </div>
-        <span className="mono" style={{ fontSize: 12 }}>
-          {formatTime(position)} / {formatTime(duration)}
-        </span>
       </div>
 
       <div className="practice-stage">
@@ -335,53 +407,128 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
       </div>
 
       <div className="practice-dock">
-        <button className="transport-btn" onClick={restart} aria-label="Back to the start">
-          <RewindIcon size={19} />
-        </button>
-        <button
-          className="transport-btn primary"
-          onClick={toggle}
-          aria-label={playing ? 'Pause' : 'Play'}
-        >
-          {playing || countIn !== null ? <PauseIcon size={22} /> : <PlayIcon size={22} />}
-        </button>
-        <button
-          className="transport-btn"
-          onClick={toggleLoop}
-          aria-pressed={loopRange !== null}
-          aria-label="Loop this section"
-          style={loopRange ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
-        >
-          <LoopIcon size={19} />
-        </button>
-        <button
-          className="transport-btn"
-          onClick={() => setClickOn((on) => !on)}
-          aria-pressed={clickOn}
-          aria-label="Metronome"
-          style={clickOn ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
-        >
-          <MetronomeIcon size={19} />
-        </button>
-
-        <div className="speed-control">
-          <input
-            type="range"
-            min={0.5}
-            max={1}
-            step={0.05}
-            value={rate}
-            onChange={(event) => setRate(Number(event.target.value))}
-            aria-label="Practice speed"
-          />
-          <span className="speed-value">{Math.round(rate * 100)}%</span>
+        <div className="seek-row">
+          <span className="seek-time mono">{formatTime(shown)}</span>
+          <div
+            className="seekbar"
+            ref={seekbarRef}
+            role="slider"
+            tabIndex={0}
+            aria-label="Song position"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(duration)}
+            aria-valuenow={Math.round(shown)}
+            aria-valuetext={`${formatTime(shown)} of ${formatTime(duration)}`}
+            onPointerDown={onSeekPointerDown}
+            onPointerMove={onSeekPointerMove}
+            onPointerUp={endScrub}
+            onPointerCancel={endScrub}
+            onKeyDown={onSeekKeyDown}
+          >
+            <div className="seekbar-track">
+              {loopRange && duration > 0 ? (
+                <div
+                  className="seekbar-loop"
+                  style={{
+                    left: `${(loopRange.start / duration) * 100}%`,
+                    width: `${((loopRange.end - loopRange.start) / duration) * 100}%`,
+                  }}
+                />
+              ) : null}
+              <div className="seekbar-fill" style={{ width: `${fillPercent}%` }} />
+            </div>
+            <div className="seekbar-handle" style={{ left: `${fillPercent}%` }} />
+          </div>
+          <span className="seek-time mono">{formatTime(duration)}</span>
         </div>
 
-        <span className="chip">
-          {next && beatsToNext !== null
-            ? `${next.chord?.shapeLabel} in ${beatsToNext}`
-            : `${Math.round(tab.tempo * rate)} BPM`}
-        </span>
+        <div className="dock-row">
+          <button className="transport-btn" onClick={restart} aria-label="Back to the start">
+            <RewindIcon size={19} />
+          </button>
+          <button className="transport-btn" onClick={() => skipBy(-10)} aria-label="Back ten seconds">
+            <SkipBackTenIcon size={20} />
+          </button>
+          <button
+            className="transport-btn primary"
+            onClick={toggle}
+            aria-label={playing ? 'Pause' : 'Play'}
+          >
+            {playing || countIn !== null ? <PauseIcon size={22} /> : <PlayIcon size={22} />}
+          </button>
+          <button
+            className="transport-btn"
+            onClick={() => skipBy(10)}
+            aria-label="Forward ten seconds"
+          >
+            <SkipForwardTenIcon size={20} />
+          </button>
+          <button
+            className="transport-btn"
+            onClick={toggleLoop}
+            aria-pressed={loopRange !== null}
+            aria-label="Loop this section"
+            style={loopRange ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+          >
+            <LoopIcon size={19} />
+          </button>
+          <button
+            className="transport-btn"
+            onClick={() => setClickOn((on) => !on)}
+            aria-pressed={clickOn}
+            aria-label="Metronome"
+            style={clickOn ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+          >
+            <MetronomeIcon size={19} />
+          </button>
+
+          <span className="spacer" />
+
+          <div className="speed-control">
+            <input
+              type="range"
+              min={0.5}
+              max={1}
+              step={0.05}
+              value={rate}
+              onChange={(event) => setRate(Number(event.target.value))}
+              aria-label="Practice speed"
+            />
+            <span className="speed-value">{Math.round(rate * 100)}%</span>
+          </div>
+
+          <div className="volume-wrap">
+            <button
+              className="transport-btn sm"
+              onClick={() => setVolumeOpen((open) => !open)}
+              aria-expanded={volumeOpen}
+              aria-label="Volume"
+              style={volumeOpen ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+            >
+              <VolumeIcon size={17} />
+            </button>
+            {volumeOpen ? (
+              <div className="volume-pop">
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={volume}
+                  onChange={(event) => setVolume(Number(event.target.value))}
+                  aria-label="Playback volume"
+                />
+                <span className="volume-value mono">{Math.round(volume * 100)}%</span>
+              </div>
+            ) : null}
+          </div>
+
+          <span className="chip">
+            {next && beatsToNext !== null
+              ? `${next.chord?.shapeLabel} in ${beatsToNext}`
+              : `${Math.round(tab.tempo * rate)} BPM`}
+          </span>
+        </div>
       </div>
     </div>
   );

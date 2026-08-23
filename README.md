@@ -10,15 +10,18 @@ processing that ship with the page.
 ## What it does
 
 1. **Listens.** Record through the microphone, drop in an audio file, or try the
-   built-in demo track.
+   built-in demo track. The recorder holds until it actually hears music — the
+   shuffling before the song never makes it into the take — and paints the whole
+   take so far as a spectrogram behind the screen while it runs.
 2. **Works out the music.** Tempo, beat grid, key, and a chord per beat.
 3. **Rewrites it for your hands.** Picks a capo position that puts as much of the
    song as possible on open shapes, and swaps the chords that are still awkward for
    the stand-ins a teacher would suggest — F becomes Fmaj7, Bm becomes Bm7.
 4. **Teaches it to you.** Chord diagrams, a bar-by-bar chart, six-line tablature, the
    repeating loop the song is built on, and a practice screen where the chords scroll
-   past a playhead with a count-in, a metronome, section looping, and slow-down that
-   keeps the pitch.
+   past a playhead with a count-in, a metronome, section looping, slow-down that
+   keeps the pitch, a scrubbable position bar with ten-second skips, and a volume
+   control tucked behind a button.
 
 ## Running it
 
@@ -60,6 +63,16 @@ histogramming interpolated spectral peaks against the nearest semitone and takin
 circular mean. Recordings made off a speaker, and songs mastered a little sharp, are
 routinely tens of cents out; without the correction their energy straddles two chroma
 bins and every chord reads as ambiguous.
+
+**Hearing music at all** (`music.ts`). The recording screen refuses to start the
+take until the live chroma analysis says a song is actually playing: enough level,
+energy gathered onto a few pitch classes, harmony that holds still on the timescale
+of a beat, an energy envelope that breathes, and a passable chord-template match.
+Each impostor fails at least one — noise spreads across all twelve pitch classes,
+speech glides off its pitch every syllable, and a mains hum (tonal, steady, and
+shaped like a perfect fifth) never breathes. A voice-activity model would be the
+obvious tool and the wrong one: VADs are trained to *reject* music, and shipping
+model weights would break the promise that nothing but the page downloads.
 
 **Chord templates** (`chords.ts`). Each of the 84 chords in the vocabulary
 (major, minor, 7, m7, maj7, sus4, sus2 on twelve roots) has a template built from its
