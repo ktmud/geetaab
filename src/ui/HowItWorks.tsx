@@ -484,7 +484,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             revealed={revealed[1]}
             aria={t.hwS1Aria}
             caption={t.hwS1Caption}
-            viewBox="0 0 500 280"
+            viewBox="12 5 366 251"
           >
             {t.hwS1Cols.map((col, i) => (
               <text key={col} x={100 + i * 60} y="25" className="hw-mono" textAnchor="middle">
@@ -540,7 +540,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             revealed={revealed[2]}
             aria={t.hwS2Aria}
             caption={t.hwS2Caption}
-            viewBox="0 0 600 190"
+            viewBox="0 0 455 177"
           >
             <defs>
               <marker
@@ -633,7 +633,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             revealed={revealed[3]}
             aria={t.hwS3Aria}
             caption={t.hwS3Caption}
-            viewBox="0 0 620 240"
+            viewBox="0 0 473 232"
           >
             <defs>
               <marker
@@ -898,7 +898,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             revealed={revealed[6]}
             aria={t.hwS6Aria}
             caption={t.hwS6Caption}
-            viewBox="0 0 580 240"
+            viewBox="10 5 518 240"
           >
             <text x="20" y="25" fontWeight="600" fontSize="13">
               {t.hwS6Onset}
@@ -958,7 +958,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             revealed={revealed[7]}
             aria={t.hwS7Aria}
             caption={t.hwS7Caption}
-            viewBox="0 0 600 280"
+            viewBox="10 9 338 279"
           >
             <text x="20" y="30" fontWeight="600" fontSize="13">
               {t.hwS7SongChroma}
@@ -980,7 +980,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             {/* Candidate names live in a gutter that ends at x=130, where the
                 profiles begin. */}
             <text x="20" y="215" className="hw-mono" fontWeight="600">
-              G maj
+              {t.hwS7RunnerUpKey}
             </text>
             {KEY_RUNNER_UP.map(([x, y, h, o]) => (
               <rect key={x} x={x} y={y} width="15" height={h} className="hw-raw" opacity={o} />
@@ -997,7 +997,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               rx="3"
             />
             <text x="20" y="265" className="hw-mono hw-decided" fontWeight="600">
-              C maj ← {t.hwS7Best}
+              {t.hwS7BestKey} ← {t.hwS7Best}
             </text>
             {KEY_WINNER.map(([x, y, h, o]) => (
               <rect key={x} x={x} y={y} width="15" height={h} className="hw-decided" opacity={o} />
@@ -1020,7 +1020,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             revealed={revealed[8]}
             aria={t.hwS89Aria}
             caption={t.hwS89Caption}
-            viewBox="0 0 520 200"
+            viewBox="10 11 378 179"
           >
             {/* Only short labels live inside the drawing; the sentence that used
                 to run past the viewBox is in the figcaption now. */}

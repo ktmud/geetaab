@@ -530,28 +530,48 @@ try {
     const r = document.querySelector('.feature').getBoundingClientRect();
     return { top: Math.round(r.y), left: Math.round(r.x), right: Math.round(r.right) };
   });
-  // A 40px band, not a single row: the field is 6% opacity and widely spaced,
-  // so one row can miss every string and report the field as absent for a
-  // layout shift that has nothing to do with what is being tested.
-  const strip = async (x, width) =>
-    (await page.screenshot({ clip: { x, y: box.top + 40, width, height: 40 } })).toString('base64');
-  const marginBefore = await strip(0, box.left - 10);
-  const cardBefore = await strip(box.left + 15, box.right - box.left - 30);
+  // The whole column, not a band: the field is a handful of faint diagonals,
+  // so a fixed-height sample depends on whether a line happens to cross it,
+  // which moves with page height and failed for edits nowhere near it.
+  const marginStrip = async () =>
+    (await page.screenshot({ clip: { x: 0, y: 0, width: box.left - 10, height: 900 } })).toString(
+      'base64',
+    );
+  const marginBefore = await marginStrip();
   await page.evaluate(() => {
     document.querySelector('.backdrop').style.display = 'none';
   });
   await page.waitForTimeout(150);
-  const marginAfter = await strip(0, box.left - 10);
-  const cardAfter = await strip(box.left + 15, box.right - box.left - 30);
-  // A fixed element with a z-index paints after in-flow block backgrounds, so
-  // moving the backdrop inside .app would put the string field on top of every
-  // unpositioned card again. The margin is the control: if it does not change,
-  // the field is not drawing and the card result would mean nothing.
-  checkThat('the field actually draws in the page margin', marginBefore !== marginAfter);
-  checkThat('the field never draws over a card', cardBefore === cardAfter);
+  const marginAfter = await marginStrip();
   await page.evaluate(() => {
     document.querySelector('.backdrop').style.display = '';
   });
+  checkThat('the field actually draws in the page margin', marginBefore !== marginAfter);
+
+  // A fixed element with a z-index paints after in-flow block backgrounds, so
+  // moving the backdrop inside .app would put the string field on top of every
+  // unpositioned card again. Assert that as the stacking fact it is: comparing
+  // pixels across the card instead measured the compositor, which nudges the
+  // antialiasing of the chord diagrams' hairlines whenever a fixed layer comes
+  // and goes — a difference that says nothing about what painted where.
+  const stacking = await page.evaluate(() => {
+    const zOf = (el) => Number(getComputedStyle(el).zIndex) || 0;
+    const card = getComputedStyle(document.querySelector('.feature'));
+    const alpha = card.backgroundColor.startsWith('rgba')
+      ? Number(card.backgroundColor.split(',')[3])
+      : 1;
+    return {
+      backdropZ: zOf(document.querySelector('.backdrop')),
+      appZ: zOf(document.querySelector('.app')),
+      inApp: document.querySelector('.app').contains(document.querySelector('.backdrop')),
+      cardAlpha: alpha,
+    };
+  });
+  checkThat(
+    'the field never draws over a card: it sits below the app, under opaque cards',
+    stacking.backdropZ < stacking.appZ && !stacking.inApp && stacking.cardAlpha === 1,
+    JSON.stringify(stacking),
+  );
 
   console.log('\n5. the strings get plucked');
   const straight = /^M0,[\d.]+H100$/;
