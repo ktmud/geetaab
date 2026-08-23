@@ -143,7 +143,8 @@ export function TabView({
   };
 
   return (
-    <div className="shell">
+    // has-dock: this screen keeps a Practise button over the bottom of the page.
+    <div className="shell has-dock">
       <div className="btn-row" style={{ marginBottom: 14 }}>
         <button className="btn btn-ghost" onClick={onBack}>
           <BackIcon size={17} /> {t.back}
