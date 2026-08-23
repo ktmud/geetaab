@@ -50,6 +50,7 @@ export const dictionary = {
     waitingForSong: 'Waiting for the song',
     recording: 'Recording',
     hearingNow: 'hearing now',
+    noMusicDetected: 'No music detected',
     tooLoud: 'Too loud — move further from the speaker.',
     veryQuiet: 'Very quiet. Move closer, or turn the song up.',
     hearRoom: 'I can hear the room, but not a song yet. Recording starts on its own when the music does.',
@@ -66,7 +67,8 @@ export const dictionary = {
       'Quiet room, no singing along — voices confuse the harmony.',
       'Songs built on a guitar or piano read best; heavy production reads worst.',
     ],
-    cancel: 'Cancel',
+    discardTake: 'Discard this take',
+    backHome: 'Back to home',
     back: 'Back',
 
     // TabView screen
@@ -440,6 +442,7 @@ export const dictionary = {
     waitingForSong: '等待歌曲',
     recording: '正在录音',
     hearingNow: '正在听',
+    noMusicDetected: '没有识别到音乐',
     tooLoud: '太响——远离扬声器。',
     veryQuiet: '很安静。靠近一点，或者开大音量。',
     hearRoom: '能听到房间声音，但还没有歌曲。当音乐开始时录音会自动开始。',
@@ -456,7 +459,8 @@ export const dictionary = {
       '安静的房间，不要跟唱——声音会混淆和声。',
       '用吉他或钢琴演奏的歌效果最好；重度制作的歌效果最差。',
     ],
-    cancel: '取消',
+    discardTake: '放弃这一遍，重录',
+    backHome: '回主页',
     back: '返回',
 
     // TabView screen

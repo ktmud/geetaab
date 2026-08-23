@@ -3,10 +3,11 @@ import { stateToChord } from '../core/analyze';
 import { SHARP_NAMES, chordName } from '../core/chordTypes';
 import { pitchClassHue } from '../music/pitchColor';
 import { NC_STATE } from '../core/chords';
+import { MUSIC_CHORD_FLOOR } from '../core/music';
 import { useT } from '../i18n';
 import { Recorder, type LiveFrame } from '../audio/recorder';
 import { SpectroPainter } from './spectroPainter';
-import { StopIcon } from './icons';
+import { BackIcon, StopIcon, TrashIcon } from './icons';
 
 const MAX_SECONDS = 180;
 const MIN_SECONDS = 6;
@@ -14,6 +15,22 @@ const MIN_SECONDS = 6;
 export interface ListeningProps {
   onDone: (samples: Float32Array, sampleRate: number) => void;
   onCancel: () => void;
+}
+
+/**
+ * Size class for a chord name, so the ring can hold its longest one.
+ *
+ * The vocabulary is twelve roots against seven suffixes plus N.C., which tops
+ * out at six characters (C#maj7, Bbsus4). Measured in the browser at the top of
+ * the type clamp, the full-size face runs those past the ring's inner edge, so
+ * long names step down. Length is the key rather than a measured width: the
+ * bucket has to be right on the first paint, before the variable font has
+ * necessarily loaded, and a re-measure per frame would fight the readout.
+ */
+function nameSize(label: string): string {
+  if (label.length >= 6) return ' longest';
+  if (label.length >= 5) return ' long';
+  return '';
 }
 
 export function Listening({ onDone, onCancel }: ListeningProps) {
@@ -25,12 +42,20 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
+  // Which attempt this is. Bumping it tears the whole take down and builds a
+  // fresh one — recorder, ring buffer, music gate and spectrogram included —
+  // so a restart behaves like a first run rather than inheriting a history.
+  const [take, setTake] = useState(0);
   const finishRef = useRef<(() => void) | null>(null);
+  /** The last chroma heard while there really was music, for the frozen meter. */
+  const heldChroma = useRef<number[]>(new Array(12).fill(0));
 
   useEffect(() => {
     let cancelled = false;
     const painter = new SpectroPainter();
     painterRef.current = painter;
+    // A new painter starts empty, and attaching clears the canvas it is given:
+    // the backdrop shows this take, never the one that was thrown away.
     if (canvasRef.current) painter.attach(canvasRef.current);
 
     const recorder = new Recorder({
@@ -72,7 +97,7 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
       painter.dispose();
       painterRef.current = null;
     };
-  }, []);
+  }, [take]);
 
   const finish = useCallback((): void => {
     const recorder = recorderRef.current;
@@ -88,14 +113,51 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     finishRef.current = finish;
   }, [finish]);
 
+  /**
+   * Throw this take away without leaving the screen.
+   *
+   * Someone who mistimed the start wants another go, not the home screen, so
+   * every trace of the attempt goes: the recorded buffer and its elapsed timer
+   * here, and the recorder's ring buffer, music gate and spectrogram when the
+   * effect rebuilds them.
+   */
+  const discard = useCallback((): void => {
+    heldChroma.current = new Array(12).fill(0);
+    setFrame(null);
+    setSeconds(0);
+    setStopping(false);
+    setError(null);
+    setTake((n) => n + 1);
+  }, []);
+
   const waiting = (frame?.status ?? 'waiting') === 'waiting';
-  const chroma = frame?.chroma ?? new Array(12).fill(0);
   const level = frame ? Math.min(1, Math.sqrt(frame.level * 6)) : 0;
   const clipping = (frame?.peak ?? 0) > 0.985;
   const quiet = frame !== null && frame.level < 0.004;
   const heardSomething = frame !== null && !quiet;
   const chord = frame && frame.chordState !== NC_STATE ? stateToChord(frame.chordState) : null;
-  const chordLabel = chord && (frame?.chordScore ?? 0) > 0.12 ? chordName(chord) : '···';
+  /**
+   * Whether this instant is worth naming a chord over.
+   *
+   * The floor is MUSIC_CHORD_FLOOR — the same calibrated cut the music gate
+   * already applies to this exact number, the best score against the
+   * zero-centred chord templates. Measured through the live readout's own
+   * pipeline: played chords score 0.125 to 0.43, while white noise tops out at
+   * 0.056, pink room tone at 0.072 and digital silence sits at 0.018. The
+   * gate's own verdict has to be part of it, because the score alone is not
+   * enough: a mains hum is literally a perfect fifth and scores 0.40, and only
+   * the gate — which also watches whether the loudness breathes — knows that
+   * it is not a song. The 0.12 that used to sit here was a bare number that
+   * happened to land just under the quietest real chord.
+   */
+  const believable = chord !== null && (frame?.chordScore ?? 0) >= MUSIC_CHORD_FLOOR;
+  const noMusic = waiting || !believable;
+  const chordLabel = chord && !noMusic ? chordName(chord) : '···';
+  // Bars that keep dancing while nothing musical is being heard read as though
+  // the analysis has found something. When it has not, the last musical reading
+  // is held instead, so the meter stops making a claim it cannot support.
+  if (frame && !noMusic) heldChroma.current = frame.chroma;
+  const chroma = frame && !noMusic ? frame.chroma : heldChroma.current;
   const ready = seconds >= MIN_SECONDS;
 
   const radius = 46;
@@ -144,13 +206,13 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
           />
         </svg>
         <div>
-          <div className="listen-chord">{chordLabel}</div>
+          <div className={`listen-chord${nameSize(chordLabel)}`}>{chordLabel}</div>
           <div className="listen-chord-sub">{t.hearingNow}</div>
         </div>
       </div>
 
-      <div>
-        <div className="chroma-bars" aria-hidden="true">
+      <div className="listen-meter">
+        <div className={`chroma-bars${noMusic ? ' still' : ''}`} aria-hidden="true">
           {chroma.map((value: number, index: number) => (
             <div
               key={index}
@@ -175,6 +237,13 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
             </span>
           ))}
         </div>
+        {/* Covers the meter it contradicts and nothing else: the controls below
+            stay reachable, and it never takes a pointer event of its own. */}
+        {noMusic ? (
+          <div className="listen-nomusic" role="status">
+            {t.noMusicDetected}
+          </div>
+        ) : null}
       </div>
 
       <div className={`listen-timer${waiting ? ' idle' : ''}`}>
@@ -209,9 +278,21 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
         </button>
       )}
 
-      <button className="btn btn-ghost" onClick={onCancel}>
-        {t.cancel}
-      </button>
+      {/* Two ways out, deliberately unalike. Throwing the take away is a red,
+          filled button that only exists while there is something to throw away;
+          leaving the screen is a quiet one that is always in the same place. */}
+      <div className="listen-exits">
+        {waiting ? null : (
+          <button className="btn btn-discard" onClick={discard} disabled={stopping}>
+            <TrashIcon size={16} />
+            {t.discardTake}
+          </button>
+        )}
+        <button className="btn btn-ghost" onClick={onCancel}>
+          <BackIcon size={16} />
+          {t.backHome}
+        </button>
+      </div>
 
       <ul className="tip-list card" style={{ maxWidth: 460 }}>
         {t.recordingTips.map((tip, index) => (
