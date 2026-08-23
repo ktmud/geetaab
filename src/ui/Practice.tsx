@@ -37,6 +37,25 @@ function hintAlreadySeen(): boolean {
   }
 }
 
+/**
+ * Starting speed for a song's first practice run.
+ *
+ * Nobody should have to know they need the slider: when the chords come
+ * quicker than a learner can re-finger — about a change every 1.6 seconds —
+ * the session opens slowed just enough to make the switches possible, and the
+ * slider is only there to override.
+ */
+function suggestedRate(tab: SongTab): number {
+  const durations = tab.events
+    .filter((event) => event.chord)
+    .map((event) => event.endTime - event.startTime)
+    .sort((a, b) => a - b);
+  if (durations.length < 4) return 1;
+  const median = durations[durations.length >> 1];
+  if (median >= 1.6) return 1;
+  return Math.max(0.7, Math.ceil((median / 1.6) * 20) / 20);
+}
+
 export interface PracticeProps {
   tab: SongTab;
   title: string;
@@ -57,7 +76,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   const countInToken = useRef(0);
 
   const [playing, setPlaying] = useState(false);
-  const [rate, setRate] = useState(1);
+  const [rate, setRate] = useState(() => suggestedRate(tab));
   const [volume, setVolume] = useState(1);
   const [volumeOpen, setVolumeOpen] = useState(false);
   const [clickOn, setClickOn] = useState(!audio);
@@ -514,8 +533,8 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
                     the section you are in.
                   </li>
                   <li>
-                    Speed, bottom right, slows the song without changing its pitch. Volume sits
-                    behind the speaker button.
+                    Speed already starts where the changes are playable, and slows the song
+                    without changing its pitch. Volume sits behind the speaker button.
                   </li>
                   <li>Space plays and pauses · ← → skip five seconds.</li>
                 </ul>

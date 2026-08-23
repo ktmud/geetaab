@@ -30,6 +30,8 @@ console.log(
       meter: `${res.beatsPerBar}/4`,
       tuningCents: Math.round(res.tuning * 100),
       confidence: Math.round(res.confidence * 1000) / 1000,
+      rhythmicity: Math.round(res.rhythmicity * 1000) / 1000,
+      freeTime: res.freeTime,
     },
     null,
     2,
@@ -39,7 +41,7 @@ console.log(
 const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 console.log('\nsegments:');
 for (const seg of res.segments) {
-  console.log(`  ${fmt(seg.start)}–${fmt(seg.end)}  ${chordName(seg.chord)}`);
+  console.log(`  ${fmt(seg.start)}–${fmt(seg.end)}  ${chordName(seg.chord).padEnd(7)} conf ${seg.confidence.toFixed(3)}`);
 }
 
 const hist = new Map();

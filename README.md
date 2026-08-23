@@ -13,10 +13,17 @@ processing that ship with the page.
    built-in demo track. The recorder holds until it actually hears music — the
    shuffling before the song never makes it into the take — and paints the whole
    take so far as a spectrogram behind the screen while it runs.
-2. **Works out the music.** Tempo, beat grid, key, and a chord per beat.
+2. **Works out the music.** Tempo, beat grid, key, and a chord per beat. Passages
+   that are audible but prove nothing — fade-ins, applause, orchestral interludes —
+   come back as N.C. rather than the nearest guess, and when a piece has no steady
+   pulse at all the analysis says so and reads the chord boundaries off the harmony
+   itself instead of a meaningless grid.
 3. **Rewrites it for your hands.** Picks a capo position that puts as much of the
    song as possible on open shapes, and swaps the chords that are still awkward for
-   the stand-ins a teacher would suggest — F becomes Fmaj7, Bm becomes Bm7.
+   the stand-ins a teacher would suggest — F becomes Fmaj7, Bm becomes Bm7. A busy
+   song comes at up to three levels — easy folds sevenths, suspensions and quick
+   passing chords away, standard is the beginner reading, faithful keeps every
+   extension — and the lower rungs are offered only when they actually differ.
 4. **Teaches it to you.** Chord diagrams, a bar-by-bar chart, six-line tablature of
    the whole song — on screen and as a printable sheet — the repeating loop the song
    is built on, and a practice screen where the chords scroll past a playhead with a
@@ -93,13 +100,20 @@ a seventh. Centring was worth more than any other single change in this pipeline
 **Beats** (`beats.ts`). Spectral flux on log magnitudes gives an onset envelope;
 autocorrelation with a log-normal prior around 120 BPM gives a tempo; and an Ellis-style
 dynamic-programming beat tracker lays a grid that survives missing and syncopated onsets.
+The autocorrelation peak is read through parabolic interpolation rather than at lag
+resolution, and the BPM reported is the median interval of the grid the tracker actually
+laid down. Onset periodicity is also measured against the envelope's variance: when it is
+too weak to mean anything the analysis flags the piece as free-time, decodes the chords on
+a fixed half-second grid instead of the beats, and marks tempo and bars as approximate.
 
 **Decoding** (`analyze.ts`). Chroma is median-aggregated per beat, scored against every
 template, and decoded with Viterbi over the chord lattice. Frame-wise argmax flickers
 many times a second; the transition cost turns that into the handful of sustained
-changes a player would write down. Each segment is then re-checked using only its
-interior beats, because the analysis window is long enough that the last beat of a chord
-already contains the next one.
+changes a player would write down. "No chord" competes in the same lattice with a graded
+score of its own — calibrated between what broadband noise reaches and what real chords
+score — so a chord has to earn its place on the page. Each segment is then re-checked
+using only its interior beats, because the analysis window is long enough that the last
+beat of a chord already contains the next one.
 
 **Key** (`key.ts`) comes from Krumhansl-Kessler profiles correlated against a
 duration-weighted histogram of the detected chord tones.

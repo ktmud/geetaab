@@ -126,6 +126,14 @@ export interface ScoreOptions {
   bassWeight?: number;
   /** Frames quieter than this fraction of the median are treated as silence. */
   silenceRatio?: number;
+  /**
+   * Emission for "no chord" on frames that are audible but prove nothing: a
+   * chord has to beat this to be written down. Without it, fade-ins, orchestral
+   * textures and lone melody notes all get billed as whichever template edges
+   * above zero. Scaled down on recordings whose genuine chords score low
+   * across the board, so a muddy capture is not blanked into silence.
+   */
+  ncFloor?: number;
 }
 
 export interface ScoredFrames {
@@ -168,6 +176,27 @@ export function scoreChords(
     }
     const silent = energy ? energy[f] < energyThreshold : false;
     scores[outBase + NC_STATE] = silent ? 1 : 0;
+  }
+
+  const ncFloor = opts.ncFloor ?? 0;
+  if (ncFloor > 0 && frames > 0) {
+    const bestPerFrame = new Float32Array(frames);
+    for (let f = 0; f < frames; f++) {
+      let best = 0;
+      const base = f * TOTAL_STATES;
+      for (let s = 0; s < CHORD_STATES; s++) if (scores[base + s] > best) best = scores[base + s];
+      bestPerFrame[f] = best;
+    }
+    const sorted = Array.from(bestPerFrame).sort((a, b) => a - b);
+    const median = sorted[sorted.length >> 1] ?? 0;
+    // Scaled down for recordings whose real chords score low across the board,
+    // but never below what broadband noise reaches — a recording that is ALL
+    // noise must not lower the bar until its own noise clears it.
+    const floor = Math.min(ncFloor, Math.max(0.075, 0.6 * median));
+    for (let f = 0; f < frames; f++) {
+      const idx = f * TOTAL_STATES + NC_STATE;
+      if (scores[idx] < 1) scores[idx] = floor;
+    }
   }
   return { scores, frames };
 }
@@ -400,6 +429,9 @@ export function refineSegments(
 ): void {
   const incumbentBonus = opts.incumbentBonus ?? 0.025;
   for (const seg of segments) {
+    // A no-chord verdict came from the energy and evidence gates, which this
+    // re-check knows nothing about; re-labelling silence would undo them.
+    if (seg.chord.root < 0) continue;
     const b0 = seg.startBeat ?? 0;
     const b1 = Math.min(beatCount, seg.endBeat ?? b0 + 1);
     const span = b1 - b0;
@@ -428,6 +460,38 @@ export function refineSegments(
       seg.confidence = bestScore;
     }
   }
+}
+
+/**
+ * Absorb sub-second no-chord gaps whose neighbours agree on the chord.
+ *
+ * A slow strum decays to the energy floor before the next one lands, so an
+ * honest frame-level decode writes C, silence, C. The player never stopped
+ * playing C, and the tab should not say they did.
+ */
+export function bridgeShortGaps(segments: ChordSegment[], maxSeconds = 1): ChordSegment[] {
+  const out: ChordSegment[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const previous = out[out.length - 1];
+    const next = segments[i + 1];
+    if (
+      previous &&
+      next &&
+      seg.chord.root < 0 &&
+      seg.end - seg.start <= maxSeconds &&
+      previous.chord.root === next.chord.root &&
+      previous.chord.quality === next.chord.quality
+    ) {
+      previous.end = next.end;
+      previous.endIndex = next.endIndex;
+      if (next.endBeat !== undefined) previous.endBeat = next.endBeat;
+      i++; // the neighbour is folded in along with the gap
+      continue;
+    }
+    out.push(seg);
+  }
+  return out;
 }
 
 /** Merge neighbouring segments that ended up on the same chord after refining. */

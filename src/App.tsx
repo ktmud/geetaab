@@ -20,7 +20,7 @@ import { Listening } from './ui/Listening';
 import { Practice } from './ui/Practice';
 import { TabView, type TabOptions } from './ui/TabView';
 import { Backdrop } from './ui/Backdrop';
-import { GuitarMark } from './ui/icons';
+import { GitHubIcon, GuitarMark } from './ui/icons';
 
 type Screen =
   | { name: 'home' }
@@ -73,6 +73,7 @@ export function App() {
         capo: nextOptions.capo,
         strumId: nextOptions.strumId,
         simplify: nextOptions.simplify,
+        level: nextOptions.level,
         audio: next.audio,
         source: next.source,
       };
@@ -197,6 +198,7 @@ export function App() {
         capo: song.capo,
         strumId: song.strumId,
         simplify: song.simplify ?? true,
+        level: song.level,
       });
       setScreen({ name: 'tab' });
     });
@@ -356,6 +358,13 @@ export function App() {
             </div>
           </div>
     ) : null}
+
+        <footer className="app-footer">
+          <span>geetaab is open source</span>
+          <a href="https://github.com/ktmud/geetaab" target="_blank" rel="noreferrer">
+            <GitHubIcon size={15} /> ktmud/geetaab
+          </a>
+        </footer>
       </div>
     </>
   );

@@ -8,6 +8,7 @@ export interface StoredSong {
   capo?: number;
   strumId?: string;
   simplify?: boolean;
+  level?: 'easy' | 'standard' | 'faithful';
   /** Absent when the recording was never captured or was discarded. */
   audio?: Blob;
   source: 'microphone' | 'file' | 'demo';

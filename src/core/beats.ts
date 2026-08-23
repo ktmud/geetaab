@@ -87,6 +87,7 @@ export function estimateTempo(onset: OnsetEnvelope, minBpm = 50, maxBpm = 210): 
   mean /= n || 1;
 
   const scores: { bpm: number; score: number }[] = [];
+  const byLag: number[] = [];
   for (let lag = minLag; lag <= maxLag; lag++) {
     let sum = 0;
     for (let i = lag; i < n; i++) sum += (values[i] - mean) * (values[i - lag] - mean);
@@ -94,9 +95,22 @@ export function estimateTempo(onset: OnsetEnvelope, minBpm = 50, maxBpm = 210): 
     const bpm = (60 * fps) / lag;
     const prior = Math.exp(-0.5 * Math.pow(Math.log2(bpm / 120) / 0.9, 2));
     scores.push({ bpm, score: sum * prior });
+    byLag.push(sum * prior);
   }
+  let bestIdx = 0;
+  for (let i = 1; i < byLag.length; i++) if (byLag[i] > byLag[bestIdx]) bestIdx = i;
+  // The lag grid quantises tempo to whole envelope frames — over 1% at pop
+  // tempi. A parabola through the peak and its neighbours reads between them.
+  let lag = minLag + bestIdx;
+  if (bestIdx > 0 && bestIdx < byLag.length - 1) {
+    const left = byLag[bestIdx - 1];
+    const centre = byLag[bestIdx];
+    const right = byLag[bestIdx + 1];
+    const denom = left - 2 * centre + right;
+    if (denom < 0) lag += Math.max(-0.5, Math.min(0.5, (0.5 * (left - right)) / denom));
+  }
+  const best = { bpm: (60 * fps) / lag, score: byLag[bestIdx] };
   scores.sort((a, b) => b.score - a.score);
-  const best = scores[0];
   const alternate = scores.find((s) => Math.abs(Math.log2(s.bpm / best.bpm)) > 0.4)?.bpm ?? best.bpm;
   return { bpm: best.bpm, strength: best.score, alternate };
 }

@@ -1,17 +1,31 @@
 import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../core/analyze';
 import { chooseCapo, patternsFor } from '../music/arrange';
+import { levelsWorthOffering, reduceSegments, type TabLevel } from '../music/levels';
 import { buildTab, type SongTab } from '../music/tab';
 import { songTabText, tabSystems } from '../music/tabText';
 import { ChordCard } from './ChordDiagram';
 import { PrintSheet } from './PrintSheet';
-import { BackIcon, PlayIcon, PrintIcon } from './icons';
+import { BackIcon, CheckIcon, PlayIcon, PrintIcon } from './icons';
 
 export interface TabOptions {
   capo?: number;
   simplify: boolean;
   strumId?: string;
+  level?: TabLevel;
 }
+
+const LEVEL_LABELS: Record<TabLevel, string> = {
+  easy: 'Easy',
+  standard: 'Standard',
+  faithful: 'Faithful',
+};
+
+const LEVEL_HINTS: Record<TabLevel, string> = {
+  easy: 'Fewer, plainer changes — extensions and quick passing chords folded away.',
+  standard: 'Every change the song makes, on shapes a beginner can finger.',
+  faithful: 'Exactly what the recording plays — sevenths, suspensions and all.',
+};
 
 export interface TabViewProps {
   analysis: AnalysisResult;
@@ -39,16 +53,29 @@ export function TabView({
 }: TabViewProps) {
   const [copied, setCopied] = useState(false);
   const [tabScope, setTabScope] = useState<'song' | 'loop'>('song');
+  const [editingTitle, setEditingTitle] = useState(false);
 
-  const tab = useMemo(() => {
+  const tabs = useMemo(() => {
     const patterns = patternsFor(analysis.beatsPerBar);
     const strum = options.strumId ? patterns.find((p) => p.id === options.strumId) : undefined;
-    return buildTab(analysis, { capo: options.capo, simplify: options.simplify, strum });
-  }, [analysis, options]);
+    const base = { capo: options.capo, strum };
+    const standard = buildTab(analysis, { ...base, simplify: true });
+    const faithful = buildTab(analysis, { ...base, simplify: false });
+    const easy = buildTab(
+      { ...analysis, segments: reduceSegments(analysis.segments, analysis.beatsPerBar) },
+      { ...base, simplify: true },
+    );
+    return { easy, standard, faithful } as Record<TabLevel, SongTab>;
+  }, [analysis, options.capo, options.strumId]);
+
+  const offeredLevels = useMemo(() => levelsWorthOffering(tabs), [tabs]);
+  const wantedLevel: TabLevel = options.level ?? (options.simplify === false ? 'faithful' : 'standard');
+  const level: TabLevel = offeredLevels.includes(wantedLevel) ? wantedLevel : 'standard';
+  const tab = tabs[level];
 
   const autoCapo = useMemo(
-    () => chooseCapo(analysis.segments, analysis.key, { simplify: options.simplify }).fret,
-    [analysis, options.simplify],
+    () => chooseCapo(analysis.segments, analysis.key, { simplify: level !== 'faithful' }).fret,
+    [analysis, level],
   );
   const patterns = patternsFor(tab.beatsPerBar);
   const hardChords = tab.palette.filter((chord) => chord.shape.difficulty === 3);
@@ -84,13 +111,34 @@ export function TabView({
 
       <div className="tab-header">
         <div style={{ flex: 1, minWidth: 240 }}>
-          <input
-            className="tab-title-input"
-            value={title}
-            onChange={(event) => onTitleChange(event.target.value)}
-            aria-label="Song title"
-            placeholder="Name this song"
-          />
+          <div className="title-edit">
+            <input
+              className="tab-title-input"
+              value={title}
+              onChange={(event) => onTitleChange(event.target.value)}
+              onFocus={() => setEditingTitle(true)}
+              onBlur={() => setEditingTitle(false)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+              aria-label="Song title"
+              placeholder="Name this song"
+            />
+            {editingTitle ? (
+              <button
+                className="title-confirm"
+                aria-label="Confirm the title"
+                // Mouse-down, not click: the input's blur would unmount this
+                // button before a click could ever land on it.
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  (document.activeElement as HTMLElement | null)?.blur();
+                }}
+              >
+                <CheckIcon size={17} />
+              </button>
+            ) : null}
+          </div>
           <div className="stat-row" style={{ marginTop: 12 }}>
             <span className="chip chip-accent">{tab.key.name}</span>
             <span className="chip">{Math.round(tab.tempo)} BPM</span>
@@ -112,6 +160,13 @@ export function TabView({
         <div className="notice notice-warn" style={{ marginTop: 16 }}>
           The harmony came through faintly, so these chords are a rough guess. A cleaner recording —
           or an audio file instead of a room recording — will do much better.
+        </div>
+      ) : null}
+
+      {analysis.freeTime ? (
+        <div className="notice notice-info" style={{ marginTop: 16 }}>
+          This one plays freely — there was no steady pulse to lock onto, so the tempo and bar grid
+          are approximate. The chord sequence itself is what to trust.
         </div>
       ) : null}
 
@@ -196,23 +251,25 @@ export function TabView({
             </select>
           </div>
 
-          <div className="field">
-            <label htmlFor="simplify">Chord shapes</label>
-            <div className="segmented" id="simplify">
-              <button
-                aria-pressed={options.simplify}
-                onClick={() => onOptionsChange({ ...options, simplify: true })}
-              >
-                Beginner
-              </button>
-              <button
-                aria-pressed={!options.simplify}
-                onClick={() => onOptionsChange({ ...options, simplify: false })}
-              >
-                Exact
-              </button>
+          {offeredLevels.length > 1 ? (
+            <div className="field">
+              <label htmlFor="level">Level</label>
+              <div className="segmented" id="level">
+                {offeredLevels.map((option) => (
+                  <button
+                    key={option}
+                    aria-pressed={level === option}
+                    onClick={() =>
+                      onOptionsChange({ ...options, level: option, simplify: option !== 'faithful' })
+                    }
+                  >
+                    {LEVEL_LABELS[option]}
+                  </button>
+                ))}
+              </div>
+              <span className="field-hint">{LEVEL_HINTS[level]}</span>
             </div>
-          </div>
+          ) : null}
 
           {onRetempo ? (
             <div className="field">

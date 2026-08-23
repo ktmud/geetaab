@@ -123,6 +123,14 @@ export function SkipForwardTenIcon({ size = 24, className }: IconProps) {
   );
 }
 
+export function CheckIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M4.5 12.5 10 18 19.5 6.5" />
+    </svg>
+  );
+}
+
 export function PrintIcon({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>
@@ -199,6 +207,14 @@ export function RotateIcon({ size = 24, className }: IconProps) {
       <rect x="2.5" y="7" width="19" height="10" rx="2" />
       <path d="M9 3.5 12 1l3 2.5" />
       <path d="M12 1v4" />
+    </svg>
+  );
+}
+
+export function GitHubIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
+      <path d="M12 1.5C6.2 1.5 1.5 6.2 1.5 12c0 4.64 3 8.58 7.18 9.97.53.1.72-.23.72-.5v-1.78c-2.92.63-3.54-1.4-3.54-1.4-.48-1.21-1.17-1.54-1.17-1.54-.95-.65.07-.64.07-.64 1.06.08 1.61 1.08 1.61 1.08.94 1.6 2.46 1.14 3.06.87.1-.68.37-1.14.66-1.4-2.33-.27-4.78-1.17-4.78-5.2 0-1.14.41-2.08 1.08-2.81-.1-.27-.47-1.34.1-2.79 0 0 .89-.28 2.9 1.08a10.1 10.1 0 0 1 5.28 0c2-1.36 2.89-1.08 2.89-1.08.58 1.45.21 2.52.1 2.79.67.73 1.08 1.67 1.08 2.81 0 4.04-2.46 4.92-4.8 5.18.38.33.71.96.71 1.95v2.88c0 .28.19.6.73.5A10.52 10.52 0 0 0 22.5 12c0-5.8-4.7-10.5-10.5-10.5Z" />
     </svg>
   );
 }

@@ -2,6 +2,7 @@ import { CHROMA_HOP_SIZE, CHROMA_SAMPLE_RATE, computeChromagram } from './chroma
 import {
   aggregateByBeats,
   aggregateEnergyByBeats,
+  bridgeShortGaps,
   decodeChords,
   mergeAdjacent,
   pathToSegments,
@@ -21,7 +22,7 @@ import {
   padBeatGrid,
   trackBeats,
 } from './beats';
-import { resample } from './dsp';
+import { medianOf, resample } from './dsp';
 import { estimateKey, type KeyEstimate } from './key';
 
 export interface AnalysisResult {
@@ -37,6 +38,10 @@ export interface AnalysisResult {
   /** Detected chord for each beat interval, as a lattice state. */
   beatStates: number[];
   confidence: number;
+  /** Normalised periodicity of the onsets; low means no steady pulse to find. */
+  rhythmicity: number;
+  /** True when the piece plays freely and the beat grid is only approximate. */
+  freeTime: boolean;
 }
 
 export interface AnalyzeOptions {
@@ -76,8 +81,12 @@ export function analyzeAudio(
 
   report('finding the beat', 0.25);
   const onset = onsetEnvelope(mono22, ONSET_SAMPLE_RATE);
-  let tempo = opts.tempoHint ?? estimateTempo(onset).bpm;
+  const tempoEstimate = estimateTempo(onset);
+  let tempo = opts.tempoHint ?? tempoEstimate.bpm;
   let beats = beatGrid(onset, tempo, duration);
+  // Autocorrelation strength over variance is scale-free: a strummed song lands
+  // well above rubato fingerpicking, whose onsets share no common period.
+  const rhythmicity = onsetRhythmicity(onset, tempoEstimate.strength);
 
   report('listening for chords', 0.5);
   const chroma = computeChromagram(mono11, CHROMA_SAMPLE_RATE);
@@ -85,17 +94,48 @@ export function analyzeAudio(
 
   report('working out the changes', 0.75);
   let decoded = decodeOnGrid(chroma, frameRate, beats);
+  const freeTime = !opts.tempoHint && rhythmicity < FREE_TIME_RHYTHMICITY;
 
-  if (!opts.tempoHint && shouldHalveTempo(tempo, decoded.segments)) {
+  if (!freeTime && !opts.tempoHint && shouldHalveTempo(tempo, decoded.segments)) {
     tempo /= 2;
     beats = beatGrid(onset, tempo, duration);
     decoded = decodeOnGrid(chroma, frameRate, beats);
   }
 
+  if (freeTime) {
+    // With no pulse to find, the tracked beats carry no information, and
+    // snapping chord changes to them puts every boundary wrong by up to a
+    // beat. Decode on a fixed half-second grid instead, with a stiffer change
+    // cost because free playing holds its harmony for seconds at a time.
+    const fineGrid: number[] = [];
+    for (let t = 0; t < duration; t += 0.5) fineGrid.push(t);
+    const fine = decodeOnGrid(chroma, frameRate, fineGrid, { changePenalty: 3 });
+    // The bar model still runs on the beat grid, so segment edges snap to the
+    // nearest beat only after the boundaries themselves are settled.
+    for (const seg of fine.segments) {
+      seg.startBeat = nearestBeatIndex(beats, seg.start);
+      seg.endBeat = Math.max(seg.startBeat + 1, nearestBeatIndex(beats, seg.end));
+    }
+    decoded = { ...decoded, segments: fine.segments };
+  }
+
+  // The autocorrelation names a tempo; the tracker then negotiates it against
+  // the actual onsets. The grid it settled on is the truer reading, so the
+  // reported BPM comes from the beats themselves. A forced tempo is echoed
+  // back untouched — overriding an override reads as the app ignoring you.
+  if (!opts.tempoHint && !freeTime && beats.length >= 9) {
+    const intervals: number[] = [];
+    for (let i = 1; i < beats.length; i++) intervals.push(beats[i] - beats[i - 1]);
+    const median = medianOf(intervals);
+    if (median > 1e-3) tempo = 60 / median;
+  }
+
   report('naming the key', 0.9);
   const changeBeats = decoded.segments.map((s) => s.startBeat ?? 0);
-  const beatsPerBar = opts.beatsPerBar ?? estimateBeatsPerBar(changeBeats);
-  const barPhase = estimateBarPhase(changeBeats, beatsPerBar, decoded.beatCount, decoded.beatEnergy);
+  const beatsPerBar = opts.beatsPerBar ?? (freeTime ? 4 : estimateBeatsPerBar(changeBeats));
+  const barPhase = freeTime
+    ? 0
+    : estimateBarPhase(changeBeats, beatsPerBar, decoded.beatCount, decoded.beatEnergy);
   const key = estimateKey(chordToneHistogram(decoded.segments));
 
   const totalDuration = decoded.segments.reduce((sum, s) => sum + (s.end - s.start), 0);
@@ -116,7 +156,39 @@ export function analyzeAudio(
     segments: decoded.segments,
     beatStates: decoded.path,
     confidence,
+    rhythmicity,
+    freeTime,
   };
+}
+
+/** Below this the onsets share no common period worth calling a tempo. */
+const FREE_TIME_RHYTHMICITY = 0.08;
+
+function nearestBeatIndex(beats: number[], time: number): number {
+  let best = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < beats.length; i++) {
+    const d = Math.abs(beats[i] - time);
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function onsetRhythmicity(onset: ReturnType<typeof onsetEnvelope>, strength: number): number {
+  const { values } = onset;
+  let mean = 0;
+  for (let i = 0; i < values.length; i++) mean += values[i];
+  mean /= values.length || 1;
+  let variance = 0;
+  for (let i = 0; i < values.length; i++) {
+    const d = values[i] - mean;
+    variance += d * d;
+  }
+  variance /= values.length || 1;
+  return variance > 1e-12 ? Math.max(0, strength) / variance : 0;
 }
 
 function beatGrid(
@@ -137,15 +209,23 @@ function decodeOnGrid(
   chroma: ReturnType<typeof computeChromagram>,
   frameRate: number,
   beats: number[],
+  gridOpts: { changePenalty?: number } = {},
 ): Decoded {
   const treble = aggregateByBeats(chroma.treble, chroma.frames, frameRate, beats);
   const bass = aggregateByBeats(chroma.bass, chroma.frames, frameRate, beats);
   const beatEnergy = aggregateEnergyByBeats(chroma.energy, chroma.frames, frameRate, beats);
 
-  const scored = scoreChords(treble.data, bass.data, treble.count, beatEnergy, { bassWeight: 0.3 });
+  const scored = scoreChords(treble.data, bass.data, treble.count, beatEnergy, {
+    bassWeight: 0.3,
+    ncFloor: 0.12,
+  });
   // One beat is the shortest chord worth writing down, so the change cost here
   // is far lower than a frame-level decode would use.
-  const path = decodeChords(scored, { beta: 22, changePenalty: 2.2, relatedBonus: 0.4 });
+  const path = decodeChords(scored, {
+    beta: 22,
+    changePenalty: gridOpts.changePenalty ?? 2.2,
+    relatedBonus: 0.4,
+  });
   const beatTimes = beats.slice(0, treble.count);
   const raw = pathToSegments(path, beatTimes, beats[beats.length - 1] ?? 0, scored.scores);
   // The decode ran on the beat grid, so segment indices are already beat
@@ -156,7 +236,7 @@ function decodeOnGrid(
   }
   refineSegments(raw, treble.data, bass.data, treble.count);
   return {
-    segments: mergeAdjacent(raw),
+    segments: bridgeShortGaps(mergeAdjacent(raw)),
     path,
     beatCount: treble.count,
     beatEnergy,
