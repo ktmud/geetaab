@@ -28,7 +28,7 @@ jobs:
       - run: npm run build
         env:
           # Pages serves the site from /<repo>/, not the domain root.
-          GEETAB_BASE: /${{ github.event.repository.name }}/
+          GEETAAB_BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

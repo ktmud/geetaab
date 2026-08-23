@@ -16,7 +16,7 @@ export interface LiveFrame {
 }
 
 const WORKLET_SOURCE = `
-class GeetabCapture extends AudioWorkletProcessor {
+class GeetaabCapture extends AudioWorkletProcessor {
   constructor() {
     super();
     this.chunk = new Float32Array(4096);
@@ -37,7 +37,7 @@ class GeetabCapture extends AudioWorkletProcessor {
     return true;
   }
 }
-registerProcessor('geetab-capture', GeetabCapture);
+registerProcessor('geetaab-capture', GeetaabCapture);
 `;
 
 export interface RecorderOptions {
@@ -137,7 +137,7 @@ export class Recorder {
         } finally {
           URL.revokeObjectURL(url);
         }
-        const node = new AudioWorkletNode(ctx, 'geetab-capture', { numberOfOutputs: 1 });
+        const node = new AudioWorkletNode(ctx, 'geetaab-capture', { numberOfOutputs: 1 });
         node.port.onmessage = (event: MessageEvent<Float32Array>) => accept(event.data);
         return node;
       } catch {

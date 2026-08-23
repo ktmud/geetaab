@@ -1,4 +1,4 @@
-# geetab
+# geetaab
 
 Play a song near your microphone and get a guitar tab a beginner can actually play,
 then practise it karaoke-style on a landscape screen.

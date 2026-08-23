@@ -65,7 +65,7 @@ export function Home({
         <div className="hero-split">
           <div className="hero-copy">
             <p className="lede">
-              geetab works out the chords, the key and the tempo, then rewrites the song in shapes
+              geetaab works out the chords, the key and the tempo, then rewrites the song in shapes
               a beginner already knows — capo included. Then you practise it karaoke-style,
               sideways, at whatever speed you can keep up with.
             </p>
@@ -172,7 +172,7 @@ export function Home({
             <div>
               <h3>Shapes you already know</h3>
               <p>
-                A song in E♭ has four barre chords in it. geetab puts a capo on the third fret and
+                A song in E♭ has four barre chords in it. geetaab puts a capo on the third fret and
                 hands you C, G, Am and an Fmaj7 instead.
               </p>
             </div>
@@ -193,7 +193,7 @@ export function Home({
             <div>
               <h3>The loop, not the whole song</h3>
               <p>
-                Most songs are one progression repeated. geetab finds it and tells you how much of
+                Most songs are one progression repeated. geetaab finds it and tells you how much of
                 the track it covers, so you learn four bars instead of three minutes.
               </p>
             </div>

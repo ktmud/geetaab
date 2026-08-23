@@ -65,7 +65,7 @@ async function writeFixture(dir) {
   return path;
 }
 
-const dir = await mkdtemp(join(tmpdir(), 'geetab-smoke-'));
+const dir = await mkdtemp(join(tmpdir(), 'geetaab-smoke-'));
 const fixture = await writeFixture(dir);
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {

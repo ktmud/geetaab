@@ -135,12 +135,12 @@ export function GuitarMark({ size = 26, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
-        <linearGradient id="geetab-mark" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="geetaab-mark" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#ffc069" />
           <stop offset="100%" stopColor="#ff8a3d" />
         </linearGradient>
       </defs>
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#geetab-mark)" />
+      <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#geetaab-mark)" />
       <g stroke="#21160a" strokeWidth="1.4" strokeLinecap="round">
         <path d="M7 6.5v11M12 6.5v11M17 6.5v11" />
       </g>

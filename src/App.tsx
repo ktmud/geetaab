@@ -272,7 +272,7 @@ export function App() {
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
           <GuitarMark size={26} className="brand-mark" />
-          geetab
+          geetaab
         </button>
         <span className="spacer" />
         {screen.name !== 'home' ? (

@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // Deployed under a sub-path on GitHub Pages, at the root everywhere else.
-const base = process.env.GEETAB_BASE ?? '/';
+const base = process.env.GEETAAB_BASE ?? '/';
 
 export default defineConfig({
   base,

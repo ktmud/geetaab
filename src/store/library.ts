@@ -25,7 +25,10 @@ export interface SongSummary {
   hasAudio: boolean;
 }
 
-const DB_NAME = 'geetab';
+// Renaming this orphans every song already saved in a visitor's browser, so it
+// must not follow a future rebrand without a migration that copies the old
+// database across first.
+const DB_NAME = 'geetaab';
 const DB_VERSION = 1;
 const STORE = 'songs';
 
