@@ -145,11 +145,13 @@ export function TabView({
             ) : null}
           </div>
           <div className="stat-row" style={{ marginTop: 12 }}>
-            <span className="chip chip-accent">{tab.key.name}</span>
+            <span className="chip chip-accent">{translateKeyName(tab.key.name, lang)}</span>
             <span className="chip">{Math.round(tab.tempo)} BPM</span>
             <span className="chip">{tab.beatsPerBar}/4</span>
             <span className="chip">
-              {tab.capo > 0 ? `Capo ${tab.capo} · play in ${tab.shapeKeyName}` : 'No capo'}
+              {tab.capo > 0
+                ? t.capoPlayIn(tab.capo, translateKeyName(tab.shapeKeyName, lang))
+                : t.noCapoText}
             </span>
             {Math.abs(analysis.tuning) > 0.12 ? (
               <span className="chip" title="Measured tuning of the recording">

@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { Metronome, ClockTransport, MediaTransport, type Transport } from '../audio/player';
 import { resumeAudio } from '../audio/context';
-import { useT } from '../i18n';
+import { translateKeyName, useLanguage, useT } from '../i18n';
 import type { SongTab } from '../music/tab';
 import { ChordDiagram } from './ChordDiagram';
 import {
@@ -70,6 +70,7 @@ const PLAYHEAD_FRACTION = 0.26;
 
 export function Practice({ tab, title, beats, barPhase, audio, onExit }: PracticeProps) {
   const t = useT();
+  const [lang] = useLanguage();
   const laneRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -248,16 +249,14 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
     transport.rate = rate;
     metronomeRef.current?.reset(transport.currentTime);
 
-    // Count the player in at the practice tempo, not the song's, so the click
-    // they hear is the one they are about to play against. Fast songs are
-    // counted in half time, the way a musician counts them: the detected BPM
-    // doubles on some recordings (the unresolvable tempo octave), and nobody
-    // can set their hand to a count that arrives more than twice a second.
-    const countStep = beatSeconds / rate < 0.5 ? beatSeconds * 2 : beatSeconds;
+    // One second per number, always. Counting at the song's tempo made the
+    // wait depend on a detected BPM that can land an octave high, so a count
+    // could flash past in under two seconds; and a count-in is for getting a
+    // hand into position, which takes the time it takes regardless of tempo.
     const token = ++countInToken.current;
     for (let i = tab.beatsPerBar; i >= 1; i--) {
       setCountIn(i);
-      await wait((countStep / rate) * 1000);
+      await wait(1000);
       // Pausing during the count-in bumps the token; without this check the
       // count would finish in the background and start playback anyway.
       if (token !== countInToken.current || !transportRef.current) return;
@@ -458,8 +457,10 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
           <BackIcon size={17} /> {t.exit}
         </button>
         <strong style={{ fontSize: 13 }}>{title}</strong>
-        <span className="chip">{tab.key.name}</span>
-        {tab.capo > 0 ? <span className="chip chip-accent">Capo {tab.capo}</span> : null}
+        <span className="chip">{translateKeyName(tab.key.name, lang)}</span>
+        {tab.capo > 0 ? (
+          <span className="chip chip-accent">{t.capoChip(tab.capo)}</span>
+        ) : null}
         <span className="spacer" />
         <div className="beat-dots" aria-hidden="true">
           {Array.from({ length: tab.beatsPerBar }, (_, i) => (

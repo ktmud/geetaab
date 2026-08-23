@@ -1,3 +1,4 @@
+import { translateKeyName, useLanguage, useT } from '../i18n';
 import type { SongTab } from '../music/tab';
 import { tabSystems } from '../music/tabText';
 import { ChordDiagram } from './ChordDiagram';
@@ -16,6 +17,8 @@ export interface PrintSheetProps {
  * reflects the capo and strumming options currently chosen on screen.
  */
 export function PrintSheet({ tab, title }: PrintSheetProps) {
+  const t = useT();
+  const [lang] = useLanguage();
   const systems = tabSystems(tab.bars, tab.strum, 2);
   const strumMarks: string[] = [];
   for (let beat = 0; beat < tab.beatsPerBar; beat += 0.5) {
@@ -25,10 +28,14 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
 
   return (
     <section className="print-sheet" aria-hidden="true">
-      <h1>{title || 'Untitled song'}</h1>
+      <h1>{title || t.printUntitled}</h1>
       <p className="print-meta">
-        Key {tab.key.name} · {Math.round(tab.tempo)} BPM · {tab.beatsPerBar}/4 ·{' '}
-        {tab.capo > 0 ? `capo on fret ${tab.capo}, shapes read in ${tab.shapeKeyName}` : 'no capo'} ·{' '}
+        {t.printKeyLabel} {translateKeyName(tab.key.name, lang)} · {Math.round(tab.tempo)} BPM ·{' '}
+        {tab.beatsPerBar}/4 ·{' '}
+        {tab.capo > 0
+          ? t.printCapo(tab.capo, translateKeyName(tab.shapeKeyName, lang))
+          : t.printNoCapo}{' '}
+        ·{' '}
         {tab.strum.name}: {strumMarks.join(' ')}
       </p>
 
@@ -36,11 +43,11 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
         {tab.palette.map((chord, index) => (
           <div className="print-chord" key={index}>
             <b>{chord.shapeLabel}</b>
-            <ChordDiagram shape={chord.shape} width={64} title={`${chord.shapeLabel} chord diagram`} />
+            <ChordDiagram shape={chord.shape} width={64} title={t.printDiagramTitle(chord.shapeLabel)} />
             {chord.substitutedFrom ? (
-              <span>for {chord.label}</span>
+              <span>{t.printSubFor(chord.label)}</span>
             ) : tab.capo > 0 ? (
-              <span>sounds as {chord.label}</span>
+              <span>{t.printSoundsAs(chord.label)}</span>
             ) : null}
           </div>
         ))}
@@ -48,12 +55,12 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
 
       {tab.loop ? (
         <p className="print-loop">
-          The loop, {Math.round(tab.loop.coverage * 100)}% of the song:{' '}
+          {t.printLoopLine(Math.round(tab.loop.coverage * 100))}{' '}
           <strong>| {tab.loop.bars.map((bar) => bar || 'N.C.').join(' | ')} |</strong>
         </p>
       ) : null}
 
-      <h2>Chord chart</h2>
+      <h2>{t.printChordChart}</h2>
       <div className="print-bars">
         {tab.bars.map((bar) => (
           <div
@@ -66,7 +73,7 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
         ))}
       </div>
 
-      <h2>Tablature</h2>
+      <h2>{t.printTablature}</h2>
       {systems.map((system) => (
         <div className="print-sys" key={system.startBar}>
           <i>{system.label}</i>
@@ -75,7 +82,7 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
       ))}
 
       <p className="print-foot">
-        geetaab — a machine transcription. Trust your ears over it.
+        {t.printFoot}
       </p>
     </section>
   );
