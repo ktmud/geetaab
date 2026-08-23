@@ -219,6 +219,62 @@ out.patterns3 = patternsFor(3).map((p) => p.id);
 out.suggestStrum = [60, 96, 150].map((bpm) => suggestStrum(bpm, 4).id);
 out.shapeStrum = digest(renderShapeStrum([-1, 3, 2, 0, 1, 0], { sampleRate: 22050 }));
 
+// --- a song that changes twice a bar ----------------------------------------
+// The demo progression holds each chord for a whole bar, so it never reaches
+// the easy level's hold pass. This one changes every two beats, which is what
+// that pass exists for, and without it here a port could get the pass wrong
+// and every check above would still agree.
+{
+  const fast = [
+    { root: 0, quality: 'maj', beats: 2 },
+    { root: 9, quality: 'min', beats: 2 },
+    { root: 5, quality: 'maj', beats: 2 },
+    { root: 7, quality: 'maj', beats: 2 },
+    { root: 0, quality: 'maj', beats: 2 },
+    { root: 9, quality: 'min', beats: 2 },
+    { root: 5, quality: 'maj', beats: 2 },
+    { root: 7, quality: 'maj', beats: 2 },
+    { root: 0, quality: 'maj', beats: 2 },
+    { root: 9, quality: 'min', beats: 2 },
+    { root: 5, quality: 'maj', beats: 2 },
+    { root: 7, quality: 'maj', beats: 2 },
+    { root: 0, quality: 'maj', beats: 2 },
+    { root: 9, quality: 'min', beats: 2 },
+    { root: 5, quality: 'maj', beats: 2 },
+    { root: 7, quality: 'maj', beats: 4 },
+  ];
+  const signal2 = renderProgression(fast, { sampleRate: 44100, bpm: 132, seed: 99, noise: 0.003 });
+  const a2 = analyzeAudio(signal2, 44100);
+  const reduced = reduceSegments(a2.segments, a2.beatsPerBar);
+  const tabs2 = {
+    easy: buildTab({ ...a2, segments: reduced }),
+    standard: buildTab(a2),
+    faithful: buildTab(a2, { simplify: false }),
+  };
+  out.fastSong = {
+    rate: 44100,
+    signal: digest(signal2),
+    tempo: a2.tempo,
+    beatsPerBar: a2.beatsPerBar,
+    key: a2.key.name,
+    segments: a2.segments.map((s) => ({
+      name: chordName(s.chord),
+      startBeat: s.startBeat,
+      endBeat: s.endBeat,
+    })),
+    reduced: reduced.map((s) => ({
+      name: chordName(s.chord),
+      startBeat: s.startBeat,
+      endBeat: s.endBeat,
+      start: s.start,
+      end: s.end,
+    })),
+    levels: levelsWorthOffering(tabs2),
+    easyBars: tabs2.easy.bars.map((b) => b.signature),
+    standardBars: tabs2.standard.bars.map((b) => b.signature),
+  };
+}
+
 // --- the music gate ---------------------------------------------------------
 {
   const window = at11.slice(Math.floor(4 * CHROMA_SAMPLE_RATE), Math.floor(5.5 * CHROMA_SAMPLE_RATE));
