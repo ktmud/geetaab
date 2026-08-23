@@ -143,7 +143,11 @@ export function Home({
       <input
         ref={fileInput}
         type="file"
-        accept="audio/*"
+        // iOS matches this against a file's declared type, and audio that
+        // arrives through iCloud Drive often carries none — so audio/* alone
+        // greys out the very m4a the user came to open. The extensions give
+        // the picker something to match when the type is missing.
+        accept="audio/*,.m4a,.mp3,.wav,.ogg,.oga,.aac,.flac,.aif,.aiff,.caf,.mp4,.opus"
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];

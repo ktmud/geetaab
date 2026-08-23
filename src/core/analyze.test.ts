@@ -173,3 +173,44 @@ describe('ANALYSIS_VERSION', () => {
     expect(ANALYSIS_VERSION).toBeGreaterThan(0);
   });
 });
+
+describe('telling music from not-music after the fact', () => {
+  // The tab screen decides whether to say "no chords came through" from the
+  // share of the track that came back N.C., not from confidence: a sustained
+  // tone matches a chord template perfectly and scores higher confidence than
+  // any real song. These two hold the ends of that gap apart.
+  const ncShare = (result: ReturnType<typeof analyzeAudio>): number => {
+    let played = 0;
+    let quiet = 0;
+    for (const seg of result.segments) {
+      played += seg.end - seg.start;
+      if (isNoChord(seg.chord)) quiet += seg.end - seg.start;
+    }
+    return played > 0 ? quiet / played : 1;
+  };
+
+  it('reads broadband noise as no harmony at all', () => {
+    const sampleRate = 22050;
+    const noise = new Float32Array(sampleRate * 12);
+    let seed = 7;
+    for (let i = 0; i < noise.length; i++) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      noise[i] = (seed / 4294967296 - 0.5) * 0.6;
+    }
+    expect(ncShare(analyzeAudio(noise, sampleRate))).toBeGreaterThan(0.9);
+  });
+
+  it('leaves a real progression well clear of that', () => {
+    const sampleRate = 44100;
+    const samples = renderProgression(
+      [
+        { root: 7, quality: 'maj', beats: 4 },
+        { root: 2, quality: 'maj', beats: 4 },
+        { root: 9, quality: 'min', beats: 4 },
+        { root: 0, quality: 'maj', beats: 4 },
+      ],
+      { sampleRate, bpm: 96, seed: 5 },
+    );
+    expect(ncShare(analyzeAudio(samples, sampleRate))).toBeLessThan(0.25);
+  });
+});

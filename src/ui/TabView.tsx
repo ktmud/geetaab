@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../core/analyze';
+import { isNoChord } from '../core/chordTypes';
 import { chooseCapo, patternsFor } from '../music/arrange';
 import { levelsWorthOffering, reduceSegments, type TabLevel } from '../music/levels';
 import { buildTab, type SongTab } from '../music/tab';
@@ -87,6 +88,30 @@ export function TabView({
   const patterns = patternsFor(tab.beatsPerBar);
   const hardChords = tab.palette.filter((chord) => chord.shape.difficulty === 3);
   const lowConfidence = tab.confidence < 0.24;
+  /**
+   * Whether the analysis found any harmony at all.
+   *
+   * Confidence alone cannot answer this: measured through this pipeline, a
+   * mains hum scores 0.588 — higher than every real song in the corpus —
+   * because one sustained tone matches a chord template perfectly. What
+   * separates music from not-music is how much of the track came back as
+   * "no chord": broadband noise and speech land at 100%, while the most
+   * sparse real piece in the corpus (a fingerpicked film cue with long
+   * silences) reaches 18%. Confidence is kept as a second gate for the
+   * opposite failure — audible harmony too smeared to name — where real
+   * songs bottom out at 0.220 and noise sits at 0.075.
+   */
+  const heardNothing = useMemo(() => {
+    let played = 0;
+    let quiet = 0;
+    for (const seg of analysis.segments) {
+      const seconds = seg.end - seg.start;
+      played += seconds;
+      if (isNoChord(seg.chord)) quiet += seconds;
+    }
+    if (played <= 0) return true;
+    return quiet / played >= 0.5 || tab.confidence < 0.15;
+  }, [analysis.segments, tab.confidence]);
 
   const systems = useMemo(() => {
     const bars =
@@ -168,10 +193,10 @@ export function TabView({
         </div>
       </div>
 
-      {lowConfidence ? (
-        <div className="notice notice-warn">
-          {t.lowConfidence}
-        </div>
+      {heardNothing ? (
+        <div className="notice notice-bad">{t.heardNoChords}</div>
+      ) : lowConfidence ? (
+        <div className="notice notice-warn">{t.lowConfidence}</div>
       ) : null}
 
       {analysis.freeTime ? (
