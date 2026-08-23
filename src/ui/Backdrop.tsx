@@ -45,6 +45,11 @@ function stringPath(y: number, amplitude: number, phase: number): string {
  * touched, so an idle page does no per-frame work at all. Plucks are rare and
  * brief on purpose — motion that means something ("a string just rang") reads
  * as alive, where a permanent drift only reads as restless.
+ *
+ * The pointer strikes them too: brushing across the page catches each string
+ * lightly as it is crossed, and a press rings one properly. The field itself
+ * takes no pointer events — it must not steal a click from the page — so both
+ * are read from the window.
  */
 export function Backdrop() {
   const paths = useRef<(SVGPathElement | null)[]>([]);
@@ -95,25 +100,56 @@ export function Backdrop() {
       raf = active.length > 0 ? requestAnimationFrame(frame) : 0;
     };
 
-    const pluck = (): void => {
-      const index = Math.floor(Math.random() * STRING_COUNT);
+    const strike = (index: number, amplitude: number, decay: number): void => {
+      if (index < 0 || index >= STRING_COUNT) return;
       // Never restart a string that is still ringing; it looks like a glitch.
-      if (!active.some((p) => p.index === index)) {
-        active.push({
-          index,
-          start: performance.now(),
-          amplitude: 0.75 + Math.random() * 0.7,
-          frequency: 3.4 + Math.random() * 2.4,
-          decay: 0.5 + Math.random() * 0.35,
-        });
-        if (raf === 0) raf = requestAnimationFrame(frame);
-      }
+      if (active.some((p) => p.index === index)) return;
+      active.push({
+        index,
+        start: performance.now(),
+        amplitude,
+        frequency: 3.4 + Math.random() * 2.4,
+        decay,
+      });
+      if (raf === 0) raf = requestAnimationFrame(frame);
+    };
+
+    const pluck = (): void => {
+      strike(Math.floor(Math.random() * STRING_COUNT), 0.75 + Math.random() * 0.7, 0.5 + Math.random() * 0.35);
       timer = window.setTimeout(pluck, 2400 + Math.random() * 4200);
     };
+
+    // Which string lies under a point. The field is stretched over the whole
+    // viewport, so this is just where the pointer sits down the screen.
+    const stringUnder = (clientY: number): number =>
+      Math.floor((clientY / window.innerHeight) * STRING_COUNT);
+
+    let lastCrossed = -1;
+    const onMove = (event: PointerEvent): void => {
+      // Hover is a mouse idea; a finger dragging the page should not strum it.
+      if (event.pointerType !== 'mouse') return;
+      const index = stringUnder(event.clientY);
+      // Only on crossing into a new string: brushing along one would otherwise
+      // retrigger it every frame the pointer moved.
+      if (index === lastCrossed) return;
+      lastCrossed = index;
+      strike(index, 0.3 + Math.random() * 0.12, 0.32);
+    };
+
+    const onDown = (event: PointerEvent): void => {
+      // A press is deliberate, so it rings properly — and unlike the sweep it
+      // answers a finger too.
+      strike(stringUnder(event.clientY), 1.5 + Math.random() * 0.5, 0.62);
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerdown', onDown, { passive: true });
 
     timer = window.setTimeout(pluck, 1400);
     return () => {
       window.clearTimeout(timer);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerdown', onDown);
       if (raf !== 0) cancelAnimationFrame(raf);
     };
   }, []);

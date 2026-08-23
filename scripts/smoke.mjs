@@ -596,6 +596,31 @@ try {
   checkThat('a string rings', sawPluck);
   checkThat('and settles back straight', sawStill);
 
+  // The pointer plays the field too. Wait for quiet first, so what follows is
+  // the pointer's doing and not an ambient pluck that happened to overlap.
+  for (let i = 0; i < 60 && (await bowedCount()) > 0; i++) await page.waitForTimeout(100);
+  const view = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+  await page.mouse.move(view.w * 0.2, view.h * 0.15);
+  for (let y = 0.2; y <= 0.8; y += 0.06) {
+    await page.mouse.move(view.w * 0.5, view.h * y);
+  }
+  checkThat('sweeping the pointer across the page catches the strings', (await bowedCount()) > 0);
+
+  for (let i = 0; i < 60 && (await bowedCount()) > 0; i++) await page.waitForTimeout(100);
+  // Somewhere with no control under it, so this tests the field and not a button.
+  await page.mouse.click(view.w * 0.5, view.h * 0.9);
+  await page.waitForTimeout(60);
+  checkThat('and a press rings one properly', (await bowedCount()) > 0);
+
+  // The field must never take a click away from the page.
+  await page.waitForTimeout(900);
+  await page.getByRole('button', { name: 'Chords', exact: true }).click();
+  checkThat(
+    'the field still lets clicks through to the page',
+    (await page.locator('.library-grid .chord-tile').count()) > 0,
+  );
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+
   console.log('\n6. language toggle');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
   const chordButtonEnStart = await page.evaluate(() => {
