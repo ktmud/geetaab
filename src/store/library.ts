@@ -1,4 +1,5 @@
 import type { AnalysisResult } from '../core/analyze';
+import type { TakeGap } from '../audio/takeTimeline';
 
 export interface StoredSong {
   id: string;
@@ -15,6 +16,12 @@ export interface StoredSong {
   /** Absent when the recording was never captured or was discarded. */
   audio?: Blob;
   source: 'microphone' | 'file' | 'demo';
+  /**
+   * Stretches the recorder never received — a call, a hidden tab, headphones
+   * going in mid-take. Kept with the song so a tab that reads oddly across one
+   * of them has an explanation, rather than looking like the analysis failing.
+   */
+  gaps?: TakeGap[];
 }
 
 export interface SongSummary {

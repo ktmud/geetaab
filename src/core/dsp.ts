@@ -19,15 +19,45 @@ export function toMono(channels: Float32Array[]): Float32Array {
  *
  * The cutoff tracks the lower of the two rates, so downsampling removes content
  * that would otherwise fold back into the chroma bands as phantom notes.
+ *
+ * The kernel is built once per output *phase* rather than once per output
+ * sample. Written the obvious way this function evaluates a sine and a cosine
+ * for every tap of every output sample — for a three-minute take that is over
+ * four hundred million transcendental calls, and most of the wait between
+ * stopping the recording and seeing a tab. Audio rates are ratios of small
+ * integers, so the read head only ever lands in `srOut / gcd` distinct
+ * positions between samples however long the recording is: 147 of them for
+ * 48k into 22.05k, not four million. The direct form below still runs for a
+ * ratio that does not repeat.
  */
 export function resample(input: Float32Array, srIn: number, srOut: number, zeros = 8): Float32Array {
   if (srIn === srOut || input.length === 0) return input.slice();
   const ratio = srOut / srIn;
   const outLength = Math.max(1, Math.round(input.length * ratio));
-  const out = new Float32Array(outLength);
   const fc = 0.5 * 0.95 * Math.min(1, ratio); // cycles per input sample
   const support = zeros / (2 * fc); // kernel half-width, in input samples
 
+  const phases = buildPhasedKernels(srIn, srOut, ratio, fc, support);
+  return phases
+    ? applyPhasedKernels(input, outLength, ratio, phases)
+    : resampleDirect(input, outLength, ratio, fc, support);
+}
+
+function kernelWeight(x: number, fc: number, support: number): number {
+  const t = 2 * fc * x;
+  const sinc = t === 0 ? 1 : Math.sin(Math.PI * t) / (Math.PI * t);
+  const win = 0.5 + 0.5 * Math.cos((Math.PI * x) / support);
+  return sinc * win;
+}
+
+function resampleDirect(
+  input: Float32Array,
+  outLength: number,
+  ratio: number,
+  fc: number,
+  support: number,
+): Float32Array {
+  const out = new Float32Array(outLength);
   for (let i = 0; i < outLength; i++) {
     const centre = i / ratio;
     const start = Math.max(0, Math.ceil(centre - support));
@@ -35,17 +65,137 @@ export function resample(input: Float32Array, srIn: number, srOut: number, zeros
     let sum = 0;
     let norm = 0;
     for (let j = start; j <= end; j++) {
-      const x = j - centre;
-      const t = 2 * fc * x;
-      const sinc = t === 0 ? 1 : Math.sin(Math.PI * t) / (Math.PI * t);
-      const win = 0.5 + 0.5 * Math.cos((Math.PI * x) / support);
-      const w = sinc * win;
+      const w = kernelWeight(j - centre, fc, support);
       sum += input[j] * w;
       norm += w;
     }
     out[i] = norm !== 0 ? sum / norm : 0;
   }
   return out;
+}
+
+interface PhasedKernels {
+  period: number;
+  /** Where phase `p`'s kernel starts, relative to `floor(centre)`. */
+  offsets: Int32Array;
+  taps: Int32Array;
+  starts: Int32Array;
+  weights: Float64Array;
+  norms: Float64Array;
+}
+
+/** More phases than this and rebuilding kernels costs more than it saves. */
+const MAX_RESAMPLE_PERIOD = 8192;
+
+function gcd(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return Math.max(1, x);
+}
+
+function buildPhasedKernels(
+  srIn: number,
+  srOut: number,
+  ratio: number,
+  fc: number,
+  support: number,
+): PhasedKernels | null {
+  // Only exact integer rates repeat exactly; anything else would drift out of
+  // step with the cached kernels over a long recording.
+  if (
+    !Number.isInteger(srIn) ||
+    !Number.isInteger(srOut) ||
+    srIn <= 0 ||
+    srOut <= 0 ||
+    srIn > 4_000_000 ||
+    srOut > 4_000_000
+  ) {
+    return null;
+  }
+  const period = srOut / gcd(srIn, srOut);
+  if (!Number.isInteger(period) || period < 1 || period > MAX_RESAMPLE_PERIOD) return null;
+
+  const offsets = new Int32Array(period);
+  const taps = new Int32Array(period);
+  const starts = new Int32Array(period);
+  const norms = new Float64Array(period);
+  const chunks: number[] = [];
+
+  for (let p = 0; p < period; p++) {
+    const centre = p / ratio;
+    const base = Math.floor(centre);
+    const lo = Math.ceil(centre - support);
+    const hi = Math.floor(centre + support);
+    const count = Math.max(0, hi - lo + 1);
+    offsets[p] = lo - base;
+    taps[p] = count;
+    starts[p] = chunks.length;
+    let norm = 0;
+    for (let j = lo; j <= hi; j++) {
+      const w = kernelWeight(j - centre, fc, support);
+      chunks.push(w);
+      norm += w;
+    }
+    norms[p] = norm;
+  }
+  return { period, offsets, taps, starts, weights: Float64Array.from(chunks), norms };
+}
+
+function applyPhasedKernels(
+  input: Float32Array,
+  outLength: number,
+  ratio: number,
+  k: PhasedKernels,
+): Float32Array {
+  const out = new Float32Array(outLength);
+  const n = input.length;
+  let phase = 0;
+  for (let i = 0; i < outLength; i++) {
+    const count = k.taps[phase];
+    if (count > 0) {
+      const from = Math.floor(i / ratio) + k.offsets[phase];
+      const at = k.starts[phase];
+      if (from >= 0 && from + count <= n) {
+        let sum = 0;
+        for (let j = 0; j < count; j++) sum += input[from + j] * k.weights[at + j];
+        out[i] = sum / k.norms[phase];
+      } else {
+        // Clipped by an edge of the signal: renormalise over the taps that
+        // survive, exactly as the direct form does.
+        let sum = 0;
+        let norm = 0;
+        for (let j = 0; j < count; j++) {
+          const idx = from + j;
+          if (idx < 0 || idx >= n) continue;
+          sum += input[idx] * k.weights[at + j];
+          norm += k.weights[at + j];
+        }
+        out[i] = norm !== 0 ? sum / norm : 0;
+      }
+    }
+    phase += 1;
+    if (phase === k.period) phase = 0;
+  }
+  return out;
+}
+
+/** The direct form, exported so a test can hold the fast path to it. */
+export function resampleReference(
+  input: Float32Array,
+  srIn: number,
+  srOut: number,
+  zeros = 8,
+): Float32Array {
+  if (srIn === srOut || input.length === 0) return input.slice();
+  const ratio = srOut / srIn;
+  const outLength = Math.max(1, Math.round(input.length * ratio));
+  const fc = 0.5 * 0.95 * Math.min(1, ratio);
+  return resampleDirect(input, outLength, ratio, fc, zeros / (2 * fc));
 }
 
 export interface StftOptions {

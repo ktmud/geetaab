@@ -113,7 +113,7 @@ one language and forgotten in the other.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 98 unit tests, no browser needed
+npm test           # unit tests, no browser needed
 npm run build      # static bundle in dist/
 npm run smoke      # drives the built app in a real browser
 ```
@@ -322,6 +322,7 @@ src/audio/    microphone, file decode, WAV encoding, transport, metronome, synth
 src/worker/   the analysis worker and its client
 src/ui/       screens and components
 src/store/    IndexedDB song library
+golden/       reference outputs of every analysis stage, for ports to check against
 ```
 
 The chord shape database is verified by tests rather than by eye: every shape must

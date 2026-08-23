@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ANALYSIS_VERSION, type AnalysisResult } from './core/analyze';
 import { decodeAudioFile } from './audio/decode';
+import type { TakeGap } from './audio/takeTimeline';
 import { DEMO_PROGRESSION, renderProgression } from './audio/synth';
 import { encodeWav } from './audio/wav';
 import { analyzeInWorker } from './worker/analyzeClient';
@@ -43,6 +44,8 @@ interface Session {
   analysis: AnalysisResult;
   audio?: Blob;
   source: StoredSong['source'];
+  /** Stretches the recorder never received, kept with the song. */
+  gaps?: TakeGap[];
   /** Kept only for the current session, so the tempo can be re-read. */
   samples?: Float32Array;
   sampleRate?: number;
@@ -137,6 +140,7 @@ export function App() {
         level: nextOptions.level,
         audio: next.audio,
         source: next.source,
+        gaps: next.gaps,
       };
       saveSong(record).then(refreshLibrary).catch(() => undefined);
     },
@@ -153,6 +157,7 @@ export function App() {
         audio?: Blob;
         id?: string;
         createdAt?: number;
+        gaps?: TakeGap[];
       },
       tempoHint?: number,
     ) => {
@@ -170,6 +175,7 @@ export function App() {
           analysis,
           audio: meta.audio,
           source: meta.source,
+          gaps: meta.gaps,
           samples,
           sampleRate,
         };
@@ -192,7 +198,7 @@ export function App() {
   );
 
   const handleRecording = useCallback(
-    (samples: Float32Array, sampleRate: number) => {
+    (samples: Float32Array, sampleRate: number, gaps: TakeGap[]) => {
       if (samples.length < sampleRate * 3) {
         setScreen({ name: 'error', error: 'recordingTooShort' });
         return;
@@ -209,6 +215,7 @@ export function App() {
         ),
         source: 'microphone',
         audio: wav.size <= MAX_STORED_AUDIO_BYTES ? wav : undefined,
+        gaps: gaps.length > 0 ? gaps : undefined,
       });
     },
     [runAnalysis, t, lang],
