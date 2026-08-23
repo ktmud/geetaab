@@ -153,6 +153,47 @@ describe('analyzeAudio', () => {
     expect(sequence).toEqual(['C', 'G', 'Am', 'C', 'G', 'Am']);
   }, 60000);
 
+  it('keeps every change of a genuinely fast progression', () => {
+    // Two chords a bar, the way 拥抱 or Heart of Gold actually move. The
+    // adaptive change cost must leave this at the base cost — a stiffer
+    // second pass would erase real changes the sheet prints.
+    const cycle: SynthChord[] = [
+      { root: 0, quality: 'maj', beats: 2 },
+      { root: 5, quality: 'maj', beats: 2 },
+      { root: 9, quality: 'min', beats: 2 },
+      { root: 7, quality: 'maj', beats: 2 },
+    ];
+    const audio = renderProgression([...cycle, ...cycle, ...cycle, ...cycle], {
+      sampleRate: 44100,
+      bpm: 96,
+      seed: 7,
+    });
+    const result = analyzeAudio(audio, 44100);
+    const sequence = uniqueChordSequence(result.segments);
+    // The opening cycles blur before the texture settles, but once it does,
+    // every two-beat change must be present — none smoothed away.
+    expect(sequence.length).toBeGreaterThanOrEqual(14);
+    expect(sequence.slice(-8)).toEqual(['C', 'F', 'Am', 'G', 'C', 'F', 'Am', 'G']);
+  }, 60000);
+
+  it('keeps a chord that shares two notes with the chord beside it', () => {
+    // Eb - Bb - Cm - Ab, a bar each. Ab is Ab-C-Eb: two of its three notes are
+    // in Cm and two are in Eb, so it is held in place by a thin margin and is
+    // the first thing a change cost erases. It is also the chord that decides
+    // the key here — lose it and the reading slides from Eb major to C minor.
+    const cycle: SynthChord[] = [
+      { root: 3, quality: 'maj', beats: 4 },
+      { root: 10, quality: 'maj', beats: 4 },
+      { root: 0, quality: 'min', beats: 4 },
+      { root: 8, quality: 'maj', beats: 4 },
+    ];
+    const audio = renderProgression([...cycle, ...cycle], { sampleRate: 44100, bpm: 108, seed: 99 });
+    const result = analyzeAudio(audio, 44100);
+    const sequence = result.segments.filter((s) => !isNoChord(s.chord)).map((s) => chordName(s.chord));
+    expect(sequence).toEqual(['D#', 'A#', 'Cm', 'G#', 'D#', 'A#', 'Cm', 'G#']);
+    expect(result.key.name).toBe('Eb major');
+  }, 60000);
+
   it('tracks tempo across the range a beginner plays in', () => {
     for (const bpm of [72, 96, 132]) {
       const audio = renderProgression(DEMO_PROGRESSION.slice(0, 4), { sampleRate: 44100, bpm, seed: 3 });

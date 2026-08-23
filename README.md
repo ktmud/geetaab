@@ -32,10 +32,14 @@ processing that ship with the page.
 
 界面中英文都有，第一次打开时按浏览器语言自动选，顶栏随时可切，选完会记住。
 
-我们拿七首有正式出版谱的歌做过实测，涵盖华语流行、民谣、Taylor Swift 和电影配乐，按时长加权
-的「根音 + 大小三度」命中率平均 **94%**，区间在 87% 到 99% 之间。换句话说，绝大多数时候，
-它会把你的手放在对的和弦上。剩下两类已知的硬骨头——小三和弦与挂二和弦只差半个音、主调和
-属调容易认混——都写在下面的「Honest limits」一节里，没有藏着。
+准确率我们用两把尺子量，因为只用宽的那把会骗人。宽尺子问「认出的和弦在不在这首歌的和弦
+表里」：十五首有正式出版谱的歌（华语流行、民谣、Taylor Swift、电影配乐）按时长加权平均
+**96%**。但它看不见位置——四个和弦顺序全打乱照样满分。严尺子用 GuitarSet（360 段逐秒标注
+和弦的原声吉他录音，CC BY 4.0）在 10 毫秒网格上逐刻对答案：这才是「对的时刻弹对的和弦」。
+在我们提交的 36 段代表性子集上，伴奏类录音平均 **70%**，其中民谣弹唱类（最贴近本应用的
+场景）**84%**；即兴独奏类只有 19%——单音旋律本来就不该拿和弦识别去读。两把尺子的差距
+本身就是旧口径夸大了多少的度量，两个数都印在回归报告里。已知的硬骨头照旧写在下面的
+「Honest limits」一节，没有藏着。
 
 ```bash
 npm install
@@ -90,35 +94,10 @@ one language and forgotten in the other.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 108 unit tests, no browser needed
+npm test           # unit tests, no browser needed
 npm run build      # static bundle in dist/
 npm run smoke      # drives the built app in a real browser
 ```
-
-## On an iPhone
-
-`ios/` holds a native build: the same analysis and the same arrangement, in
-Swift, with the microphone configured the way a browser cannot configure it.
-
-Not for recording other apps. iOS has no supported way to capture what Spotify
-or Apple Music is playing — the only route to system audio is a ReplayKit
-broadcast extension, and DRM content is muted before it reaches one. What
-native buys is the other two things. Safari runs the microphone through a
-speech chain and ignores the constraints asking it not to: echo cancellation
-subtracts the phone's own speaker out of the signal, gain control pumps the
-noise floor up between strums, noise suppression carves holes in sustained
-chords. `AVAudioSession` in `.measurement` mode turns all of it off. And
-`AVAssetReader` opens an audio file directly, which reads better than any
-microphone take on any device — the bass chromagram works between 65 Hz and
-196 Hz, which is where every chord's root lives and is roughly what a phone
-speaker cannot produce.
-
-Two implementations of one algorithm is a liability unless something holds them
-together, so `scripts/golden.mjs` dumps what this pipeline produces at every
-stage and the Swift tests reproduce it from the same synthesized recording.
-They agree to 1.0e-7 — the last bit of single precision — and everything
-discrete matches exactly. `ios/README.md` has the details; `docs/editing-and-lyrics.md`
-sets out the editable-tab and lyric-binding design that ships there first.
 
 ## Checking the transcription against real songs
 
@@ -144,17 +123,67 @@ sheet. On the one song here with two editions, agreement on root and major/minor
 moves by a point between them while the exact-symbol figure moves by twenty —
 the first is a property of the analysis, the second largely is not.
 
-The directory holds a `corpus.json` naming each song, its reference chord
-vocabulary, and any assertions to hold (that a rubato piece keeps coming back
-free-time, say); the format is documented at the top of the script. Alongside
-the time-weighted agreement with each published sheet, the report gives the
-median chord length in beats and the count of one-chord sandwiches between two
-runs of the same neighbour — the numbers that say whether a chart is chopped
-into more changes than the music has. It exits non-zero if any song loses more
-than half a point, or if an assertion fails.
+The directory holds a `corpus.json` naming each song, its reference chords,
+and any assertions to hold (that a rubato piece keeps coming back free-time,
+say); the format is documented at the top of the script. Alongside the scores,
+the report gives the median chord length in beats and the count of one-chord
+sandwiches between two runs of the same neighbour — the numbers that say
+whether a chart is chopped into more changes than the music has. It exits
+non-zero if any song loses more than half a point, or if an assertion fails.
 
-`scripts/score.mjs` does the same for one song, and `scripts/analyze.mjs`
-prints what the analysis heard, segment by segment.
+A reference can be one of three strengths, and the report scores the strongest
+reading each supports, weakest first:
+
+- a chord **vocabulary** (`ref`) only supports "is this chord anywhere in the
+  song" — the `family` column. It cannot see position: the right four chords
+  in a scrambled order still score 100%, which is why this number always
+  reads high and is never quoted alone.
+- an **ordered sheet** (`sheet`, extracted from a published tab PDF by
+  `scripts/sheets.mjs`) adds playing order — the `order` column — and a free
+  tempo-octave check: `bars` is the median count of detected bars per matched
+  sheet bar, ~1 on a correct grid and ~2 when the tempo ran double.
+- **time-aligned chords** (`refTimeline`, Harte labels as in GuitarSet's
+  .jams) support the strictest number: the `recall` column is chord symbol
+  recall on a 10 ms grid — the right chord at the right instant.
+
+### The GuitarSet subset
+
+The repository carries a second, freely-licensed corpus in `guitarset/`:
+36 recordings from **GuitarSet** (Xi, Bittner, Pauwels, Ye & Bello, ISMIR
+2018, CC BY 4.0, <https://doi.org/10.5281/zenodo.3371780>), the only corpus
+here with time-aligned chord annotations and annotated tempi. The subset
+covers every one of GuitarSet's 30 progression variants once in comping form
+(all five styles, all keys, 68–200 BPM, six players round-robin) plus one
+improvised solo per player as a stress case. The reference timelines and
+tempi, derived from the plain chord annotation of each .jams, are committed
+in `guitarset/corpus.json`; the audio is not — 36 recordings are ~70 MB,
+which is no size for a git history — so a script fetches exactly the members
+it needs from Zenodo (HTTP range requests into the 657 MB archive) and
+decodes them with the app's own resampler, no external tools:
+
+```bash
+npx vite-node scripts/guitarset.mjs        # ~68 MB download into guitarset/data/
+npx vite-node scripts/regress.mjs --corpus guitarset   # ~1 minute
+```
+
+On this subset the honest numbers are: aligned family recall **70%** on the
+comping recordings (84% on the singer-songwriter style closest to this app's
+repertoire, worse on jazz and funk whose harmony leaves the app's seven
+qualities), **19%** on improvised single-note solos, against a vocabulary
+figure of 87%/50% for the same files — the gap is what the vocabulary metric
+flatters. Tempo lands on the annotated value for 25 of 36.
+
+### Reading order out of a published sheet
+
+`scripts/sheets.mjs` recovers the ordered, bar-positioned chord sequence from
+the 有谱么-engraved tab PDFs the real corpus's sheets use (`pdftotext -bbox`,
+then layout heuristics documented in the script), writing a small JSON the
+scorers consume via `sheet`. It also picks up the printed 拍速/选调/原唱调
+header when present. Sheets from other engravers fail loudly rather than
+guessing.
+
+`scripts/score.mjs` scores one song (all three reference strengths), and
+`scripts/analyze.mjs` prints what the analysis heard, segment by segment.
 
 `npm run smoke` is the end-to-end check: it serves `dist/`, runs the demo track
 through the worker, exercises the practice transport, and feeds a synthesized song
@@ -238,10 +267,22 @@ duration-weighted histogram of the detected chord tones.
 ## The one thing it cannot decide alone
 
 Tempo has an octave ambiguity that no amount of signal processing removes: the same
-strumming pattern at 72 BPM and at 144 BPM produces an identical onset envelope. The
-detector breaks the tie with the harmony — chords that never change faster than every
-eighth bar mean the grid is counting twice as fast as the player — and the tab screen
-has half-time and double-time buttons for when that guess is wrong.
+strumming pattern at 72 BPM and at 144 BPM produces an identical onset envelope. We
+measured every tie-break we could think of on GuitarSet's 360 annotated tempi —
+beat-to-beat accent alternation (upstrokes carry as much spectral flux as downbeats,
+full-band and bass-band alike), empty subdivision midpoints (also true of quarter-note
+swing comping, which the rule would wrongly halve), harmonic-rhythm thresholds (the
+overlap between doubled ballads and genuinely fast songs is total) — and none of them
+separates the octaves without breaking more songs than it fixes; the numbers live in
+the comments of `beats.ts` and `analyze.ts`. What did survive measurement: the tempo
+prior's width (narrowed 0.9 → 0.6 octaves, +21 songs on GuitarSet at no cost
+elsewhere), and the conservative harmony tie-break, kept exactly because every
+relaxation measured worse. A style-conditioned prior would be worth another 13 points
+if the style were known — with oracle style labels GuitarSet reaches 80% — but
+predicting the style from audio measured only 37%, which gave the whole gain back.
+So the honest state is: most octave calls are right, the wrong ones are genuinely
+undecidable from the signal alone, and the tab screen has half-time and double-time
+buttons for exactly those.
 
 ## Honest limits
 
@@ -255,14 +296,14 @@ has half-time and double-time buttons for when that guess is wrong.
 
 ```
 scripts/      browser smoke test, and the transcription eval tools
-src/core/     analysis: fft, dsp, chroma, chords, beats, key, analyze
+guitarset/    the CC BY 4.0 evaluation subset: manifest + baseline (audio is fetched)
+src/core/     analysis: fft, dsp, chroma, chords, beats, key, analyze; reference scoring
 src/music/    arrangement: chord shapes, capo, strumming, tab model, text export
 src/audio/    microphone, file decode, WAV encoding, transport, metronome, synth
 src/worker/   the analysis worker and its client
 src/ui/       screens and components
 src/store/    IndexedDB song library
-ios/          the iPhone app: a Swift port of the engine, and a SwiftUI shell
-docs/         design notes for work that spans both builds
+golden/       reference outputs of every analysis stage, for ports to check against
 ```
 
 The chord shape database is verified by tests rather than by eye: every shape must

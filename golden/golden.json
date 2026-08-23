@@ -499,9 +499,9 @@
   }
  },
  "tempo": {
-  "bpm": 95.88847057297382,
-  "strength": 0.024826958115211944,
-  "alternate": 198.76802884615384
+  "bpm": 95.90719276394424,
+  "strength": 0.02286774537494398,
+  "alternate": 184.5703125
  },
  "trackBeats": {
   "length": 33,
@@ -916,7 +916,7 @@
   },
   "tuning": -0.045796933826542874,
   "confidence": 0.2731427543855331,
-  "rhythmicity": 0.8445342250794106,
+  "rhythmicity": 0.7778880332386915,
   "freeTime": false,
   "beatCount": 34,
   "beats": {

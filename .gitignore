@@ -6,6 +6,6 @@ dist/
 coverage/
 *.tsbuildinfo
 .claude/
-ios/GeetaabKit/.build/
-ios/**/*.xcodeproj/xcuserdata/
-ios/**/xcuserdata/
+
+# GuitarSet audio is fetched by scripts/guitarset.mjs, never committed
+guitarset/data

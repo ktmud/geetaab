@@ -1,11 +1,15 @@
 /* Dump reference outputs of the analysis pipeline as JSON.
 
-   The Swift port in ios/GeetaabKit reproduces this file from the same inputs,
-   which is what turns "the port compiles" into "the port agrees". Run it after
-   any change to src/core or src/music that is meant to change results, and
-   commit the new file alongside:
+   A second implementation of this pipeline — the native one — reproduces this
+   file from the same inputs, which is what turns "the port compiles" into "the
+   port agrees". Everything it needs is here: the fixture is synthesized by an
+   integer PRNG, so any language that can multiply 32-bit words rebuilds the
+   same recording rather than having to ship one.
 
-     npx vite-node scripts/golden.mjs
+   Run it after any change to src/core or src/music that is meant to change
+   results, and commit the new file alongside:
+
+     npx vite-node scripts/golden.mjs [output.json]
 */
 import { writeFile } from 'node:fs/promises';
 import { FFT, hannWindow } from '../src/core/fft.ts';
@@ -237,8 +241,8 @@ out.shapeStrum = digest(renderShapeStrum([-1, 3, 2, 0, 1, 0], { sampleRate: 2205
   out.gate = { level, ...features, musical: isMusical(features), bestState: best.state, bestScore: best.score };
 }
 
-await writeFile(
-  new URL('../ios/GeetaabKit/Tests/GeetaabCoreTests/Golden/golden.json', import.meta.url),
-  JSON.stringify(out, null, 1),
-);
-console.log('wrote golden.json');
+const target = process.argv[2]
+  ? new URL(process.argv[2], `file://${process.cwd()}/`)
+  : new URL('../golden/golden.json', import.meta.url);
+await writeFile(target, JSON.stringify(out, null, 1));
+console.log(`wrote ${target.pathname}`);

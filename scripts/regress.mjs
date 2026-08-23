@@ -19,7 +19,11 @@
            "ref": "C,Cadd11,F,G,Am,Em,E,Dm7,G/B,Am7/G,C/G",
            "transpose": "auto",              // optional
            "before": 200, "after": 250,      // optional, seconds
-           "expect": { "freeTime": false }   // optional assertions
+           "expect": { "freeTime": false },  // optional assertions
+           "refTimeline": [[0, 7.44, "D#:maj"], ...],  // optional, see below
+           "sheet": "sheets/song1.sheet.json",         // optional, see below
+           "sheetBars": [0, 62],                       // optional bar window
+           "trueTempo": 65                             // optional, BPM
          }
        ]
      }
@@ -27,6 +31,30 @@
    A song with no `ref` is still analysed and still guarded for regressions —
    useful for pieces with no published chords, where the thing to protect is
    that they keep coming back free-time, or keep their confidence.
+
+   Three grades of reference, three grades of scoring:
+
+   - `ref`, a bare chord VOCABULARY, supports only "is the detected chord
+     anywhere in this song" (the `family`/`exact` columns). It cannot see
+     position: the right four chords in a scrambled order still score 100%.
+   - `sheet`, an ORDERED sheet extracted from a published tab PDF by
+     scripts/sheets.mjs, adds order: the `order` column is the fraction of the
+     sheet's chord changes recovered in playing order (order-preserving
+     alignment, best transposition when `transpose` is "auto"). `barRatio` is
+     the median count of detected bars per matched sheet bar — it sits near 1
+     on a correct beat grid and near 2 when the tempo ran double, so it is a
+     tempo-octave check that needs no BPM ground truth. `sheetBars` windows
+     the sheet to a bar range, for songs that modulate partway.
+   - `refTimeline`, TIME-ALIGNED chords (Harte labels, e.g. from GuitarSet's
+     .jams), supports the strictest number: `recall` is chord symbol recall on
+     a 10 ms grid — the fraction of reference chord time where the detection
+     names the right chord at that instant. `exactR` is the same at exact
+     vocabulary level where the reference uses a symbol the app models. Either
+     an inline [[start, end, label], ...] array or a path to a JSON file
+     containing one (or {"chords": [...]}).
+
+   `trueTempo` (from the annotation, or printed on the sheet) adds a tempo
+   column classifying the detected BPM as =, 2x, ½x, 3/2, 2/3 or "?" of it.
 
    Decode audio to the raw format with ffmpeg:
 
@@ -50,7 +78,17 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeAudio } from '../src/core/analyze.ts';
-import { chordName, isNoChord, SHARP_NAMES, FLAT_NAMES } from '../src/core/chordTypes.ts';
+import { isNoChord } from '../src/core/chordTypes.ts';
+import {
+  bestShiftAlignment,
+  bestShiftRecall,
+  classifyTempo,
+  detectedChangeSequence,
+  parseHarte,
+  parseSheetSymbol,
+  sheetChangeSequence,
+  vocabularyAgreement,
+} from '../src/core/reference.ts';
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -78,64 +116,24 @@ if (!existsSync(manifestPath)) {
 }
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
-function pitchClass(name) {
-  const i = SHARP_NAMES.indexOf(name);
-  if (i >= 0) return i;
-  const j = FLAT_NAMES.indexOf(name);
-  if (j >= 0) return j;
-  throw new Error(`unknown note: ${name}`);
+/** Load a time-aligned reference: inline [[start,end,label]] or a JSON path. */
+async function loadTimeline(spec, dir) {
+  let raw = spec;
+  if (typeof spec === 'string') {
+    raw = JSON.parse(await readFile(join(dir, spec), 'utf8'));
+  }
+  if (raw && !Array.isArray(raw)) raw = raw.chords;
+  return raw.map(([start, end, label]) => ({ start, end, chord: parseHarte(label) }));
 }
 
-// Suffixes that land on one of the app's seven vocabulary qualities. Anything
-// else (add9, 6, dim, ...) has a root and a family but no exact answer, since
-// the vocabulary has no symbol for it.
-const VOCAB_QUALITY = { '': 'maj', m: 'min', 7: 'dom7', m7: 'min7', maj7: 'maj7', sus4: 'sus4', sus2: 'sus2' };
-
-function parseSymbol(text) {
-  const m = /^([A-G])([#b]?)(.*)$/.exec(text.trim());
-  if (!m) throw new Error(`unparsed chord: ${text}`);
-  const [, letter, accidental, rest] = m;
-  const [body, bassText] = rest.split('/');
-  return {
-    text,
-    root: pitchClass(letter + accidental),
-    family: /^m(?!aj)/.test(body) ? 'min' : 'maj',
-    quality: Object.hasOwn(VOCAB_QUALITY, body) ? VOCAB_QUALITY[body] : null,
-    bass: bassText ? pitchClass(bassText) : undefined,
-  };
-}
-
-const familyOf = (q) => (q === 'min' || q === 'min7' ? 'min' : 'maj');
-
-function agreementAt(segments, reference, shift) {
-  const families = new Set(reference.map((r) => `${(r.root + shift + 12) % 12}:${r.family}`));
-  const seen = new Map();
-  for (const r of reference) {
-    const key = `${(r.root + shift + 12) % 12}:${r.family}`;
-    if (!seen.has(key)) seen.set(key, new Set());
-    if (r.quality) seen.get(key).add(r.quality);
-  }
-  const exact = new Map();
-  for (const [key, qs] of seen) if (qs.size === 1) exact.set(key, [...qs][0]);
-
-  let played = 0;
-  let hitFamily = 0;
-  let hitQuality = 0;
-  const misses = new Map();
-  for (const seg of segments) {
-    if (isNoChord(seg.chord)) continue;
-    const dur = seg.end - seg.start;
-    played += dur;
-    const key = `${seg.chord.root}:${familyOf(seg.chord.quality)}`;
-    if (families.has(key)) {
-      hitFamily += dur;
-      if (exact.get(key) === seg.chord.quality) hitQuality += dur;
-    } else {
-      const name = chordName(seg.chord);
-      misses.set(name, (misses.get(name) ?? 0) + dur);
-    }
-  }
-  return { shift, played, hitFamily, hitQuality, misses };
+/** Load an ordered sheet (scripts/sheets.mjs output), optionally windowed. */
+async function loadSheet(path, dir, barRange) {
+  const sheet = JSON.parse(await readFile(join(dir, path), 'utf8'));
+  const [from, to] = barRange ?? [0, sheet.totalBars];
+  const events = sheet.events
+    .filter((e) => e.bar >= from && e.bar < to)
+    .map((e) => ({ chord: parseSheetSymbol(e.symbol), bar: e.bar }));
+  return { events, totalBars: Math.min(to, sheet.totalBars), meter: sheet.meter ?? 4 };
 }
 
 /** Fragmentation: what makes a chart look chopped up even when it is right. */
@@ -196,16 +194,64 @@ for (const song of manifest.songs ?? []) {
     ...shape(res, windowed),
   };
 
+  const shifts = song.transpose === 'auto' ? Array.from({ length: 12 }, (_, i) => i) : [0];
+
   if (song.ref) {
-    const reference = song.ref.split(',').map((s) => s.trim()).filter(Boolean).map(parseSymbol);
-    const shifts = song.transpose === 'auto' ? Array.from({ length: 12 }, (_, i) => i) : [0];
+    const reference = song.ref.split(',').map((s) => s.trim()).filter(Boolean).map(parseSheetSymbol);
     const best = shifts
-      .map((shift) => agreementAt(windowed, reference, shift))
+      .map((shift) => vocabularyAgreement(windowed, reference, shift))
       .sort((a, b) => b.hitFamily - a.hitFamily)[0];
     row.shift = best.shift;
     row.family = +((best.hitFamily / (best.played || 1)) * 100).toFixed(1);
     row.exact = +((best.hitQuality / (best.played || 1)) * 100).toFixed(1);
     row.worstMiss = [...best.misses.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  }
+
+  if (song.refTimeline) {
+    // Time-aligned reference: chord symbol recall on a 10 ms grid, plus the
+    // old vocabulary reading of the SAME reference so the gap between "right
+    // chord somewhere" and "right chord right there" stays visible.
+    const timeline = await loadTimeline(song.refTimeline, corpusDir);
+    const rec = bestShiftRecall(windowed, timeline, shifts);
+    row.recall = +((rec.familyHit / (rec.chordTime || 1)) * 100).toFixed(1);
+    row.exactR = +((rec.exactHit / (rec.exactTime || 1)) * 100).toFixed(1);
+    row.recallNc = +((rec.ncTime / (rec.chordTime || 1)) * 100).toFixed(1);
+    if (row.family == null) {
+      const vocabMap = new Map();
+      for (const iv of timeline) {
+        if (iv.chord) vocabMap.set(`${iv.chord.root}:${iv.chord.family}:${iv.chord.quality}`, iv.chord);
+      }
+      const voc = vocabularyAgreement(windowed, [...vocabMap.values()], rec.shift);
+      row.family = +((voc.hitFamily / (voc.played || 1)) * 100).toFixed(1);
+      row.exact = +((voc.hitQuality / (voc.played || 1)) * 100).toFixed(1);
+      row.shift = rec.shift;
+    }
+  }
+
+  if (song.sheet) {
+    // Ordered sheet: how much of the printed chord sequence comes back in
+    // playing order, and how many detected bars each matched sheet bar spans
+    // (near 2 when the beat grid ran double).
+    const sheet = await loadSheet(song.sheet, corpusDir, song.sheetBars);
+    const sheetSeq = sheetChangeSequence(sheet.events, sheet.totalBars);
+    const detSeq = detectedChangeSequence(windowed);
+    const align = bestShiftAlignment(sheetSeq, detSeq, shifts);
+    row.order = +((align.matched.length / (sheetSeq.length || 1)) * 100).toFixed(1);
+    row.orderPrec = +((align.matched.length / (detSeq.length || 1)) * 100).toFixed(1);
+    const ratios = align.matched
+      .map(({ sheet: si, detected: di }) => {
+        const bars = detSeq[di].beats / (res.beatsPerBar || 4);
+        return sheetSeq[si].bars > 0 ? bars / sheetSeq[si].bars : null;
+      })
+      .filter((r) => r != null && Number.isFinite(r))
+      .sort((a, b) => a - b);
+    row.barRatio = ratios.length ? +ratios[ratios.length >> 1].toFixed(2) : null;
+    if (row.shift == null) row.shift = align.shift;
+  }
+
+  if (song.trueTempo) {
+    row.trueTempo = song.trueTempo;
+    row.tempoClass = classifyTempo(res.tempo, song.trueTempo);
   }
   results[song.id] = row;
   rows.push({ song, row });
@@ -218,17 +264,21 @@ const baseline = !saveBaseline && existsSync(baselinePath)
 
 const pad = (v, n) => String(v ?? '—').padEnd(n);
 const num = (v, n) => String(v ?? '—').padStart(n);
+const TEMPO_MARK = { correct: '=', half: '1/2', double: '2x', twothirds: '2/3', threehalves: '3/2', other: '?' };
 console.log(
-  `\n${pad('song', 18)}${num('family', 7)}${num('Δ', 7)}${num('exact', 7)}${num('med', 5)}${num('sand', 5)}${num('ch/min', 7)}  key`,
+  `\n${pad('song', 18)}${num('family', 7)}${num('Δ', 6)}${num('recall', 7)}${num('order', 7)}${num('bars', 6)}${num('exact', 7)}${num('med', 5)}${num('sand', 5)}${num('ch/min', 7)}${num('T', 5)}  key`,
 );
-console.log('-'.repeat(80));
+console.log('-'.repeat(104));
 
 const regressions = [];
 const expectationFailures = [];
 for (const { song, row } of rows) {
   const was = baseline?.[song.id];
   const delta = was && row.family != null && was.family != null ? +(row.family - was.family).toFixed(1) : null;
-  if (delta != null && delta < -TOLERANCE) regressions.push({ id: song.id, was: was.family, now: row.family, delta });
+  if (delta != null && delta < -TOLERANCE) regressions.push({ id: song.id, metric: 'family', was: was.family, now: row.family, delta });
+  // The position-aware number is gated exactly like the vocabulary one.
+  const deltaR = was && row.recall != null && was.recall != null ? +(row.recall - was.recall).toFixed(1) : null;
+  if (deltaR != null && deltaR < -TOLERANCE) regressions.push({ id: song.id, metric: 'recall', was: was.recall, now: row.recall, delta: deltaR });
   for (const [key, want] of Object.entries(song.expect ?? {})) {
     if (row[key] !== want) expectationFailures.push(`${song.id}: ${key} is ${row[key]}, expected ${want}`);
   }
@@ -236,11 +286,15 @@ for (const { song, row } of rows) {
   console.log(
     pad(row.title.slice(0, 17), 18) +
       num(row.family, 7) +
-      num(mark, 7) +
+      num(mark, 6) +
+      num(row.recall, 7) +
+      num(row.order, 7) +
+      num(row.barRatio, 6) +
       num(row.exact, 7) +
       num(row.medianBeats, 5) +
       num(row.sandwiched, 5) +
       num(row.changesPerMin, 7) +
+      num(row.tempoClass ? TEMPO_MARK[row.tempoClass] : '—', 5) +
       `  ${row.key}${row.freeTime ? ' · free time' : ''}${row.shift ? ` · +${row.shift}` : ''}`,
   );
 }
@@ -248,9 +302,30 @@ for (const { song, row } of rows) {
 const scored = rows.filter(({ row }) => row.family != null);
 if (scored.length) {
   const mean = scored.reduce((s, { row }) => s + row.family, 0) / scored.length;
+  const recalled = rows.filter(({ row }) => row.recall != null);
+  const meanRecall = recalled.length
+    ? (recalled.reduce((s, { row }) => s + row.recall, 0) / recalled.length).toFixed(2)
+    : null;
+  const ordered = rows.filter(({ row }) => row.order != null);
+  const meanOrder = ordered.length
+    ? (ordered.reduce((s, { row }) => s + row.order, 0) / ordered.length).toFixed(2)
+    : null;
   const sand = rows.reduce((s, { row }) => s + row.sandwiched, 0);
-  console.log('-'.repeat(80));
-  console.log(`${pad('mean of ' + scored.length, 18)}${num(mean.toFixed(2), 7)}${num('', 7)}${num('', 7)}${num('', 5)}${num(sand, 5)}`);
+  console.log('-'.repeat(104));
+  console.log(
+    `${pad('mean of ' + scored.length, 18)}${num(mean.toFixed(2), 7)}${num('', 6)}${num(meanRecall, 7)}${num(meanOrder, 7)}${num('', 6)}${num('', 7)}${num('', 5)}${num(sand, 5)}`,
+  );
+  const tempoed = rows.filter(({ row }) => row.tempoClass);
+  if (tempoed.length) {
+    const counts = {};
+    for (const { row } of tempoed) counts[row.tempoClass] = (counts[row.tempoClass] ?? 0) + 1;
+    console.log(
+      `tempo vs truth (${tempoed.length} songs): ` +
+        Object.entries(counts)
+          .map(([k, v]) => `${TEMPO_MARK[k]} ${v}`)
+          .join('  '),
+    );
+  }
 }
 
 if (saveBaseline) {
@@ -266,7 +341,7 @@ if (!baseline) {
 
 for (const line of expectationFailures) console.error(`EXPECTATION  ${line}`);
 for (const r of regressions) {
-  console.error(`REGRESSION   ${r.id}: agreement ${r.was} → ${r.now} (${r.delta})`);
+  console.error(`REGRESSION   ${r.id}: ${r.metric} ${r.was} → ${r.now} (${r.delta})`);
 }
 if (regressions.length || expectationFailures.length) {
   console.error(`\n${regressions.length + expectationFailures.length} problem(s). Tolerance is ${TOLERANCE} points.`);

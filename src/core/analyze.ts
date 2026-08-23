@@ -36,8 +36,10 @@ import { estimateKey, type KeyEstimate } from './key';
  *   1  the pipeline as first shipped
  *   2  graded N.C., free-time detection, parabolic tempo, three tab levels
  *   3  consolidateSegments: a song's own vocabulary settles drifting bars
+ *   4  a hold pass on the easy level, for songs that change twice a bar
+ *   5  tempo prior narrowed (width 0.9 → 0.6), calibrated on GuitarSet
  */
-export const ANALYSIS_VERSION = 3;
+export const ANALYSIS_VERSION = 5;
 
 export interface AnalysisResult {
   duration: number;
@@ -219,6 +221,22 @@ function beatGrid(
   return padBeatGrid(beats, duration);
 }
 
+/**
+ * Change cost of the decode: one beat is the shortest chord worth writing
+ * down, so this is far lower than a frame-level decode would use.
+ *
+ * A second decode at a stiffer cost, fitted to the song's own median chord
+ * length, was tried and removed. It looked like a gain — vocabulary agreement
+ * on the sheet corpus rose 96.24 to 96.81 and one-chord sandwiches fell from
+ * 18 to 12 — but that measure only asks whether a segment names a chord the
+ * song uses somewhere. Both position-aware measures said the opposite: chord
+ * order against the published sheets fell 84.18 to 82.00, and time-aligned
+ * symbol recall on GuitarSet fell 61.66 to 61.41. The tidier chart was tidier
+ * because it had merged real changes into their neighbours. Anything that
+ * makes the chart quieter has to be judged against those two, not this one.
+ */
+const CHANGE_PENALTY = 2.2;
+
 function decodeOnGrid(
   chroma: ReturnType<typeof computeChromagram>,
   frameRate: number,
@@ -233,11 +251,9 @@ function decodeOnGrid(
     bassWeight: 0.3,
     ncFloor: 0.12,
   });
-  // One beat is the shortest chord worth writing down, so the change cost here
-  // is far lower than a frame-level decode would use.
   const path = decodeChords(scored, {
     beta: 22,
-    changePenalty: gridOpts.changePenalty ?? 2.2,
+    changePenalty: gridOpts.changePenalty ?? CHANGE_PENALTY,
     relatedBonus: 0.4,
   });
   const beatTimes = beats.slice(0, treble.count);
@@ -268,6 +284,19 @@ function decodeOnGrid(
  * tie-break has to come from the harmony, where chords that never change faster
  * than every eighth bar mean the grid is counting twice as fast as the player.
  * The guards keep genuinely fast songs with slow harmony from being halved.
+ *
+ * Measured on GuitarSet (360 annotated tempi) this rule is deliberately almost
+ * inert: it fires on 2 files, fixing one genuine double and wrongly halving
+ * one fast solo — net zero — and it never fires on the real-song corpus,
+ * whose doubled ballads change chords every half-bar. Every relaxation and
+ * replacement tested made things worse: lowering the 8-beat threshold to 6
+ * nets -1 (1 fixed, 2 broken) and to 4 nets -22; deciding from beat-salience
+ * alternation fails because upstrokes carry as much spectral flux as beats
+ * (doubled files show no strong/weak pattern, full-band or bass-band); and an
+ * empty-midpoint test halves quarter-note swing comping wholesale (fixes
+ * 15-20, breaks 19-32). A doubled grid over fast harmony is simply not
+ * decidable from this evidence, so the rule stays at its conservative
+ * setting rather than pretending otherwise.
  */
 function shouldHalveTempo(tempo: number, segments: ChordSegment[]): boolean {
   if (tempo < 125 || tempo / 2 < 55) return false;
