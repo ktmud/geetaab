@@ -223,3 +223,111 @@ final class EditRoundTripTests: XCTestCase {
     XCTAssertFalse(back.isEmpty)
   }
 }
+
+final class LyricSnappingTests: XCTestCase {
+  /// 120 BPM: a beat every half second.
+  private let fast: [Double] = (0..<80).map { Double($0) * 0.5 }
+  /// 60 BPM, where a line can genuinely sit a long way from any beat.
+  private let slow: [Double] = (0..<40).map { Double($0) }
+
+  func testLateTapsLandOnTheBeatTheyWereAimedAt() {
+    // Every tap two tenths late. Nearest-beat snapping alone would push these
+    // to 2.5, 4.5 and 6.5 — further from the music, not closer.
+    let lines = [
+      LyricLine(id: "a", text: "one", at: 2.18),
+      LyricLine(id: "b", text: "two", at: 4.21),
+      LyricLine(id: "c", text: "three", at: 6.16),
+    ]
+    let snapped = snappedToBeats(lines, beats: fast)
+    XCTAssertEqual(snapped.map(\.at), [2.0, 4.0, 6.0])
+  }
+
+  func testTapLagIsMeasuredFromWhereTapsSitInsideTheBeat() {
+    let lines = [
+      LyricLine(id: "a", text: "one", at: 2.18),
+      LyricLine(id: "b", text: "two", at: 4.21),
+      LyricLine(id: "c", text: "three", at: 6.16),
+      LyricLine(id: "d", text: "four", at: 8.20),
+    ]
+    let lag = tapLag(lines, beats: fast)
+    XCTAssertNotNil(lag)
+    XCTAssertEqual(lag!, 0.1875, accuracy: 0.01)
+  }
+
+  func testEarlyTapsGiveANegativeLagRatherThanCancellingOut() {
+    // Taps just *before* the beat sit at a phase near a whole beat. Averaged
+    // without wrapping they would read as nearly a beat late.
+    let lines = [
+      LyricLine(id: "a", text: "one", at: 1.94),
+      LyricLine(id: "b", text: "two", at: 3.95),
+      LyricLine(id: "c", text: "three", at: 5.93),
+    ]
+    let lag = tapLag(lines, beats: fast)
+    XCTAssertNotNil(lag)
+    XCTAssertLessThan(lag!, 0)
+    XCTAssertEqual(lag!, -0.06, accuracy: 0.02)
+    XCTAssertEqual(snappedToBeats(lines, beats: fast).map(\.at), [2.0, 4.0, 6.0])
+  }
+
+  func testALineFarFromAnyBeatIsNotPulledOntoOne() {
+    // A held or syncopated entry at 60 BPM, well past half a beat from either
+    // neighbour. The lag correction still reaches it — the same late finger
+    // placed it — but it is not dragged onto a beat it was never aiming at.
+    let lines = [
+      LyricLine(id: "a", text: "one", at: 2.0),
+      LyricLine(id: "b", text: "two", at: 4.0),
+      LyricLine(id: "held", text: "three", at: 6.55),
+      LyricLine(id: "d", text: "four", at: 8.0),
+    ]
+    let snapped = snappedToBeats(lines, beats: slow)
+    let held = snapped.first { $0.id == "held" }?.at
+    XCTAssertNotNil(held)
+    XCTAssertEqual(held!, 6.55, accuracy: 0.05, "moved only by the global lag")
+    XCTAssertFalse(slow.contains(held!), "and not onto a beat")
+    XCTAssertEqual(snapped.first { $0.id == "a" }?.at, 2.0)
+  }
+
+  func testUnboundLinesAreUntouched() {
+    let lines = [LyricLine(id: "a", text: "not placed")]
+    XCTAssertNil(snappedToBeats(lines, beats: fast).first?.at)
+  }
+
+  func testNoUsableGridMeansNoChange() {
+    let lines = [LyricLine(id: "a", text: "one", at: 2.18)]
+    XCTAssertEqual(snappedToBeats(lines, beats: []).first?.at, 2.18)
+    XCTAssertEqual(snappedToBeats(lines, beats: [1.0]).first?.at, 2.18)
+    XCTAssertNil(tapLag(lines, beats: []))
+  }
+
+  func testTooFewLinesToClaimALag() {
+    let lines = [
+      LyricLine(id: "a", text: "one", at: 2.18),
+      LyricLine(id: "b", text: "two", at: 4.21),
+    ]
+    XCTAssertNil(tapLag(lines, beats: fast))
+  }
+
+  func testSnappingSettlesRatherThanCreeping() {
+    // Run twice and nothing moves the second time: once the lines are on the
+    // grid the measured lag is zero, so the correction stops applying.
+    let lines = [
+      LyricLine(id: "a", text: "one", at: 2.18),
+      LyricLine(id: "b", text: "two", at: 4.21),
+      LyricLine(id: "c", text: "three", at: 6.16),
+    ]
+    let once = snappedToBeats(lines, beats: fast)
+    let twice = snappedToBeats(once, beats: fast)
+    XCTAssertEqual(twice.map(\.at), once.map(\.at))
+  }
+
+  func testCorrectionNeverPushesALineBeforeTheRecording() {
+    let lines = [
+      LyricLine(id: "a", text: "one", at: 0.05),
+      LyricLine(id: "b", text: "two", at: 2.2),
+      LyricLine(id: "c", text: "three", at: 4.2),
+    ]
+    for line in snappedToBeats(lines, beats: fast) {
+      XCTAssertGreaterThanOrEqual(line.at ?? 0, 0)
+    }
+  }
+}

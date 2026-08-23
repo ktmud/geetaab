@@ -220,6 +220,22 @@ struct Strings {
   func editedCount(_ n: Int) -> String {
     pick("\(n) edited", "改过 \(n) 处")
   }
+  var tidyTiming: String { pick("Tidy the timing", "对齐到拍") }
+  var tidyTimingWhy: String {
+    pick(
+      "Pulls each line onto the beat it was aimed at.",
+      "把每一句挪到它本来瞄准的那一拍上。")
+  }
+  func tapLagNotice(_ milliseconds: Int, late: Bool) -> String {
+    if late {
+      return pick(
+        "Your taps ran about \(milliseconds)ms behind the beat — everyone's do. Tidying takes that off.",
+        "你的点拍平均慢了大约 \(milliseconds) 毫秒——所有人都这样。对齐会把它减掉。")
+    }
+    return pick(
+      "Your taps ran about \(milliseconds)ms ahead of the beat. Tidying evens that out.",
+      "你的点拍平均快了大约 \(milliseconds) 毫秒。对齐会把它抹平。")
+  }
 }
 
 private struct StringsKey: EnvironmentKey {

@@ -204,6 +204,90 @@ public func pruned(_ edits: SongEdits, against analysis: AnalysisResult) -> Song
   return out
 }
 
+/// Pull tapped lyric timings onto the beat grid.
+///
+/// Someone binding lyrics taps when they hear the line start, and a person taps
+/// late — reaction time is around a fifth of a second, and it is a bias rather
+/// than noise, so every line in the song ends up uniformly behind the music.
+///
+/// Snapping each tap to whichever beat is nearest does **not** fix that, and at
+/// a quick tempo it makes it worse: at 120 BPM a line aimed at beat 2.0 and
+/// tapped two tenths late lands at 2.2, whose nearest beat is 2.5, so naive
+/// snapping would push it a further three tenths in the wrong direction. The
+/// lag has to come off first.
+///
+/// So the lag is measured from where the taps sit *within* the beat — they
+/// cluster, because the bias is systematic — subtracted from every line, and
+/// only then is each line pulled onto a beat if it is close enough to one.
+/// Lag correction is a measurement being undone and applies to every tap;
+/// snapping is a judgement about one line and applies only where it is safe.
+///
+/// A line that is still far from any beat after correction keeps its own time.
+/// That is not a mistimed tap, it is a pickup, a held entry or a rubato phrase,
+/// and pulling it onto a beat would be overruling the player rather than
+/// helping. The lag correction does still reach it, because the same late
+/// finger placed it as placed every other line.
+public func snappedToBeats(
+  _ lines: [LyricLine], beats: [Double], window: Double? = nil
+) -> [LyricLine] {
+  guard beats.count >= 2 else { return lines }
+  let period = medianBeatPeriod(beats)
+  guard period > 0 else { return lines }
+  // Under half a beat, so a correction can never move a line past its
+  // neighbour, and capped so a very slow piece does not get a wide net.
+  let limit = window ?? min(0.25, 0.45 * period)
+  let lag = tapLag(lines, beats: beats) ?? 0
+
+  return lines.map { line in
+    guard let at = line.at else { return line }
+    var out = line
+    let corrected = max(0, at - lag)
+    let index = nearestBeat(beats, corrected)
+    out.at = abs(beats[index] - corrected) <= limit ? beats[index] : corrected
+    return out
+  }
+}
+
+/// How late the taps were, in seconds, or nil when there are too few to tell.
+///
+/// Measured as a circular mean over each tap's position within its beat, which
+/// is the same trick the tuning estimator uses on cents: the quantity wraps, so
+/// a set of taps a hair *early* would otherwise average with a set a hair late
+/// and cancel to nothing.
+public func tapLag(_ lines: [LyricLine], beats: [Double]) -> Double? {
+  guard beats.count >= 2 else { return nil }
+  let period = medianBeatPeriod(beats)
+  guard period > 0 else { return nil }
+
+  var x = 0.0
+  var y = 0.0
+  var count = 0
+  for line in lines {
+    guard let at = line.at, at >= beats[0] else { continue }
+    let index = nearestBeat(beats, at)
+    var phase = at - beats[index]
+    // Fold into [-period/2, period/2) before taking the angle, so a tap just
+    // before a beat and one just after are neighbours rather than opposites.
+    phase -= (phase / period).rounded() * period
+    let angle = 2 * Double.pi * phase / period
+    x += cos(angle)
+    y += sin(angle)
+    count += 1
+  }
+  guard count >= 3 else { return nil }
+  if x == 0 && y == 0 { return nil }
+  return atan2(y, x) / (2 * Double.pi) * period
+}
+
+private func medianBeatPeriod(_ beats: [Double]) -> Double {
+  guard beats.count >= 2 else { return 0 }
+  var deltas: [Double] = []
+  deltas.reserveCapacity(beats.count - 1)
+  for i in 1..<beats.count { deltas.append(beats[i] - beats[i - 1]) }
+  deltas.sort()
+  return deltas[deltas.count >> 1]
+}
+
 /// Lyric lines in the order they are sung, unbound ones last.
 public func orderedLyrics(_ lines: [LyricLine]) -> [LyricLine] {
   let bound = lines.filter(\.isBound).sorted { ($0.at ?? 0) < ($1.at ?? 0) }

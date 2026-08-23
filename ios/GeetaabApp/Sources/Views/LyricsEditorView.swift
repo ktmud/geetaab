@@ -174,6 +174,25 @@ struct LyricsEditorView: View {
 
   private var adjuster: some View {
     List {
+      if let beats = song?.stored.analysis.beats, beats.count >= 2,
+        lines.contains(where: \.isBound)
+      {
+        Section {
+          Button {
+            model.applyEdits { $0.lyrics = snappedToBeats($0.lyrics, beats: beats) }
+          } label: {
+            Label(t.tidyTiming, systemImage: "wand.and.stars")
+          }
+        } footer: {
+          // Worth showing rather than silently correcting: someone who knows
+          // they tap a fifth of a second late will tap differently next time.
+          if let lag = tapLag(lines, beats: beats), abs(lag) > 0.03 {
+            Text(t.tapLagNotice(Int((abs(lag) * 1000).rounded()), late: lag > 0)).font(.caption)
+          } else {
+            Text(t.tidyTimingWhy).font(.caption)
+          }
+        }
+      }
       ForEach(lines) { line in
         HStack(spacing: 10) {
           Text(line.at.map(clock) ?? t.unbound)
