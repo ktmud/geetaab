@@ -280,8 +280,13 @@ export function App() {
       {/* Outside .app on purpose. As a child it painted over every unpositioned
           element: a fixed element with a z-index paints after in-flow block
           backgrounds, so the string field landed on top of the feature cards
-          while the positioned ones nearby stayed clear. */}
-      <Backdrop />
+          while the positioned ones nearby stayed clear.
+
+          Not mounted while recording: that screen has its own background — the
+          take's spectrogram — and two ambient layers fight each other. It also
+          keeps the pluck timers quiet while the live analysis needs the CPU.
+          The practice screen already drops it the same way. */}
+      {screen.name !== 'listening' ? <Backdrop /> : null}
       <div className="app">
         <header className={`topbar${screen.name === 'home' ? ' topbar-home' : ''}`}>
           <button
