@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useT } from '../i18n';
 
 const BAR_COUNT = 56;
 const CHORDS = ['G', 'D', 'Am', 'C'];
@@ -21,10 +22,11 @@ function barHeights(count: number): number[] {
 }
 
 function Layer({ heights, tone }: { heights: number[]; tone: 'dim' | 'lit' }) {
+  const t = useT();
   return (
     <div className={`hv-body hv-${tone}`}>
       <div className="hv-row">
-        <span className="hv-tag">hears</span>
+        <span className="hv-tag">{t.heroHears}</span>
         <div className="hv-wave">
           {heights.map((height, index) => (
             <i key={index} style={{ height: `${height * 100}%` }} />
@@ -32,7 +34,7 @@ function Layer({ heights, tone }: { heights: number[]; tone: 'dim' | 'lit' }) {
         </div>
       </div>
       <div className="hv-row">
-        <span className="hv-tag">writes</span>
+        <span className="hv-tag">{t.heroWrites}</span>
         <div className="hv-chords">
           {CHORDS.map((chord) => (
             <div key={chord} className="hv-chord">

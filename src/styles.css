@@ -3605,3 +3605,12 @@ input[type='range'] {
 .shell.home {
   padding-bottom: 24px;
 }
+
+/* Chinese does not italicise for emphasis — a slanted Han face is a synthesised
+   oblique, and it reads as a rendering fault rather than as stress. Weight and
+   colour carry the same three words the English sets in italic. */
+html[lang^='zh'] .how-it-works em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text);
+}

@@ -36,7 +36,7 @@ export function PrintSheet({ tab, title }: PrintSheetProps) {
           ? t.printCapo(tab.capo, translateKeyName(tab.shapeKeyName, lang))
           : t.printNoCapo}{' '}
         ·{' '}
-        {t.strumNames[tab.strum.id] ?? tab.strum.id}: {strumMarks.join(' ')}
+        {t.printStrumLine(t.strumNames[tab.strum.id] ?? tab.strum.id, strumMarks.join(' '))}
       </p>
 
       <div className="print-palette">

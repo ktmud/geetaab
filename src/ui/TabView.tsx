@@ -97,7 +97,11 @@ export function TabView({
   }, [tab, tabScope]);
 
   const copyText = async (): Promise<void> => {
-    const text = songTabText(tab, title, { ...t.tabText, strumName: strumName(tab.strum.id) });
+    const text = songTabText(tab, title, {
+      ...t.tabText,
+      strumName: strumName(tab.strum.id),
+      translateKey: (name) => translateKeyName(name, lang),
+    });
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);

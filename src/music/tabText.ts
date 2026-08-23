@@ -113,6 +113,8 @@ export function tabSystems(bars: TabBar[], strum: StrumPattern, barsPerSystem = 
 
 /** The prose in the exported text, so it can follow the interface language. */
 export interface TabTextLabels {
+  /** Label separator, which is full-width in Chinese. */
+  colon: string;
   key: string;
   tempo: string;
   capo: string;
@@ -121,6 +123,8 @@ export interface TabTextLabels {
   strum: string;
   /** The chosen pattern's name, already in the reader's language. */
   strumName: string;
+  /** Key names are spelled differently in each language. */
+  translateKey: (name: string) => string;
   chordsYouNeed: string;
   inPlaceOf: (chord: string) => string;
   loop: (bars: number, percent: number) => string;
@@ -130,6 +134,7 @@ export interface TabTextLabels {
 }
 
 const EN_LABELS: TabTextLabels = {
+  colon: ': ',
   key: 'Key',
   tempo: 'Tempo',
   capo: 'Capo',
@@ -137,6 +142,7 @@ const EN_LABELS: TabTextLabels = {
   capoNone: 'none',
   strum: 'Strum',
   strumName: '',
+  translateKey: (name) => name,
   chordsYouNeed: 'Chords you need',
   inPlaceOf: (chord) => `(in place of ${chord})`,
   loop: (bars, percent) => `The loop (${bars} bars, ${percent}% of the song)`,
@@ -158,12 +164,14 @@ export function songTabText(tab: SongTab, title: string, labels?: TabTextLabels)
   lines.push(title);
   lines.push('='.repeat(Math.max(4, title.length)));
   lines.push('');
-  lines.push(`${l.key}: ${tab.key.name}`);
-  lines.push(`${l.tempo}: ${Math.round(tab.tempo)} BPM, ${tab.beatsPerBar}/4`);
+  lines.push(`${l.key}${l.colon}${l.translateKey(tab.key.name)}`);
+  lines.push(`${l.tempo}${l.colon}${Math.round(tab.tempo)} BPM, ${tab.beatsPerBar}/4`);
   lines.push(
-    `${l.capo}: ${tab.capo > 0 ? l.capoFret(tab.capo, tab.shapeKeyName) : l.capoNone}`,
+    `${l.capo}${l.colon}${
+      tab.capo > 0 ? l.capoFret(tab.capo, l.translateKey(tab.shapeKeyName)) : l.capoNone
+    }`,
   );
-  lines.push(`${l.strum}: ${l.strumName}`);
+  lines.push(`${l.strum}${l.colon}${l.strumName}`);
   lines.push('');
 
   if (tab.palette.length) {
