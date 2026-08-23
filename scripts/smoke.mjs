@@ -197,7 +197,30 @@ try {
     document.querySelector('.backdrop').style.display = '';
   });
 
-  console.log('\n5. console');
+  console.log('\n5. the strings get plucked');
+  const straight = /^M0,[\d.]+H100$/;
+  const bowedCount = () =>
+    page.evaluate(
+      (re) =>
+        [...document.querySelectorAll('.backdrop-field path')].filter(
+          (el) => !new RegExp(re).test(el.getAttribute('d')),
+        ).length,
+      straight.source,
+    );
+  let sawPluck = false;
+  let sawStill = false;
+  for (let i = 0; i < 100 && !(sawPluck && sawStill); i++) {
+    const bowed = await bowedCount();
+    if (bowed > 0) sawPluck = true;
+    // Only counts once a pluck has been seen, or the very first sample would
+    // pass for "still" before anything has had a chance to ring.
+    if (sawPluck && bowed === 0) sawStill = true;
+    await page.waitForTimeout(120);
+  }
+  checkThat('a string rings', sawPluck);
+  checkThat('and settles back straight', sawStill);
+
+  console.log('\n6. console');
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {
   await browser?.close();
