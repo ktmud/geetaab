@@ -61,6 +61,18 @@ export const dictionary = {
     noMusicDetected: 'No music detected',
     tooLoud: 'Too loud — move further from the speaker.',
     veryQuiet: 'Very quiet. Move closer, or turn the song up.',
+    /**
+     * Shown under the "very quiet" line, one at a time.
+     *
+     * The first is the one people need and never think of: on a phone, sound
+     * played by the phone itself does not reach the page. The microphone hears
+     * the room, and a song playing through the same handset is not in the room.
+     * Someone holding a silent-looking meter has usually done exactly that.
+     */
+    quietAsides: [
+      'Playing the song on this phone will not work — the page hears only what the microphone hears, and that audio never reaches it.',
+      'Point the phone at the speaker, about an arm\'s length away.',
+    ],
     hearRoom: 'I can hear the room, but not a song yet. Recording starts on its own when the music does.',
     playTheSong: 'Play the song — I\'ll start with it',
     recordAnyway: 'Record anyway',
@@ -589,6 +601,10 @@ export const dictionary = {
     noMusicDetected: '没听到音乐',
     tooLoud: '太响了，离音箱远一点。',
     veryQuiet: '声音太小了。靠近一点，或者把歌放大声些。',
+    quietAsides: [
+      '用这台手机自己放歌是不行的——网页只听得见麦克风听见的声音，而手机自己放的那一路根本传不进来。',
+      '手机对着音箱，隔一臂远就好。',
+    ],
     hearRoom: '能听见房间里的动静，但还不是歌。音乐一响，录音会自己开始。',
     playTheSong: '放歌吧，我跟着一起开始',
     recordAnyway: '直接开录',

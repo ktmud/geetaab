@@ -1,18 +1,18 @@
 /* Recover the ordered, bar-positioned chord sequence from a published tab PDF.
 
-   Targets the layout of the 有谱么 engraver, which all of the corpus's Chinese
-   sheets share: each system prints its chord symbols (with diagrams) in a row
-   above the TAB block, at the x where the change lands, and a small bar number
-   at the system's left edge. `pdftotext -bbox` emits every word with its box;
-   from that the playing order is exact, and bar positions follow from the bar
-   numbers plus each chord's horizontal position.
+   Targets one widespread engraved-tab layout, described here by what it puts
+   on the page rather than by who produced it: each system prints its chord
+   symbols in a row above the TAB block, at the x where the change lands, with
+   a small bar number at the system's left edge. `pdftotext -bbox` emits every
+   word with its box; from that the playing order is exact, and bar positions
+   follow from the bar numbers plus each chord's horizontal position.
 
      npx vite-node scripts/sheets.mjs song.pdf [more.pdf ...] [--out <dir>]
 
    Writes <out>/<basename>.sheet.json:
 
      {
-       "title": "我记得 - 赵雷 吉他弹唱谱",
+       "title": "<whatever the sheet's own title line says>",
        "meter": 4, "playedKey": "C", "originalKey": "E", "printedTempo": null,
        "totalBars": 118,
        "events": [{ "bar": 0, "symbol": "C" }, ...]   // bar is 0-based, fractional
@@ -22,18 +22,21 @@
    events against the transcription by order-preserving alignment; a corpus
    manifest entry points at the file with `"sheet": "<name>.sheet.json"`.
 
-   Heuristics, and why they hold for this engraver:
-   - Chord symbols all share one glyph height (≈11.3 pt at letter size); lyric
-     text and the jianpu numerals are ≈13.2 pt and the header ≈20 pt, so the
-     modal height of chord-parseable words separates chords from an English
-     lyric "A" cleanly.
-   - Bar numbers are small digits left of the TAB block (xMin ≈ 98); jianpu
-     digit rows start ≈ 106 and TAB fret digits sit further right again.
-   - The header box (拍号/拍速/选调/原唱调) is read for metadata and its bare
-     key letters are excluded from the chord scan by their height.
-   Needs pdftotext (poppler) on PATH. Sheets from other engravers (e.g. plain
-   chords-over-lyrics text) are out of scope and fail loudly rather than
-   guessing. */
+   The heuristics, and the layout facts each one rests on:
+   - Chord symbols all share one glyph height (≈11.3 pt at letter size), while
+     lyric text and the numbered-notation row are ≈13.2 pt and the title ≈20 pt.
+     The modal height of the chord-parseable words is therefore enough to tell
+     a chord symbol from an English lyric that happens to read as one — "A",
+     "Am", "Look" — which no amount of spelling rules would settle.
+   - Bar numbers are small digits to the left of the TAB block (xMin ≈ 98);
+     the numbered-notation digits start ≈ 106 and TAB fret digits sit further
+     right again, so a left-edge cut plus clustering on (x, height) separates
+     them from stray digits such as a printed capo position.
+   - A metadata header line, when present, gives metre, tempo and key; its bare
+     key letters are kept out of the chord scan by their glyph height.
+   Needs pdftotext (poppler) on PATH. A PDF laid out some other way — plain
+   chords over lyrics, say — is out of scope, and fails loudly rather than
+   guessing at it. */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -109,7 +112,9 @@ async function extract(pdf) {
   const playedKey = headerValue(page1, '选调');
   const originalKey = headerValue(page1, '原唱调');
   if (!meterText && !playedKey) {
-    throw new Error(`${pdf}: no 有谱么 header (拍号/选调) found — a layout this extractor does not know`);
+    throw new Error(
+      `${pdf}: no metadata header (拍号/选调) found — a layout this extractor does not know`,
+    );
   }
 
   // Every chord-parseable word, with its height; the modal height is the

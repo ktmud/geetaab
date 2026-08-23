@@ -181,6 +181,23 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
   const level = frame ? Math.min(1, Math.sqrt(frame.level * 6)) : 0;
   const clipping = (frame?.peak ?? 0) > 0.985;
   const quiet = frame !== null && frame.level < 0.004;
+  /**
+   * Which advice sits under the "very quiet" line right now.
+   *
+   * Two things need saying and one line can only say one, so they take turns
+   * for as long as the meter stays flat. A reader who has just tried playing
+   * the song on this same phone will not go looking for the reason; it has to
+   * come past them.
+   */
+  const [aside, setAside] = useState(0);
+  useEffect(() => {
+    if (!quiet) {
+      setAside(0);
+      return;
+    }
+    const timer = window.setInterval(() => setAside((i) => (i + 1) % t.quietAsides.length), 4200);
+    return () => window.clearInterval(timer);
+  }, [quiet, t.quietAsides.length]);
   const heardSomething = frame !== null && !quiet;
   const chord = frame && frame.chordState !== NC_STATE ? stateToChord(frame.chordState) : null;
   /**
@@ -327,7 +344,10 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
       ) : clipping ? (
         <div className="notice notice-warn">{t.tooLoud}</div>
       ) : quiet ? (
-        <div className="notice notice-info">{t.veryQuiet}</div>
+        <div className="notice notice-info">
+          {t.veryQuiet}
+          <span className="notice-aside">{t.quietAsides[aside]}</span>
+        </div>
       ) : waiting && heardSomething ? (
         <div className="notice notice-info">
           {t.hearRoom}

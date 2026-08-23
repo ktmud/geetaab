@@ -195,11 +195,11 @@ flatters. Tempo lands on the annotated value for 25 of 36.
 ### Reading order out of a published sheet
 
 `scripts/sheets.mjs` recovers the ordered, bar-positioned chord sequence from
-the 有谱么-engraved tab PDFs the real corpus's sheets use (`pdftotext -bbox`,
-then layout heuristics documented in the script), writing a small JSON the
-scorers consume via `sheet`. It also picks up the printed 拍速/选调/原唱调
-header when present. Sheets from other engravers fail loudly rather than
-guessing.
+an engraved tab PDF (`pdftotext -bbox`, then the layout heuristics documented
+in the script — glyph-height bands to tell a chord symbol from a lyric, the
+left-edge x of the bar numbers, the metadata header), writing a small JSON the
+scorers consume via `sheet`. A PDF laid out some other way fails loudly rather
+than guessing at it.
 
 `scripts/score.mjs` scores one song (all three reference strengths), and
 `scripts/analyze.mjs` prints what the analysis heard, segment by segment.
