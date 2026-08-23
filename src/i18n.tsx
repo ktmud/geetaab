@@ -120,6 +120,9 @@ export const dictionary = {
       classic: 'D · D U · U D U',
       ballad: 'Slow ballad',
       waltz: 'Waltz',
+      'pick-simple': 'Thumb and three',
+      'pick-53231323': 'The eight-note pattern',
+      'pick-alternating': 'Alternating bass',
     } as Record<string, string>,
     strumDescriptions: {
       held: 'A single strum on beat 1. Start here if changing chords is the hard part.',
@@ -128,6 +131,12 @@ export const dictionary = {
       classic: 'The one that unlocks a few hundred songs. Miss the strum on beat 3.',
       ballad: 'Let each chord ring for half a bar. Room to breathe between changes.',
       waltz: 'Three to a bar: one strong, two light.',
+      'pick-simple':
+        'One string per beat, straight up the chord. The thumb finds the bass, and it moves with the chord — the fifth string for C, the sixth for G, the fourth for D.',
+      'pick-53231323':
+        'Bass, then the trebles woven around the third string. The pattern most Chinese songbooks open with.',
+      'pick-alternating':
+        'The thumb rocks between two bass strings while the fingers answer. The folk and country engine.',
     } as Record<string, string>,
     shapeNoteFourStringF: 'The four-string F that gets you past the barre',
     shapeNoteBarre: (family: string, fret: number) => `${family}-shape barre at fret ${fret}`,
@@ -260,6 +269,7 @@ export const dictionary = {
     volume: 'Volume',
     playbackVolume: 'Playback volume',
     strum: 'strum',
+    pick: 'Pick',
     barOf: (current: number, total: number) => `Bar ${current} of ${total}`,
     analyzeProgress: (stage: string) => `${stage}…`,
     workingItOut: 'Working it out',
@@ -600,6 +610,9 @@ export const dictionary = {
       classic: 'D · D U · U D U',
       ballad: '慢板抒情',
       waltz: '华尔兹',
+      'pick-simple': '拇指加三指',
+      'pick-53231323': '五三二三一三二三',
+      'pick-alternating': '交替低音',
     } as Record<string, string>,
     strumDescriptions: {
       held: '每小节只在第一拍扫一下。要是换和弦本身就够你忙的，从这里开始。',
@@ -608,6 +621,12 @@ export const dictionary = {
       classic: '学会这一条，几百首歌就能弹。要点是第三拍那下空过去。',
       ballad: '让每个和弦响满半小节，换和弦之间留出呼吸。',
       waltz: '一小节三下：一强两轻。',
+      'pick-simple':
+        '一拍一根弦，从低音往高音走。拇指负责低音，而低音弦是跟着和弦走的——C 从五弦起，G 从六弦，D 从四弦。',
+      'pick-53231323':
+        '先低音，再让高音在三弦上来回穿。中文谱最常见的开篇型。',
+      'pick-alternating':
+        '拇指在两根低音弦之间来回换，手指在中间应答。民谣和乡村的骨架。',
     } as Record<string, string>,
     shapeNoteFourStringF: '不用横按的四弦 F，先靠它过关',
     shapeNoteBarre: (family: string, fret: number) => `${family} 型大横按 · 第 ${fret} 品`,
@@ -740,6 +759,7 @@ export const dictionary = {
     volume: '音量',
     playbackVolume: '播放音量',
     strum: '扫弦',
+    pick: '拨弦',
     barOf: (current: number, total: number) => `第 ${current}/${total} 小节`,
     analyzeProgress: (stage: string) => `${stage}…`,
     workingItOut: '正在分析',

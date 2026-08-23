@@ -25,6 +25,11 @@ processing that ship with the page.
 的歌，最多给三档谱：简单版把七和弦、挂留音和一闪而过的经过和弦都收掉，标准版是默认读法，
 完整版一个和弦色彩都不丢。三档如果没有实质区别，这个选项根本不会出现。
 
+右手也可以选：除了扫弦，还有几条指弹型。指弹型不是印一串固定的弦号，而是从和弦的按法反推
+拇指该落在哪根弦上——C 从五弦起，G 从六弦，D 从四弦——每一下都写清楚弦号和手指（p i m a），
+六线谱上也只在拨到的那根弦上标品位。初学者不管什么和弦都从六弦开始，就是因为一张印死的弦号
+表没法告诉你这件事。
+
 界面中英文都有，第一次打开时按浏览器语言自动选，顶栏随时可切，选完会记住。
 
 我们拿七首有正式出版谱的歌做过实测，涵盖华语流行、民谣、Taylor Swift 和电影配乐，按时长加权
@@ -57,9 +62,15 @@ npm run dev        # 打开 http://localhost:5173
 4. **Teaches it to you.** Chord diagrams, a bar-by-bar chart, six-line tablature of
    the whole song — on screen and as a printable sheet — the repeating loop the song
    is built on, and a practice screen where the chords scroll past a playhead with a
-   count-in, a metronome, a live strumming guide, the next chord previewed beside the
+   count-in, a metronome, a live right-hand guide, the next chord previewed beside the
    current one, section looping, slow-down that keeps the pitch, a scrubbable
    position bar with ten-second skips, and a volume control tucked behind a button.
+   The right-hand patterns include fingerpicking as well as strumming. A picking
+   pattern names the string and the finger for every pluck, and the thumb's string
+   is worked out from the chord shape rather than printed once — the fifth string
+   for C, the sixth for G, the fourth for D — which is the one thing a fixed row of
+   string numbers cannot tell you, and the reason beginners start every chord from
+   the sixth string.
 5. **Keeps a chord library.** Every chord the transcriber can hear, as a browsable
    page: how to read a chord box, the eight shapes to learn first and in what
    order, and the full vocabulary filterable by quality, root and whether it needs
@@ -79,7 +90,7 @@ one language and forgotten in the other.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 56 unit tests, no browser needed
+npm test           # 75 unit tests, no browser needed
 npm run build      # static bundle in dist/
 npm run smoke      # drives the built app in a real browser
 ```

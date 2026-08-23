@@ -8,6 +8,7 @@ import {
   type ChordSymbol,
 } from '../core/chordTypes';
 import { keyUsesFlats, type KeyEstimate } from '../core/key';
+import type { Pluck } from './pick';
 import { easiestShape, type ChordShape } from './shapes';
 
 export interface CapoChoice {
@@ -204,6 +205,11 @@ export interface StrumStep {
   accent?: boolean;
   /** Muted percussive hit rather than a ringing strum. */
   mute?: boolean;
+  /**
+   * Present on fingerpicking patterns: the one string this plucks and the
+   * finger that takes it. Strumming steps leave it off and sweep the chord.
+   */
+  pluck?: Pluck;
 }
 
 export interface StrumPattern {
@@ -212,6 +218,8 @@ export interface StrumPattern {
   description: string;
   beatsPerBar: number;
   difficulty: 1 | 2 | 3;
+  /** Fingerpicking patterns pluck one string per step; strums sweep. */
+  kind?: 'strum' | 'pick';
   steps: StrumStep[];
 }
 
@@ -312,9 +320,77 @@ export function suggestStrum(tempo: number, beatsPerBar: number): StrumPattern {
   return patternById('quarters');
 }
 
-/** Patterns that fit the given metre, easiest first. */
+/**
+ * Fingerpicking patterns.
+ *
+ * Written with the thumb's string left unresolved: `bass` means "whatever the
+ * chord is rooted on", so the same pattern starts on the fifth string for C,
+ * the sixth for G and the fourth for D without being rewritten. That is the
+ * part a printed string-number pattern gets wrong for every chord but the one
+ * it was written for.
+ */
+const PICK_PATTERNS: StrumPattern[] = [
+  {
+    id: 'pick-simple',
+    name: 'Thumb and three',
+    description: 'One string per beat, straight up the chord. The whole right hand in four notes.',
+    beatsPerBar: 4,
+    difficulty: 1,
+    kind: 'pick',
+    steps: [
+      { beat: 0, direction: 'D', accent: true, pluck: { string: 'bass', finger: 'p' } },
+      { beat: 1, direction: 'D', pluck: { string: 3, finger: 'i' } },
+      { beat: 2, direction: 'D', pluck: { string: 2, finger: 'm' } },
+      { beat: 3, direction: 'D', pluck: { string: 1, finger: 'a' } },
+    ],
+  },
+  {
+    id: 'pick-53231323',
+    name: 'The eight-note pattern',
+    description:
+      'Bass, then the trebles woven around the third string. The pattern most Chinese songbooks open with.',
+    beatsPerBar: 4,
+    difficulty: 2,
+    kind: 'pick',
+    steps: [
+      { beat: 0, direction: 'D', accent: true, pluck: { string: 'bass', finger: 'p' } },
+      { beat: 0.5, direction: 'D', pluck: { string: 3, finger: 'i' } },
+      { beat: 1, direction: 'D', pluck: { string: 2, finger: 'm' } },
+      { beat: 1.5, direction: 'D', pluck: { string: 3, finger: 'i' } },
+      { beat: 2, direction: 'D', pluck: { string: 1, finger: 'a' } },
+      { beat: 2.5, direction: 'D', pluck: { string: 3, finger: 'i' } },
+      { beat: 3, direction: 'D', pluck: { string: 2, finger: 'm' } },
+      { beat: 3.5, direction: 'D', pluck: { string: 3, finger: 'i' } },
+    ],
+  },
+  {
+    id: 'pick-alternating',
+    name: 'Alternating bass',
+    description:
+      'The thumb rocks between two bass strings while the fingers answer. The folk and country engine.',
+    beatsPerBar: 4,
+    difficulty: 3,
+    kind: 'pick',
+    steps: [
+      { beat: 0, direction: 'D', accent: true, pluck: { string: 'bass', finger: 'p' } },
+      { beat: 0.5, direction: 'D', pluck: { string: 2, finger: 'm' } },
+      { beat: 1, direction: 'D', pluck: { string: 'altBass', finger: 'p' } },
+      { beat: 1.5, direction: 'D', pluck: { string: 1, finger: 'a' } },
+      { beat: 2, direction: 'D', pluck: { string: 'bass', finger: 'p' } },
+      { beat: 2.5, direction: 'D', pluck: { string: 3, finger: 'i' } },
+      { beat: 3, direction: 'D', pluck: { string: 'altBass', finger: 'p' } },
+      { beat: 3.5, direction: 'D', pluck: { string: 2, finger: 'm' } },
+    ],
+  },
+];
+
+/** Patterns that fit the given metre: strums first, then picking. */
 export function patternsFor(beatsPerBar: number): StrumPattern[] {
-  return STRUM_PATTERNS.filter((p) => p.beatsPerBar === beatsPerBar).sort(
-    (a, b) => a.difficulty - b.difficulty,
-  );
+  return [...STRUM_PATTERNS, ...PICK_PATTERNS]
+    .filter((p) => p.beatsPerBar === beatsPerBar)
+    .sort((a, b) => {
+      // Strums first, then picking; within each, easiest first.
+      const kind = (p: StrumPattern): number => (p.kind === 'pick' ? 1 : 0);
+      return kind(a) - kind(b) || a.difficulty - b.difficulty;
+    });
 }

@@ -10,6 +10,7 @@ import {
 import { Metronome, ClockTransport, MediaTransport, type Transport } from '../audio/player';
 import { resumeAudio } from '../audio/context';
 import { translateKeyName, useLanguage, useT } from '../i18n';
+import { pluckStringOf } from '../music/pick';
 import type { SongTab } from '../music/tab';
 import { ChordDiagram } from './ChordDiagram';
 import {
@@ -423,6 +424,10 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
     }
     return slots;
   }, [tab]);
+  const picking = tab.strum.kind === 'pick';
+  // Which strings the thumb takes depends on the chord being played, so the
+  // strip is resolved against whatever is under the playhead right now.
+  const activeShape = active?.chord?.shape ?? tab.palette[0]?.shape ?? null;
   const barStartTime = beats[Math.max(0, Math.min(beats.length - 1, beatIndex - barBeat))] ?? 0;
   const eighth = Math.max(
     0,
@@ -564,16 +569,31 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
       </div>
 
       <div className="strum-strip" aria-hidden="true">
-        <span className="strum-strip-label">{t.strum}</span>
+        <span className="strum-strip-label">{picking ? t.pick : t.strum}</span>
         <div className="strum-strip-steps">
           {strumSlots.map((slot, index) => (
             <span
               key={index}
               className={`strum-cell${slot.step ? (slot.step.accent ? ' accent' : '') : ' gap'}${
                 playing && index === eighth ? ' now' : ''
-              }`}
+              }${slot.step?.pluck ? ' pluck' : ''}`}
             >
-              {slot.step ? (slot.step.direction === 'D' ? '↓' : '↑') : '·'}
+              {slot.step?.pluck && activeShape ? (
+                <>
+                  {/* The string is the instruction; the finger reminds you
+                      which hand shape it belongs to. */}
+                  <b>{pluckStringOf(slot.step.pluck, activeShape)}</b>
+                  <i>{slot.step.pluck.finger}</i>
+                </>
+              ) : slot.step ? (
+                slot.step.direction === 'D' ? (
+                  '↓'
+                ) : (
+                  '↑'
+                )
+              ) : (
+                '·'
+              )}
             </span>
           ))}
         </div>

@@ -3622,3 +3622,29 @@ html[lang^='zh'] .how-it-works em {
   font-weight: 600;
   color: var(--text);
 }
+
+/* A picking step names one string, not a direction: the number is the
+   instruction and the finger letter sits under it as a reminder. */
+.strum-cell.pluck {
+  grid-auto-flow: row;
+  align-content: center;
+  line-height: 1.02;
+}
+
+.strum-cell.pluck b {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.strum-cell.pluck i {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+.strum-cell.pluck.now i,
+.strum-cell.pluck.accent i {
+  color: inherit;
+}

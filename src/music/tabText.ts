@@ -1,4 +1,5 @@
 import type { StrumPattern } from './arrange';
+import { pluckStringOf } from './pick';
 import type { SongTab, TabBar } from './tab';
 
 /** Display order for tablature: high E on top, as it is written on paper. */
@@ -32,8 +33,13 @@ export function barTab(bar: TabBar, strum: StrumPattern): BarTab {
   const steps = strum.steps.filter((s) => s.beat < bar.beats);
   const columns = steps.map((step) => {
     const chord = chordAtOffset(bar, step.beat);
+    // A picking step sounds one string; only that string carries a fret, or
+    // the tab would read as a full strum on every eighth.
+    const only = step.pluck && chord ? 6 - pluckStringOf(step.pluck, chord.shape) : -1;
     const cells = chord
-      ? chord.shape.frets.map((f) => (f < 0 ? 'x' : String(f)))
+      ? chord.shape.frets.map((f, i) =>
+          f < 0 ? 'x' : only >= 0 && i !== only ? '-' : String(f),
+        )
       : new Array(6).fill('-');
     return { cells, step, chord };
   });

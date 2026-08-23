@@ -314,6 +314,40 @@ try {
   check('slow-down control', speed, '60%');
   await page.getByRole('button', { name: /Exit/ }).click();
 
+  console.log('\n2c. fingerpicking tells you which string the thumb takes');
+  await page.getByText('Chords you need').waitFor({ timeout: 90000 });
+  await (await page.locator('select').all())[1].selectOption({ label: 'The eight-note pattern' });
+  await page.waitForTimeout(250);
+  // The point of deriving the pattern rather than printing string numbers: the
+  // bass moves with the chord. G is rooted on the sixth string, D on the fourth.
+  const picked = await page.evaluate(() => {
+    const systems = [...document.querySelectorAll('.tab-sys pre')].map((el) => el.textContent);
+    const bassRow = (text, label) => {
+      const line = text.split('\n').find((l) => l.startsWith(label));
+      return line && /\|-[0-9]/.test(line);
+    };
+    return { lowE: bassRow(systems[0] ?? '', 'E'), dString: bassRow(systems[0] ?? '', 'D') };
+  });
+  checkThat(
+    'the tablature roots each chord on its own bass string',
+    picked.lowE && picked.dString,
+    JSON.stringify(picked),
+  );
+  await page.getByRole('button', { name: /Practise this/ }).click();
+  await page.waitForTimeout(400);
+  const strip = await page.evaluate(() =>
+    [...document.querySelectorAll('.strum-cell.pluck')]
+      .map((c) => `${c.querySelector('b')?.textContent ?? ''}${c.querySelector('i')?.textContent ?? ''}`)
+      .join(' '),
+  );
+  checkThat(
+    'and the practice strip names a string and a finger per step',
+    /^\d[pima]( \d[pima]){7}$/.test(strip) && strip.includes('3i') && strip.includes('1a'),
+    strip,
+  );
+  await page.getByRole('button', { name: /Exit/ }).click();
+  await page.getByText('Chords you need').waitFor({ timeout: 90000 });
+
   console.log('\n3. microphone capture');
   await page.setViewportSize({ width: 430, height: 932 });
   await page.getByRole('button', { name: 'Home' }).click();
