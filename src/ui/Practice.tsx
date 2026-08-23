@@ -449,6 +449,8 @@ export function Practice({
     metronomeRef.current?.reset(first.startTime);
   };
 
+  /** How many bars the loop button covers, so the button can say so. */
+  const loopBars = tab.loop?.length ?? 4;
   const active = events[activeIndex];
   const next = events.slice(activeIndex + 1).find((event) => event.chord);
   const beatsToNext = next ? Math.max(0, Math.round((next.startTime - position) / beatSeconds)) : null;
@@ -714,7 +716,11 @@ export function Practice({
             className="transport-btn"
             onClick={toggleLoop}
             aria-pressed={loopRange !== null}
-            aria-label={t.loopSection}
+            // The button used to say "loop this section" without ever saying how
+            // long a section is; it is the song's own repeating loop where one
+            // was found, and four bars where it was not.
+            aria-label={loopRange ? t.loopingSection(loopBars) : t.loopSection(loopBars)}
+            title={loopRange ? t.loopingSection(loopBars) : t.loopSection(loopBars)}
             style={loopRange ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
           >
             <LoopIcon size={19} />

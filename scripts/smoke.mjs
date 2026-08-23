@@ -387,6 +387,35 @@ try {
   }));
   checkThat('the strum guide follows the beat', /^Bar \d+ of \d+$/.test(guide.bar) && guide.lit === 1, guide.bar);
   checkThat('the next chord is previewed', guide.next);
+  // The whole screen rests on one claim: the block sitting on the amber line is
+  // the chord to play now. Sampled across several seconds of playback, because
+  // a single frame could agree by luck.
+  const sync = [];
+  for (let i = 0; i < 5; i++) {
+    sync.push(
+      await page.evaluate(() => {
+        const head = document.querySelector('.lane-playhead')?.getBoundingClientRect();
+        if (!head) return null;
+        const x = head.left + head.width / 2;
+        const blocks = [...document.querySelectorAll('.lane-block')].map((el) => ({
+          name: el.querySelector('.lane-block-name')?.textContent ?? '',
+          left: el.getBoundingClientRect().left,
+          right: el.getBoundingClientRect().right,
+          active: el.classList.contains('active'),
+        }));
+        const under = blocks.find((b) => b.left <= x && x < b.right);
+        const marked = blocks.find((b) => b.active);
+        return { under: under?.name ?? null, marked: marked?.name ?? null };
+      }),
+    );
+    await page.waitForTimeout(700);
+  }
+  const agreed = sync.filter((s) => s && s.under !== null && s.under === s.marked);
+  checkThat(
+    'the chord under the playhead is the one the screen calls current',
+    agreed.length === sync.length,
+    sync.map((s) => (s ? `${s.under}/${s.marked}` : 'none')).join(' '),
+  );
   await page.getByRole('slider', { name: 'Practice speed' }).fill('0.6');
   const speed = await page.evaluate(() => document.querySelector('.speed-value')?.textContent.trim());
   check('slow-down control', speed, '60%');
