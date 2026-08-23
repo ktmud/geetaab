@@ -85,8 +85,12 @@
   --mark-lo: #dd7a26;
   --mark-ink: #2a1a08;
 
+  /* The veil that says "the screen behind this is not listening to you". */
   --scrim: rgb(6 7 13 / 0.82);
-  --scrim-soft: rgb(6 7 13 / 0.78);
+  /* The count-in number sits on this one, so it stays on the side of the
+     palette its own colour can be read against — which is the opposite side
+     on paper. */
+  --countin-veil: rgb(6 7 13 / 0.78);
   /* Masks care only about alpha; the colour never reaches the screen. */
   --mask-ink: #000;
   --practice-glow: #131728;
@@ -214,8 +218,10 @@
   --mark-lo: #b25e08;
   --mark-ink: #2a1a08;
 
-  --scrim: rgb(247 247 251 / 0.88);
-  --scrim-soft: rgb(247 247 251 / 0.82);
+  /* A pale veil over pale paper dims nothing, and the dialog above it stops
+     reading as a dialog: on light the modal scrim has to be the dark one. */
+  --scrim: rgb(20 22 31 / 0.34);
+  --countin-veil: rgb(247 247 251 / 0.86);
   --practice-glow: #ffffff;
   --wash-accent: rgb(var(--accent-fill-rgb) / 0.1);
   --wash-cool: rgb(var(--cool-rgb) / 0.05);
@@ -317,8 +323,10 @@
   --mark-lo: #b25e08;
   --mark-ink: #2a1a08;
 
-  --scrim: rgb(247 247 251 / 0.88);
-  --scrim-soft: rgb(247 247 251 / 0.82);
+  /* A pale veil over pale paper dims nothing, and the dialog above it stops
+     reading as a dialog: on light the modal scrim has to be the dark one. */
+  --scrim: rgb(20 22 31 / 0.34);
+  --countin-veil: rgb(247 247 251 / 0.86);
   --practice-glow: #ffffff;
   --wash-accent: rgb(var(--accent-fill-rgb) / 0.1);
   --wash-cool: rgb(var(--cool-rgb) / 0.05);
@@ -2035,7 +2043,7 @@ input[type='range'] {
   inset: 0;
   display: grid;
   place-items: center;
-  background: var(--scrim-soft);
+  background: var(--countin-veil);
   backdrop-filter: blur(3px);
   z-index: 5;
   font-size: clamp(48px, 16vh, 120px);
@@ -3275,8 +3283,10 @@ input[type='range'] {
   /* Whichever theme the screen is wearing, the sheet is ink on paper: the
      colour scheme, the canvas and the inherited text colour are all forced,
      so printing from the dark theme cannot emit a black page. */
+  /* !important, because the theme switch writes color-scheme straight onto the
+     element's style attribute, and an inline value beats an ordinary rule. */
   :root {
-    color-scheme: light;
+    color-scheme: light !important;
   }
 
   html,
