@@ -96,6 +96,32 @@ try {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
 
+  console.log('\n0. the chord library');
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Chords' }).click();
+  const library = await page.evaluate(() => ({
+    legend: Boolean(document.querySelector('.legend-grid .diagram')),
+    starters: document.querySelectorAll('.palette .chord-tile').length,
+    total: document.querySelectorAll('.library-grid .chord-tile').length,
+  }));
+  checkThat(
+    'a legend, eight starters and the whole vocabulary',
+    library.legend && library.starters === 8 && library.total === 84,
+    `${library.starters} starters, ${library.total} chords`,
+  );
+  await page.getByRole('button', { name: 'Minor', exact: true }).click();
+  await page.getByRole('button', { name: 'Barre only' }).click();
+  const minors = await page.evaluate(() =>
+    [...document.querySelectorAll('.library-grid .diagram-name')].map((el) => el.textContent.trim()),
+  );
+  checkThat(
+    'filters compose: minor × barre-only',
+    minors.length > 0 && minors.every((name) => name.endsWith('m')),
+    minors.join(' '),
+  );
+  await page.getByRole('button', { name: 'Play Bm', exact: true }).click();
+  await page.waitForTimeout(200);
+
   console.log('\n1. demo track through the worker');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'try the demo' }).click();

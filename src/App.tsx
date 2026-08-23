@@ -14,6 +14,7 @@ import {
   type StoredSong,
 } from './store/library';
 import type { SongTab } from './music/tab';
+import { ChordLibrary } from './ui/ChordLibrary';
 import { Home } from './ui/Home';
 import { Listening } from './ui/Listening';
 import { Practice } from './ui/Practice';
@@ -27,6 +28,7 @@ type Screen =
   | { name: 'analyzing'; stage: string; fraction: number }
   | { name: 'tab' }
   | { name: 'practice'; tab: SongTab }
+  | { name: 'chords' }
   | { name: 'error'; message: string };
 
 interface Session {
@@ -282,6 +284,11 @@ export function App() {
             geetaab
           </button>
           <span className="spacer" />
+          {screen.name !== 'chords' ? (
+            <button className="btn btn-ghost" onClick={() => setScreen({ name: 'chords' })}>
+              Chords
+            </button>
+          ) : null}
           {screen.name !== 'home' ? (
             <button className="btn btn-ghost" onClick={() => setScreen({ name: 'home' })}>
               Home
@@ -303,6 +310,10 @@ export function App() {
 
         {screen.name === 'listening' ? (
           <Listening onDone={handleRecording} onCancel={() => setScreen({ name: 'home' })} />
+        ) : null}
+
+        {screen.name === 'chords' ? (
+          <ChordLibrary onBack={() => setScreen({ name: 'home' })} />
         ) : null}
 
         {screen.name === 'analyzing' ? (

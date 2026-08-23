@@ -1,5 +1,6 @@
 import { normalizePeak } from '../core/dsp';
 import { QUALITY_INTERVALS, type ChordQuality } from '../core/chordTypes';
+import { STANDARD_TUNING } from '../music/shapes';
 
 export interface SynthChord {
   root: number; // pitch class, 0 = C
@@ -182,6 +183,27 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
     for (let i = 0; i < out.length; i++) out[i] += noise * (rand() * 2 - 1);
   }
   return normalizePeak(out, 0.9);
+}
+
+/**
+ * One slow strum of an actual fingering, low string first.
+ *
+ * Unlike `renderProgression` this voices the exact frets of a shape rather
+ * than an idealised chord, so the chord library plays what the diagram above
+ * it shows — a learner checking their own strum against it hears the same
+ * notes in the same octaves.
+ */
+export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; seed?: number } = {}): Float32Array {
+  const sampleRate = opts.sampleRate ?? 44100;
+  const rand = mulberry32(opts.seed ?? 20);
+  const out = new Float32Array(Math.ceil(2.4 * sampleRate));
+  let voice = 0;
+  frets.forEach((fret, string) => {
+    if (fret < 0) return;
+    const at = Math.floor(voice++ * 0.032 * sampleRate);
+    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.3, sampleRate, 2.1, rand);
+  });
+  return normalizePeak(out, 0.85);
 }
 
 /** The demo progression: I–V–vi–IV in G, the backbone of a huge slice of pop. */

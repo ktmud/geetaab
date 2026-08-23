@@ -23,6 +23,10 @@ processing that ship with the page.
    count-in, a metronome, a live strumming guide, the next chord previewed beside the
    current one, section looping, slow-down that keeps the pitch, a scrubbable
    position bar with ten-second skips, and a volume control tucked behind a button.
+5. **Keeps a chord library.** Every chord the transcriber can hear, as a browsable
+   page: how to read a chord box, the eight shapes to learn first and in what
+   order, and the full vocabulary filterable by quality, root and whether it needs
+   a barre — every diagram playable aloud with the exact voicing it draws.
 
 ## Running it
 

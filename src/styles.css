@@ -2110,6 +2110,146 @@ input[type='range'] {
   line-height: 1.6;
 }
 
+/* ---------- chord library ---------- */
+
+.library .card {
+  margin-top: 16px;
+}
+
+.legend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+}
+
+.legend-list {
+  flex: 1;
+  min-width: 240px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.legend-list li {
+  padding-left: 22px;
+  position: relative;
+}
+
+.legend-list li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* A diagram card that is also a button: tap to hear the exact voicing drawn. */
+.chord-tile {
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.08s ease;
+}
+
+.chord-tile:hover {
+  border-color: #55443a;
+  background: var(--surface-2);
+}
+
+.chord-tile:active {
+  transform: translateY(1px);
+}
+
+.chord-tile:active .diagram-name {
+  color: var(--accent);
+}
+
+.tile-audio {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  color: var(--text-faint);
+  line-height: 0;
+}
+
+.tile-order {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  width: 20px;
+  height: 20px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.filter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.filter-chip:hover {
+  border-color: #55443a;
+}
+
+.filter-chip[aria-pressed='true'] {
+  background: var(--accent-dim);
+  border-color: rgb(var(--accent-rgb) / 0.45);
+  color: var(--accent);
+}
+
+.filter-blurb {
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.filter-blurb .mono {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+  gap: 10px;
+}
+
+.library-grid .diagram-card {
+  min-width: 0;
+}
+
 /* ---------- print ---------- */
 
 /* The sheet is always in the document and only the print stylesheet reveals
