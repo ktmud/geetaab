@@ -4,6 +4,7 @@ dist/
 *.local
 .vite/
 coverage/
+*.tsbuildinfo
 
 # local browser-driving scratch scripts
 .drive.mjs
