@@ -98,7 +98,8 @@ try {
 
   console.log('\n0. the chord library');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Chords' }).click();
+  // Exact: the footer now carries a "How chords are recognized" button too.
+  await page.getByRole('button', { name: 'Chords', exact: true }).click();
   const library = await page.evaluate(() => ({
     legend: Boolean(document.querySelector('.legend-grid .diagram')),
     starters: document.querySelectorAll('.palette .chord-tile').length,
@@ -355,7 +356,51 @@ try {
   });
   check('chords button switches back to English', chordButtonBackEn, 'Chords');
 
-  console.log('\n7. console');
+  console.log('\n7. the how-it-works explainer');
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'How chords are recognized' }).click();
+  await page.getByRole('heading', { name: 'How Chords Are Recognized' }).waitFor();
+  const explainer = await page.evaluate(() => {
+    const figures = [...document.querySelectorAll('.how-it-works figure svg')];
+    const boxes = figures.map((svg) => svg.getBoundingClientRect());
+    return {
+      stages: document.querySelectorAll('.how-it-works .hw-stage').length,
+      steps: document.querySelectorAll('.how-it-works .hw-step').length,
+      figures: figures.length,
+      drawn: boxes.filter((b) => b.width > 0 && b.height > 0).length,
+      labelled: figures.filter((svg) => (svg.getAttribute('aria-label') || '').length > 20).length,
+      captions: document.querySelectorAll('.how-it-works figure figcaption').length,
+    };
+  });
+  checkThat(
+    'the explainer draws nine stages, nine sized diagrams and their captions',
+    explainer.stages === 9 &&
+      explainer.figures === 9 &&
+      explainer.drawn === 9 &&
+      explainer.labelled === 9 &&
+      explainer.captions === 9,
+    JSON.stringify(explainer),
+  );
+  await page.getByRole('button', { name: 'Key', exact: true }).click();
+  await page.waitForTimeout(700);
+  const stepped = await page.evaluate(() => ({
+    current: document.querySelector('.hw-step[aria-current="step"]')?.textContent.trim() ?? null,
+    scrolled: window.scrollY,
+  }));
+  checkThat(
+    'the stepper jumps to a stage and marks it current',
+    stepped.current === 'Key' && stepped.scrolled > 200,
+    `${stepped.current} at y=${Math.round(stepped.scrolled)}`,
+  );
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Listen with the mic' }).waitFor();
+  checkThat(
+    'and Back returns to the home screen',
+    await page.evaluate(() => document.querySelector('.how-it-works') === null),
+  );
+
+  console.log('\n8. console');
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {
   await browser?.close();

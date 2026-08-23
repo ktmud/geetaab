@@ -2145,6 +2145,7 @@ input[type='range'] {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-soft);
@@ -2152,7 +2153,8 @@ input[type='range'] {
   color: var(--text-faint);
 }
 
-.app-footer a {
+.app-footer a,
+.footer-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2161,8 +2163,24 @@ input[type='range'] {
   text-decoration: none;
 }
 
-.app-footer a:hover {
+.app-footer a:hover,
+.footer-link:hover {
   color: var(--accent);
+}
+
+/* A button that has to read as quietly as the link beside it. */
+.footer-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.footer-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
 }
 
 @media print {
@@ -2309,6 +2327,517 @@ input[type='range'] {
 
 .library-grid .diagram-card {
   min-width: 0;
+}
+
+/* ---------- how chords are recognized ---------- */
+
+/* Two roles, both taken from the palette the rest of the app already uses:
+   verdigris is a raw measurement nothing has been decided from yet, brass is an
+   answer the app has committed to. The page never names a colour anywhere else,
+   so a repaint of --accent / --cool carries the whole explainer with it. */
+.how-it-works {
+  --hw-raw: var(--cool);
+  --hw-decided: var(--accent);
+  --hw-raw-tint: rgb(var(--cool-rgb) / 0.055);
+  --hw-decided-tint: rgb(var(--accent-rgb) / 0.05);
+  --hw-decided-tint-strong: rgb(var(--accent-rgb) / 0.075);
+}
+
+.how-it-works .hw-lede {
+  max-width: 56ch;
+  margin-bottom: 0;
+}
+
+/* ---------- the stepper ---------- */
+
+.hw-steps {
+  position: sticky;
+  /* Under the sticky topbar: brand mark 30px plus its 12px padding either side. */
+  top: 55px;
+  z-index: 15;
+  margin: 16px -18px 8px;
+  padding: 5px 12px;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.hw-steps ol {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hw-steps ol::-webkit-scrollbar {
+  display: none;
+}
+
+.hw-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 0;
+  background: none;
+  border-radius: 999px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+
+.hw-step:hover {
+  color: var(--text-dim);
+  background: var(--surface-2);
+}
+
+.hw-step:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.hw-step.current {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* Colour says which half of the pipeline the step is in; opacity says whether
+   the reader has got there yet. */
+.hw-step-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hw-raw);
+  opacity: 0.3;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.hw-step.decided .hw-step-dot {
+  background: var(--hw-decided);
+}
+
+.hw-step.reached .hw-step-dot {
+  opacity: 0.85;
+}
+
+.hw-step.current .hw-step-dot {
+  opacity: 1;
+  transform: scale(1.5);
+}
+
+/* Narrow screens keep the dots and drop the words, so the bar stays a thin
+   strip above the text rather than a panel over it. */
+@media (max-width: 719px) {
+  .hw-step-label {
+    display: none;
+  }
+
+  .hw-step {
+    padding: 9px 8px;
+  }
+}
+
+/* ---------- the signal path ---------- */
+
+.hw-path {
+  position: relative;
+  margin-top: 22px;
+  padding-left: 34px;
+}
+
+/* The unlit track. */
+.hw-path::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+/* And the lit part, filling as the reader walks down the page: cool while the
+   app is still measuring, brass once it has committed. Scaled, not resized, so
+   nothing around it moves. */
+.hw-path::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--hw-raw) 0%,
+    var(--hw-raw) 44%,
+    var(--hw-decided) 60%,
+    var(--hw-decided) 100%
+  );
+  transform: scaleY(var(--hw-progress, 0));
+  transform-origin: top;
+  transition: transform 0.45s ease;
+}
+
+.hw-stage {
+  position: relative;
+  margin-bottom: 34px;
+  scroll-margin-top: 116px;
+}
+
+.hw-stage::before {
+  content: '';
+  position: absolute;
+  left: -33px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 3px solid var(--hw-raw);
+  transition: box-shadow 0.2s ease;
+}
+
+.hw-stage.decided::before {
+  border-color: var(--hw-decided);
+}
+
+.hw-stage.current::before {
+  box-shadow: 0 0 0 4px rgb(var(--cool-rgb) / 0.18);
+}
+
+.hw-stage.decided.current::before {
+  box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / 0.18);
+}
+
+.hw-stage-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hw-raw);
+  margin-bottom: 7px;
+}
+
+.hw-stage.decided .hw-stage-num {
+  color: var(--hw-decided);
+}
+
+.hw-stage h2 {
+  margin-bottom: 10px;
+}
+
+.hw-stage p {
+  max-width: 64ch;
+}
+
+.hw-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-width: 64ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.hw-list li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.hw-list li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hw-raw);
+}
+
+.hw-stage.decided .hw-list li::before,
+.hw-limits .hw-list li::before {
+  background: var(--hw-decided);
+}
+
+.hw-list strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.hw-sublist {
+  margin: 9px 0 0;
+  font-size: 13.5px;
+}
+
+.hw-sublist li::before {
+  background: var(--text-faint);
+}
+
+/* ---------- diagrams ---------- */
+
+.hw-fig {
+  margin: 16px 0 0;
+  padding: 14px 14px 12px;
+  background: var(--hw-raw-tint);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--hw-raw);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.hw-fig.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.hw-stage.decided .hw-fig {
+  background: var(--hw-decided-tint);
+  border-left-color: var(--hw-decided);
+}
+
+/* font-size lives on the root so the per-label presentation attributes inside
+   each drawing still win; only the classes below override it. */
+.hw-fig svg {
+  display: block;
+  width: 100%;
+  min-width: 440px;
+  height: auto;
+  color: var(--text);
+  fill: currentColor;
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+.hw-fig svg .hw-mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.hw-fig svg .hw-note {
+  font-size: 11px;
+  fill: var(--text-dim);
+}
+
+.hw-fig svg .hw-dim {
+  fill: var(--text-dim);
+}
+
+.hw-fig svg .hw-raw {
+  fill: var(--hw-raw);
+}
+
+.hw-fig svg .hw-raw-s {
+  stroke: var(--hw-raw);
+}
+
+.hw-fig svg .hw-decided {
+  fill: var(--hw-decided);
+}
+
+.hw-fig svg .hw-decided-s {
+  stroke: var(--hw-decided);
+}
+
+.hw-fig svg .hw-rule {
+  stroke: currentColor;
+  opacity: 0.18;
+  stroke-width: 1;
+}
+
+.hw-fig figcaption {
+  margin-top: 10px;
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* Motion that shows a mechanism: strokes draw in the direction the signal
+   travels, the C bucket fills as the octaves land in it, and the raw guesses
+   flicker in before the smoothed path is drawn over them. All of it is a
+   one-shot reveal on first scroll, and all of it resolves to the finished
+   drawing — which is also exactly what reduced-motion users get. */
+.hw-fig .hw-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.85s ease;
+}
+
+.hw-fig.is-visible .hw-draw {
+  stroke-dashoffset: 0;
+}
+
+.hw-fig .hw-grow {
+  transform: scaleY(0.16);
+  transform-box: fill-box;
+  transform-origin: bottom;
+  transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) 0.55s;
+}
+
+.hw-fig.is-visible .hw-grow {
+  transform: scaleY(1);
+}
+
+.hw-fig .hw-flicker {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.hw-fig.is-visible .hw-flicker {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .how-it-works .hw-fig {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .how-it-works .hw-fig .hw-draw {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    transition: none;
+  }
+
+  .how-it-works .hw-fig .hw-grow {
+    transform: none;
+    transition: none;
+  }
+
+  .how-it-works .hw-fig .hw-flicker {
+    opacity: 1;
+    transition: none;
+  }
+
+  .how-it-works .hw-path::after {
+    transform: none;
+    transition: none;
+  }
+
+  .how-it-works .hw-step,
+  .how-it-works .hw-step-dot,
+  .how-it-works .hw-stage::before {
+    transition: none;
+  }
+}
+
+/* ---------- limits and close ---------- */
+
+.hw-limits {
+  margin-top: 8px;
+  background: var(--hw-decided-tint-strong);
+  border-left: 3px solid var(--hw-decided);
+}
+
+.hw-limits h2 {
+  margin-top: 0;
+}
+
+.hw-limits p {
+  max-width: 64ch;
+}
+
+.hw-stat {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--hw-decided);
+}
+
+.hw-closing {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+  max-width: 64ch;
+  font-size: 13.5px;
+  color: var(--text-faint);
+}
+
+.hw-closing p {
+  color: inherit;
+  line-height: 1.6;
+}
+
+.hw-closing a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hw-closing a:hover {
+  color: var(--accent-tint);
+}
+
+.hw-closing a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (min-width: 760px) {
+  .hw-path {
+    padding-left: 54px;
+  }
+
+  .hw-path::before,
+  .hw-path::after {
+    left: 21px;
+  }
+
+  .hw-stage::before {
+    left: -43px;
+  }
+}
+
+/* On paper the explainer is prose with pictures, so it flips to dark ink the
+   same way the tab sheet does. Guarded on .how-it-works, which the tab screen
+   never renders, so the :has() rules for .print-sheet stay untouched. */
+@media print {
+  body:has(.how-it-works) .backdrop,
+  body:has(.how-it-works) .topbar,
+  body:has(.how-it-works) .hw-steps,
+  body:has(.how-it-works) .btn-row {
+    display: none !important;
+  }
+
+  .how-it-works {
+    --text: #14171c;
+    --text-dim: #3a3f48;
+    --text-faint: #656b76;
+    --line: #9aa1ac;
+    --line-soft: #ccd1d9;
+    --accent: #8a5a12;
+    --accent-rgb: 138 90 18;
+    --cool: #16645a;
+    --cool-rgb: 22 100 90;
+    color: var(--text);
+  }
+
+  .how-it-works .hw-fig,
+  .how-it-works .hw-stage {
+    break-inside: avoid;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---------- print ---------- */

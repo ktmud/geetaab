@@ -17,6 +17,7 @@ import type { SongTab } from './music/tab';
 import { useT, useLanguage } from './i18n';
 import { ChordLibrary } from './ui/ChordLibrary';
 import { Home } from './ui/Home';
+import { HowItWorks } from './ui/HowItWorks';
 import { Listening } from './ui/Listening';
 import { Practice } from './ui/Practice';
 import { TabView, type TabOptions } from './ui/TabView';
@@ -30,6 +31,7 @@ type Screen =
   | { name: 'tab' }
   | { name: 'practice'; tab: SongTab }
   | { name: 'chords' }
+  | { name: 'how' }
   | { name: 'error'; message: string };
 
 interface Session {
@@ -326,6 +328,10 @@ export function App() {
           <ChordLibrary onBack={() => setScreen({ name: 'home' })} />
         ) : null}
 
+        {screen.name === 'how' ? (
+          <HowItWorks onBack={() => setScreen({ name: 'home' })} />
+        ) : null}
+
         {screen.name === 'analyzing' ? (
           <div className="shell">
             <div className="card" style={{ marginTop: 40 }}>
@@ -372,6 +378,14 @@ export function App() {
           <a href="https://github.com/ktmud/geetaab" target="_blank" rel="noreferrer">
             <GitHubIcon size={15} /> ktmud/geetaab
           </a>
+          {screen.name !== 'how' ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <button className="footer-link" onClick={() => setScreen({ name: 'how' })}>
+                {t.howChordsRecognized}
+              </button>
+            </>
+          ) : null}
         </footer>
       </div>
     </>

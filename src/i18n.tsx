@@ -221,6 +221,18 @@ export const dictionary = {
     hwTitle: 'How Chords Are Recognized',
     hwLede:
       'Turn a guitar recording into a chord chart you can actually play — what\'s the computer doing inside?',
+    hwStepsLabel: 'Stage navigation',
+    hwSteps: [
+      'Overview',
+      'Listen',
+      'FFT',
+      'Chroma',
+      'Match',
+      'Smooth',
+      'Tempo',
+      'Key',
+      'Chart',
+    ],
     hwOverview: 'Overview',
     hwStageLabel: (n: number) => `Stage ${n}`,
     hwStages89: 'Stages 8–9',
@@ -262,15 +274,14 @@ export const dictionary = {
     hwS2Low: 'Low',
     hwS2High: 'High',
     hwS2RealString: 'Real string',
-    hwS2Harmonic: 'Harmonic',
+    hwS2Harmonics: 'Harmonics',
     hwS2Aria:
       'Diagram: a waveform on the left transformed by FFT into a bar spectrum on the right, where a few tall bars mark the frequencies of strings actually ringing.',
     hwS2Caption:
-      'A waveform (left) transforms into a frequency bar chart (right) via FFT. Each bar is one frequency\'s energy. Real notes spike; silence stays near zero.',
+      'A waveform (left) transforms into a frequency bar chart (right) via FFT. Each bar is one frequency\'s energy. Real notes spike; silence stays near zero. The tallest spike is a string\'s own pitch, and the shorter ones beside it are its overtones.',
 
     hwS3Title: 'Chroma: Folding Into 12 Pitch Classes',
-    hwS3P1a:
-      'For chords, a low E and a high E an octave up are "the same note" — a chord is a ',
+    hwS3P1a: 'For chords, a low E and a high E an octave up are "the same note" — a chord is a ',
     hwS3P1Em: 'set',
     hwS3P1b:
       ' of note names, not exact pitches. So every spike from the FFT gets folded: all C\'s (at any octave) add energy into one C bucket; same for C#, D, up to B. The result is always exactly 12 numbers, regardless of how the guitar was voiced.',
@@ -280,11 +291,11 @@ export const dictionary = {
     hwS3MidC: 'Mid C',
     hwS3HighC: 'High C',
     hwS3Chroma: 'Chroma',
-    hwS3Buckets: '12 pitch-class buckets. Energy from all octaves merges into one.',
+    hwS3Buckets: 'One bucket per note name',
     hwS3Aria:
       'Diagram: the same note name at several octaves, each folded by an arrow into a single one of twelve pitch-class buckets labelled C through B.',
     hwS3Caption:
-      'All C\'s at any octave fold into one bucket. This 12-number chroma fingerprint is enough for chord recognition.',
+      'All C\'s at any octave fold into one bucket, so energy from every octave merges into the same twelve numbers. This chroma fingerprint is enough for chord recognition.',
 
     hwS4Title: 'Template Matching: Finding the Best Fit',
     hwS4P1:
@@ -301,8 +312,7 @@ export const dictionary = {
     hwS5Title: 'Viterbi Smoothing: From Flicker to Flow',
     hwS5P1:
       'If the app chose the highest-scoring chord independently frame-by-frame, the answer would flicker — jumping several times a second, because decaying strum and normal noise wobble the scores moment to moment. But real players don\'t change chords eight times per second.',
-    hwS5P2a:
-      'So instead of picking each frame\'s winner independently, the app finds the single best ',
+    hwS5P2a: 'So instead of picking each frame\'s winner independently, the app finds the single best ',
     hwS5P2Em: 'path',
     hwS5P2b:
       ' through time that balances "matches what was heard" against "changing chords costs something" — like autocorrect for a sentence, keeping the same word unless the evidence is overwhelming. This turns frame-by-frame flicker into a clean, confident chart with one or two chord changes per bar.',
@@ -345,10 +355,11 @@ export const dictionary = {
       ' — for busy songs, offer up to three versions: easy (sevenths and suspensions folded away), standard (beginner reading), faithful (every extension kept). Only when they actually differ.',
     ],
     hwS89Final: 'Final output',
-    hwS89ChartNote: 'A chord chart a beginner can follow. Chord names at top, strumming direction below.',
+    hwS89Strum: 'v = down-strum',
     hwS89Aria:
       'Diagram: a short chord chart as the player finally receives it, chord names above simple strum marks.',
-    hwS89Caption: 'The final step\'s output: readable, beginner-friendly chord charts.',
+    hwS89Caption:
+      'The final step\'s output: a readable chord chart, already adjusted for beginner fingers. Chord names sit above each bar, strumming direction below.',
 
     hwLimitsTitle: 'Honest Limits',
     hwLimitsIntro:
@@ -598,141 +609,141 @@ export const dictionary = {
     howChordsRecognized: '和弦是怎么听出来的',
     hwEyebrow: '算法内部',
     hwTitle: '和弦是怎么听出来的',
-    hwLede: '把一段吉他弹唱，变成一张可以照着弹的和弦谱——这中间电脑到底做了什么？',
+    hwLede: '一段吉他弹唱，怎么变成一张能照着弹的和弦谱？下面是电脑在这中间做的每一件事。',
+    hwStepsLabel: '阶段导航',
+    hwSteps: ['总览', '检测', 'FFT', '色度', '匹配', '平滑', '节拍', '调性', '成谱'],
     hwOverview: '总览',
-    hwStageLabel: (n: number) => `第${n}阶段`,
-    hwStages89: '第8&9阶段',
-    hwNodes: ['音乐检测', 'FFT', '色度', '匹配', '平滑', '节拍', '调性', '改编', '成谱'],
+    hwStageLabel: (n: number) => `第 ${n} 阶段`,
+    hwStages89: '第 8、9 阶段',
+    hwNodes: ['检测', 'FFT', '色度', '匹配', '平滑', '节拍', '调性', '改编', '成谱'],
     hwOverviewAria:
-      '示意图：从原始音频到最终和弦谱的九个阶段信号路径，蓝绿色表示原始测量，在决定和弦的那一刻转为琥珀色。',
+      '示意图：从原始音频到成品和弦谱的九个阶段。青色代表尚未定论的测量，进入决策阶段后转为琥珀色。',
     hwOverviewCaption:
-      '从原始音频到最终和弦谱的完整信号路径。蓝绿色表示原始测量，琥珀色表示最终决定。从第5阶段起，原始测量变成了可以相信的答案。',
+      '整条信号通路。青色是还在测量的部分，琥珀色是已经拿定主意的部分；从第 5 阶段起，逐帧的测量变成了可以写进谱子的答案。',
 
-    hwS1Title: '先听懂再录',
+    hwS1Title: '先听懂，再开录',
     hwS1P1:
-      '麦克风一直在听，但应用不会真的开始录音，除非它有把握真的在放音乐。为什么？因为没有这个关卡，每一次按“录”，前三秒都是“从口袋里掏出手机”的沙沙声。',
-    hwS1P2: '应用每隔几分之一秒就检查五件事：',
-    hwS1Terms: ['响度', '音高集中度', '稳定性', '活力', '和弦样子'],
+      '麦克风一直开着，但只有确认真的有音乐在响，应用才会开始录。少了这道关卡，每一条录音的头三秒都是把手机从口袋里掏出来的窸窣声。',
+    hwS1P2: '每隔几十毫秒，应用会同时问五个问题：',
+    hwS1Terms: ['响度', '音高集中度', '稳定度', '起伏', '和弦形状'],
     hwS1Descs: [
-      '——超过房间噪音的底线吗？',
-      '——能量是聚集在少数几个音高，还是铺散在所有十二个音呢？（白噪音会铺散）',
-      '——和弦在大约四分之一秒的时间里保持住了吗？（变音会不断变化）',
-      '——响度随着时间真的呼吸变化吗？（工频噪音稳定刺耳，但永远不会呼吸）',
-      '——粗略地匹配什么和弦吗？',
+      '——比房间底噪更响吗？',
+      '——能量是聚在少数几个音级上，还是摊平在十二个音上？宽带噪声过不了这一关。',
+      '——这份和声能稳住大约四分之一秒吗？滑来滑去的人声过不了这一关。',
+      '——响度会随时间起伏吗？稳定的电流嗡声过不了这一关。',
+      '——它大致对得上某一张和弦模板吗？',
     ],
     hwS1P3a:
-      '五个条件必须同时过关，而且要连续过关好几次，录音的指示灯才会变绿。这听起来简单，但其实很难——一个真正的语音活动检测器听起来是天然的工具，可惜它们是训练来',
-    hwS1P3Em: '拒绝',
+      '五关必须同时通过，而且要连着通过好几拍，录音才真正开始。听着简单，做起来很难：现成的语音活动检测器看似正合适，可它们生来是为语音服务的，训练目标恰恰是',
+    hwS1P3Em: '排除',
     hwS1P3b:
-      '音乐的（它们是为了识别语音而建的），用它会得到反效果。而且如果要下载任何模型，就违反了这个应用的承诺：“没有任何东西是从网上下载的”。所以这个关卡完全是信号分析，没有学习模型。',
-    hwS1Cols: ['响度', '集中', '稳定', '活力', '和弦'],
-    hwS1Rows: ['音乐', '噪音', '语音', '工频'],
+      '音乐，拿来用只会适得其反。何况下载任何模型都会违背这个应用的承诺——除了页面本身，什么都不会从网上取。所以这道关卡纯靠信号分析，不含任何机器学习。',
+    hwS1Cols: ['响度', '集中', '稳定', '起伏', '和弦'],
+    hwS1Rows: ['音乐', '噪声', '人声', '嗡声'],
     hwS1Aria:
-      '示意图：音乐关卡应用的五项检查——响度、音高集中度、稳定性、活力和和弦匹配——五项必须同时通过，录音才会开始。',
-    hwS1Caption: '五个检查的直观对比。只有当所有五个条件都通过时（全是琥珀色的圆圈），才意味着真的有音乐在放。',
+      '示意图：音乐关卡的五项检查——响度、音高集中度、稳定度、起伏和和弦匹配。四类声音里只有音乐能五项全过。',
+    hwS1Caption: '四类声音在五项检查下的表现。只有五项全是琥珀色实心点，应用才相信真的有音乐在响。',
 
     hwS2Title: '傅里叶变换：把声音拆成一根根音高',
     hwS2P1:
-      '任何真实的声音都是许多纯音叠加在一起。傅里叶变换（FFT）把波形的一小片段（大约十分之一秒）重新表达成：在每一个单独的频率，有多少能量？输出看起来像一张条形图或者一根根竖起来的线——真正响的音高是高尖峰，其他地方几乎是零。',
+      '真实的声音都是许多纯音叠在一起。傅里叶变换（FFT）取波形的一小段——大约十分之一秒——换一种方式表达：每一个频率上各有多少能量。结果像一排高低不齐的柱子，正在响的弦是高高的尖峰，其余地方几乎贴着零。',
     hwS2Waveform: '波形',
-    hwS2Spectrum: '频率谱',
+    hwS2Spectrum: '频谱',
     hwS2Low: '低频',
     hwS2High: '高频',
-    hwS2RealString: '真实响弦',
-    hwS2Harmonic: '泛音',
-    hwS2Aria:
-      '示意图：左边的波形经傅里叶变换成为右边的条形频谱，少数几根高柱标出真正在响的弦的频率。',
+    hwS2RealString: '基音',
+    hwS2Harmonics: '泛音',
+    hwS2Aria: '示意图：左边的波形经 FFT 变成右边的柱状频谱，几根高柱标出真正在响的弦的频率。',
     hwS2Caption:
-      '波形（左）通过傅里叶变换变成频率条形图（右）。每一根柱子代表一个特定的频率有多少能量。真正有声音的地方会耸起来。',
+      '波形（左）经傅里叶变换成为频谱（右）。每根柱子是一个频率上的能量：真正在响的音会冒尖，静默处贴近零。最高的那根是弦本身的音高，旁边几根矮一些的是它的泛音。',
 
-    hwS3Title: '色度图：把音高压成12格',
-    hwS3P1a: '对于和弦来说，一根弦的低E和高八度的E听起来是“同一个音”——和弦是一',
+    hwS3Title: '色度：把音高折进十二个格子',
+    hwS3P1a: '对和弦来说，低八度的 E 和高八度的 E 就是「同一个音」——和弦是一',
     hwS3P1Em: '组',
     hwS3P1b:
-      '音名，不是一组精确的音高。所以应用把FFT的所有尖峰都折叠起来：所有的C（无论什么八度）的能量加到一个“C”的桶里；C#、D、⋯⋯一直到B也各有一个桶。结果总是正好12个数字，无论吉他到底是怎么弹的。',
+      '音名，而不是一组精确的频率。所以 FFT 里的每一根尖峰都会被折叠：所有八度上的 C 都把能量加进同一个 C 桶，C#、D 一直到 B 也各有一个桶。不管吉他按的是什么把位，结果永远是十二个数。',
     hwS3P2:
-      '折叠发生之前，应用还要测量这个录音离“标准音”（A=440Hz）有多远。手机喇叭录的，或者吉他调得略微偏低的歌曲，通常会偏20–40音分，足以让能量在相邻的两个桶之间分裂，导致每个和弦都读成模棱两可的。所以应用会自动补正这个偏移。',
-    hwS3LowC: '低C',
-    hwS3MidC: '中C',
-    hwS3HighC: '高C',
-    hwS3Chroma: '色度图',
-    hwS3Buckets: '12个音名桶，无论什么八度的能量都汇聚到一起',
-    hwS3Aria:
-      '示意图：同一个音名在几个不同八度上，各自由一支箭头折叠进十二个音名桶中的同一个，桶从C标到B。',
+      '折叠之前，应用还会先量一量这份录音离标准音（A=440 Hz）有多远。对着音箱录的、或者吉他调得偏低的歌，常常差上 20 到 40 音分——足以让能量劈在相邻两个桶之间，让每个和弦都读得模棱两可。这个偏移会被自动校正掉。',
+    hwS3LowC: '低音 C',
+    hwS3MidC: '中音 C',
+    hwS3HighC: '高音 C',
+    hwS3Chroma: '色度',
+    hwS3Buckets: '每个音名一个桶',
+    hwS3Aria: '示意图：同一个音名在三个八度上，各由一支箭头折进十二个音名桶中的同一个，桶从 C 排到 B。',
     hwS3Caption:
-      '所有不同八度的C都折叠到一个单一的“C”桶里。这就是12个数字的色度指纹，它对于和弦识别来说已经足够了。',
+      '任何八度上的 C 都折进同一个桶，各八度的能量最终汇成同样的十二个数。这份色度指纹，已经够用来认和弦了。',
 
-    hwS4Title: '模板比对：找最接近的标准答案',
+    hwS4Title: '模板比对：找最像的那一张',
     hwS4P1:
-      '应用保存着84张“标准答案”——12个根音 × 7个和弦品质的每一种组合（大三和弦、小三和弦、属七、小七、大七、挂四、挂二）。每张模板不只是和弦的裸露音符，还包括每个音的头几个泛音（谐波），因为真正的拨弦的能量不只在基音频率，还会铃铃铛铛地响遍整个泛音阶。一张不预期那些泛音的模板会把它们误认作额外的音符。',
+      '应用备着 84 张模板指纹：12 个根音乘以 7 种和弦性质（大三、小三、属七、小七、大七、挂四、挂二）。模板里不只有和弦本身的音，还带上每个音的前几个泛音——真实的拨弦不会只在基频上出力，而是连着一整串泛音一起响。不把泛音算进去的模板，会把它们错当成多出来的音。',
     hwS4P2:
-      '第3阶段测得的12个数字，现在要和这84张模板逐个比对。每张都给出一个相似度分数——想象成84个小条形图排在一起，最高的那根柱子就是这一瞬间最符合的和弦。',
-    hwS4Measured: '测量值',
-    hwS4BestMatch: '最匹配',
-    hwS4Aria: '示意图：测得的十二个数字色度指纹与候选和弦模板逐个比对，最接近的那一张被高亮。',
-    hwS4Caption:
-      '测量的12个数字（上）与84张和弦模板的对比。最接近的模板（琥珀色高亮）就是这一时刻最可能的和弦。',
+      '第 3 阶段量出的十二个数，现在要和这 84 张模板逐一比对，各得一个相似度分数。可以想成 84 根并排的柱子，最高的那根就是此刻最像的和弦。',
+    hwS4Measured: '实测',
+    hwS4BestMatch: '最像',
+    hwS4Aria: '示意图：实测的十二数色度指纹与候选和弦模板逐一比对，最接近的一张被高亮。',
+    hwS4Caption: '实测的十二个数（上）对上 84 张和弦模板。最接近的那一张（琥珀色高亮）就是这一刻最可能的和弦。',
 
-    hwS5Title: '维特比平滑：把一格一格的猜测理顺成一条路',
+    hwS5Title: '维特比平滑：从抖动到流畅',
     hwS5P1:
-      '如果应用每一帧都单独选择评分最高的和弦，答案会闪烁——每秒好几次地跳来跳去，因为衰减的扫弦和正常的噪音会一时一时地摇晃这些数字。但真正的歌手不会每秒改八次和弦。',
-    hwS5P2a: '所以应用不是逐帧地挑最赢家，而是找一条最好的',
+      '如果每一帧都各自挑分数最高的和弦，答案会不停抖动，一秒里跳好几次——衰减中的扫弦和寻常噪声，足以让分数上下晃动。可真正的弹奏者不会一秒换八次和弦。',
+    hwS5P2a: '所以应用不逐帧挑赢家，而是在整条时间轴上找一条最好的',
     hwS5P2Em: '路径',
     hwS5P2b:
-      '，平衡两件事：“这听起来符合实际”和“改变和弦要付代价”。这就像打字时的自动纠正，一个单词除非证据强得不容置疑，否则保持不动。这就把一格一格闪烁的猜测变成了干净的、有底气的、一小节一两个和弦变化的图表。',
+      '，同时权衡两件事：这条路径有多贴合听到的声音，以及换和弦本身要付出的代价。就像打字时的自动纠错——证据不够压倒性，就先按住不改。逐帧的抖动因此收成一张干净、笃定的谱子，每小节只有一两次变化。',
     hwS5Raw: '未平滑',
     hwS5RawSub: '逐帧猜测',
     hwS5Smoothed: '平滑后',
-    hwS5SmoothedSub: '维特比解码',
+    hwS5SmoothedSub: '维特比',
     hwS5Aria:
-      '示意图：上排是逐帧的原始和弦猜测，在几个和弦之间乱跳；下排在同一条时间轴上，是维特比平滑后的结果，一小节稳住一个和弦。',
+      '示意图：上排是逐帧的原始猜测，在几个和弦之间乱跳；下排在同一条时间轴上，是维特比平滑后的结果，一小节稳住一个和弦。',
     hwS5Caption:
-      '未平滑的原始猜测（上）每几毫秒就在不同和弦之间乱跳。维特比算法（下）找一条最好的路径，迫使和弦变化变得有意义且平稳。',
+      '上排的逐帧猜测每几十毫秒就换一次；维特比（下排）在整条时间轴上找出最好的一条路，让和弦的变化既平稳又有意义。',
 
-    hwS6Title: '节拍与自由节奏',
+    hwS6Title: '节拍，以及自由节奏',
     hwS6P1:
-      '应用同时追踪响度随时间如何起伏（一个“能量突起”曲线），然后寻找峰值之间的重复间隔——那个间隔就是节拍。它还会检查这种重复是否真正可靠：有些歌曲（深情的民谣、某些指弹编排）从不锁定在稳定的拍子里，如果硬是把网格强加上去就只是个有信心的谎言。节奏性太弱的时候，应用诚实地说“这首歌是自由节奏”，不再用节拍网格，而是直接从和弦边界读调和变化。',
-    hwS6Onset: '能量包络',
-    hwS6BeatInterval: '节拍间隔',
-    hwS6Aria: '示意图：一条响度包络曲线，峰值下方是一排刻度，相邻刻度之间均匀的间隔就是一拍。',
-    hwS6Caption: '能量曲线显示响度如何随时间变化。曲线的峰值就是一个新的节拍。相邻节拍之间的距离告诉我们歌曲的速度。',
+      '应用另外还盯着响度随时间的起伏（一条「起音」曲线），从峰与峰之间找反复出现的间隔——那个间隔就是一拍。它同时会检查这种反复靠不靠得住：有些歌（深情的民谣、指弹改编）从来没有稳定的脉搏，硬套一张节拍网格，只是说得笃定的谎话。节奏弱到不可信的时候，应用会老实说这首歌是自由节奏，不再用网格，直接从和声本身读出和弦的边界。',
+    hwS6Onset: '起音曲线',
+    hwS6BeatInterval: '一拍',
+    hwS6Aria: '示意图：一条响度包络曲线，峰下方是一排刻度，相邻刻度之间均匀的间隔就是一拍。',
+    hwS6Caption: '响度随时间的起伏。曲线的峰就是一次击点，相邻两击之间的距离，就是这首歌的速度。',
 
-    hwS7Title: '调性：找到歌曲的“家键”',
+    hwS7Title: '调性：找到这首歌的家',
     hwS7P1:
-      '使用同一个12数字的想法（这次从整首歌曲积累，按每个和弦的长度加权），应用针对24个模板指纹进行相关性分析——每个大调和小调各一个——并选择最匹配的一个。这就像一个人哼一个音阶来自己检查，并注意到哪一个“感觉像家”。',
-    hwS7SongChroma: '整首歌的色度积累',
+      '还是那十二个数，这次是整首歌累积起来的，按每个和弦响了多久加权。应用拿它去和 24 张模板指纹做相关——大调小调各 12 个——挑出最贴合的一张。就像自己哼一遍音阶，听哪一个「像回到家」。',
+    hwS7SongChroma: '全曲色度',
     hwS7Candidates: '候选调',
-    hwS7Best: '最匹配',
-    hwS7Aria: '示意图：整首歌积累出的色度指纹与几个候选调性模板对比，最匹配的那个调被高亮。',
-    hwS7Caption: '整首歌的色度指纹（上）与几个候选调性模板对比。最匹配的调（琥珀色高亮）就是这首歌的调性。',
+    hwS7Best: '最像',
+    hwS7Aria: '示意图：整首歌累积出的色度指纹与几张候选调性模板对比，最贴合的一个被高亮。',
+    hwS7Caption: '整首歌累积的色度（上）与调性模板做相关。最贴合的那一个（琥珀色）就是这首歌的调。',
 
-    hwS89Title: '改编成看得懂的谱子',
-    hwS89P1: '最后，原始的和弦序列要被改编给初学者的手：',
-    hwS89Terms: ['选择变调夹', '交换难弦', '多个难度'],
+    hwS89Title: '改写成初学者的手能弹的谱',
+    hwS89P1: '最后一步，是把原始的和弦序列改写给初学者的手：',
+    hwS89Terms: ['挑变调夹位置', '换掉难和弦', '给出几档难度'],
     hwS89Descs: [
-      '——用变调夹把尽可能多的和弦放在容易的开放弦把位里。',
-      '——一个真正难的和弦可能被换成一个老师建议的简单替代品。比如 F 变成 Fmaj7，或 Bm 变成 Bm7。',
-      '——对于节奏多变的歌，应用提供最多三个版本：简单版（叠七、挂音、短经过和弦都折叠掉）／标准版（初学者读法）／忠实版（保留每一个扩展音）。只有当它们真的不同时才提供。',
+      '——找一个能让尽量多的和弦落在开放把位上的品位。',
+      '——真正难按的和弦，换成老师会推荐的简单替代：F 换成 Fmaj7，Bm 换成 Bm7。',
+      '——变化密集的歌最多给三个版本：简单版（收掉七音、挂留音和一带而过的经过和弦）、标准版（初学者的读法）、忠实版（保留每一个扩展音）。只有当三者确实不同时才会给。',
     ],
-    hwS89Final: '最终输出',
-    hwS89ChartNote: '一个初学者可以照着弹的和弦图。和弦名上面标注，下面是拨弦方向。',
-    hwS89Aria: '示意图：演奏者最后拿到的一小段和弦谱，和弦名在上，简单的扫弦记号在下。',
-    hwS89Caption: '最后一步的输出：可读的和弦谱，已经为初学者的手指调整过。',
+    hwS89Final: '成品',
+    hwS89Strum: 'v 表示下扫弦',
+    hwS89Aria: '示意图：演奏者最后拿到的一小段和弦谱，和弦名在上，扫弦记号在下。',
+    hwS89Caption:
+      '最后一步的产出：一张读得懂的和弦谱，已经为初学者的手指调整过。和弦名标在每小节上方，下方是扫弦方向。',
 
-    hwLimitsTitle: '诚实的局限',
+    hwLimitsTitle: '诚实的边界',
     hwLimitsIntro:
-      '这个应用已经在许多流派的真实、独立出版的吉他制表进行了测试（中文流行民谣、泰勒·斯威夫特的歌、电影配乐）。它很好，但不完美。值得知道的几件事：',
-    hwLimitTerms: ['平均准确率：94%', '真正的难区别', '只有84个和弦质量被模型化'],
-    hwLimitAccuracyLead: ' 在七首真实歌曲对其公开发布的制表进行检验，根和主／小三和弦族的一致性平均为 ',
-    hwLimitAccuracyTail: '，范围是 87%–99%。这意味着算法大多数时间把初学者的手指放在正确的基本和弦把位上。',
-    hwLimitHardIntro: '（不是漏洞）被找到了两个，而且应用坦诚相对：',
+      '这个应用在多种曲风上做过检验，对照的是别人独立发布的真实吉他谱（华语流行民谣、一首 Taylor Swift、一段电影配乐）。它好用，但不完美。有几件事值得先知道：',
+    hwLimitTerms: ['平均准确率 94%', '真正的难题', '只建模了 84 种和弦'],
+    hwLimitAccuracyLead: '：七首真实歌曲对照已发布的谱，根音加大三／小三族的一致率平均为 ',
+    hwLimitAccuracyTail: '，区间是 87% 到 99%。也就是说，绝大多数时候，它都能把初学者的手放在对的基本把位上。',
+    hwLimitHardIntro: '（不是 bug）有两个，应用如实公开：',
     hwLimitHardItems: [
-      '小三和弦（Em）vs 挂二和弦（Esus2）那样的质量，相邻一个音符相差一个半音的，是从12数字指纹来说最难的区分对——尤其是在指弹的乐段，音符不是全部同时发声。',
-      '一首歌的主调（I）和属调（V）的区别——两者是亲近的和声堂兄——是这种按音频的调性检测所公知的难题，有点像“这首歌是70 BPM还是140 BPM”的速度八度不确定性，信号分析永远不能完全解决。',
+      '只差一个音、而且这个音只差半音的两种和弦性质（比如 Em 和 Esus2），是十二数指纹最难分辨的一对——尤其在指弹段落，音本来就不是同时响的。',
+      '分不分得清一首歌的主调（I）和属调（V）——这两个是和声上的近亲——是这类调性检测公认的难题，性质上类似「这首歌到底是 70 BPM 还是 140 BPM」的速度八度歧义，任何信号分析都无法彻底解决。',
     ],
-    hwLimitVocab: '（没有add9、没有减、没有增）——超出这个词汇表的和弦以最接近的表示内部回传。',
+    hwLimitVocab: '（没有 add9，没有减和弦，没有增和弦）——词汇表之外的和弦，会以表内最接近的那一个回传。',
     hwClosing:
-      '所以下次有人问“电脑怎么听出和弦的”，现在你知道了：从倾听音乐开始，一路通过傅里叶和色度和模板，直到平滑和节拍和调性，最后才能说出初学者能照着弹的东西。简单从来都不简单。',
+      '所以，下次有人问「电脑是怎么听出和弦的」，你已经可以回答了：先听出有没有音乐，再让声音穿过傅里叶、色度和模板，把逐帧的抖动收成站得住的判断，找出拍子和调，最后改写成初学者的手能弹的样子。把事情做简单，从来都不简单。',
     hwClosingLink: 'geetaab 是开源的 · 在 GitHub 上查看',
 
     // Format functions

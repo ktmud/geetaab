@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useT } from '../i18n';
 import { BackIcon, GitHubIcon } from './icons';
 
@@ -9,15 +9,19 @@ export interface HowItWorksProps {
 /**
  * The colour story is the point of this page, so it is worth naming: the cool
  * token means "raw measurement, nothing decided yet" and the brass token means
- * "the app has committed to an answer". The spine down the left changes from
+ * "the app has committed to an answer". The spine down the left crosses from
  * one to the other at stage 5, where per-frame guesses become a path the app is
- * willing to print. Every diagram below obeys the same rule, and every colour
- * comes from the app's own accent tokens through .hw-raw / .hw-decided.
+ * willing to print. Every diagram obeys the same rule, and every colour comes
+ * from the app's own accent tokens through .hw-raw / .hw-decided — no hex here.
  */
 type Tone = 'raw' | 'decided';
 
 /** x, y, height, opacity — the shorthand every bar chart below is written in. */
 type Bar = [number, number, number, number];
+
+const STAGE_COUNT = 9;
+/** The index at which measurement turns into a decision. */
+const DECISION_STEP = 5;
 
 const CHROMA_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -126,9 +130,27 @@ const TEMPLATE_WINNER: Bar[] = [
   [536, 176, 14, 0.3],
 ];
 
-/** Where the raw per-frame guess sat on each tick, and what it was called. */
+/**
+ * Where each raw per-frame guess landed, and what it was called. The row label
+ * lives in a gutter to the left of x=150 so it can never sit on a chord name.
+ */
 const RAW_TICKS = [60, 75, 65, 55, 70, 60, 80, 68, 72, 62, 76, 66, 58, 74, 64, 70, 59, 77, 61, 73];
 const RAW_LABELS = ['C', 'Am', 'G', 'C', 'G', 'Am', 'C', 'Am', 'G', 'C'];
+const SMOOTH_PATH: [number, number, number, number][] = [
+  [160, 175, 230, 175],
+  [230, 175, 280, 190],
+  [280, 190, 350, 190],
+  [350, 190, 410, 175],
+  [410, 175, 480, 175],
+];
+/** Each name rides 10 units above the path where it sits, flats and slopes alike. */
+const SMOOTH_LABELS: [number, number, string][] = [
+  [195, 165, 'C'],
+  [255, 172, 'Am'],
+  [315, 180, 'G'],
+  [380, 172, 'C'],
+  [445, 165, 'Am'],
+];
 
 const SONG_CHROMA: Bar[] = [
   [40, 50, 50, 0.6],
@@ -146,21 +168,21 @@ const SONG_CHROMA: Bar[] = [
 ];
 
 const KEY_RUNNER_UP: Bar[] = [
-  [120, 200, 25, 0.3],
-  [138, 200, 25, 0.3],
-  [156, 205, 20, 0.3],
-  [174, 203, 22, 0.3],
-  [192, 198, 27, 0.3],
-  [210, 208, 17, 0.2],
+  [140, 200, 25, 0.3],
+  [158, 200, 25, 0.3],
+  [176, 205, 20, 0.3],
+  [194, 203, 22, 0.3],
+  [212, 198, 27, 0.3],
+  [230, 208, 17, 0.2],
 ];
 
 const KEY_WINNER: Bar[] = [
-  [120, 245, 35, 0.6],
-  [138, 248, 32, 0.5],
-  [156, 255, 25, 0.3],
-  [174, 250, 30, 0.4],
-  [192, 242, 38, 0.7],
-  [210, 258, 22, 0.3],
+  [140, 245, 35, 0.6],
+  [158, 248, 32, 0.5],
+  [176, 255, 25, 0.3],
+  [194, 250, 30, 0.4],
+  [212, 242, 38, 0.7],
+  [230, 258, 22, 0.3],
 ];
 
 /** Bar line x, chord name, and the x the strum arrows sit on. */
@@ -171,19 +193,34 @@ const CHART_BARS: [number, string, number][] = [
   [300, 'G', 325],
 ];
 
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
 function Stage({
+  index,
   label,
   title,
   tone,
+  current,
   children,
 }: {
+  index: number;
   label: string;
   title?: string;
   tone: Tone;
+  current: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className={`hw-stage${tone === 'decided' ? ' decided' : ''}`}>
+    <section
+      className={`hw-stage${tone === 'decided' ? ' decided' : ''}${current ? ' current' : ''}`}
+      data-stage={index}
+    >
       <div className="hw-stage-num">{label}</div>
       {title ? <h2>{title}</h2> : null}
       {children}
@@ -192,18 +229,22 @@ function Stage({
 }
 
 function Figure({
+  index,
   aria,
   caption,
   viewBox,
+  revealed,
   children,
 }: {
+  index: number;
   aria: string;
   caption: string;
   viewBox: string;
+  revealed: boolean;
   children: ReactNode;
 }) {
   return (
-    <figure className="hw-fig">
+    <figure className={`hw-fig${revealed ? ' is-visible' : ''}`} data-fig={index}>
       <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={aria}>
         {children}
       </svg>
@@ -237,9 +278,86 @@ function RawBars({ bars }: { bars: Bar[] }) {
 
 export function HowItWorks({ onBack }: HowItWorksProps) {
   const t = useT();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const [revealed, setRevealed] = useState<boolean[]>(() => new Array(STAGE_COUNT).fill(false));
+
+  // The link into this page lives in the footer, so the reader is usually at the
+  // bottom of the previous screen when they press it. Without this they would
+  // land somewhere in the middle of the explainer.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Which stage the reader is in. A tall dead band top and bottom means the
+  // section crossing the middle of the viewport is the one that counts, which
+  // is what a reader would say they are "in". The limits card is watched too,
+  // as a marker for "past the end": without it, jumping straight to the foot of
+  // the page leaves nothing in the band and the stepper would sit on whichever
+  // stage happened to be last seen.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof IntersectionObserver === 'undefined') return;
+    const marked = Array.from(root.querySelectorAll<HTMLElement>('[data-stage]'));
+    const visible = new Set<number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const index = Number((entry.target as HTMLElement).dataset.stage);
+          if (entry.isIntersecting) visible.add(index);
+          else visible.delete(index);
+        }
+        if (visible.size) setActive(Math.min(Math.min(...visible), STAGE_COUNT - 1));
+      },
+      { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
+    );
+    marked.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+
+  // Reveal each diagram the first time it is scrolled to, then stop watching it.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const figures = Array.from(root.querySelectorAll<HTMLElement>('.hw-fig'));
+    if (typeof IntersectionObserver === 'undefined') {
+      setRevealed(new Array(STAGE_COUNT).fill(true));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const hits: number[] = [];
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          hits.push(Number((entry.target as HTMLElement).dataset.fig));
+          observer.unobserve(entry.target);
+        }
+        if (!hits.length) return;
+        setRevealed((prev) => {
+          const next = prev.slice();
+          for (const index of hits) next[index] = true;
+          return next;
+        });
+      },
+      { threshold: 0.12 },
+    );
+    figures.forEach((figure) => observer.observe(figure));
+    return () => observer.disconnect();
+  }, []);
+
+  const goToStage = useCallback((index: number) => {
+    const target = rootRef.current?.querySelector<HTMLElement>(`[data-stage="${index}"]`);
+    if (!target) return;
+    // Asked for explicitly rather than left to CSS scroll-behavior, so the jump
+    // still works when that is switched off for reduced motion.
+    target.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    setActive(index);
+  }, []);
+
+  const progress = STAGE_COUNT > 1 ? active / (STAGE_COUNT - 1) : 1;
 
   return (
-    <div className="shell how-it-works">
+    <div className="shell how-it-works" ref={rootRef}>
       <div className="btn-row" style={{ marginBottom: 14 }}>
         <button className="btn btn-ghost" onClick={onBack}>
           <BackIcon size={17} /> {t.back}
@@ -250,10 +368,42 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
       <h1 style={{ fontSize: 'clamp(24px, 4.5vw, 36px)' }}>{t.hwTitle}</h1>
       <p className="lede hw-lede">{t.hwLede}</p>
 
-      <div className="hw-path">
+      <nav className="hw-steps" aria-label={t.hwStepsLabel}>
+        <ol>
+          {t.hwSteps.map((label, i) => (
+            <li key={label}>
+              <button
+                type="button"
+                aria-label={label}
+                aria-current={i === active ? 'step' : undefined}
+                className={[
+                  'hw-step',
+                  i >= DECISION_STEP ? 'decided' : '',
+                  i <= active ? 'reached' : '',
+                  i === active ? 'current' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => goToStage(i)}
+              >
+                <span className="hw-step-dot" aria-hidden="true" />
+                <span className="hw-step-label">{label}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      <div className="hw-path" style={{ ['--hw-progress' as string]: progress } as CSSProperties}>
         {/* ---------- overview ---------- */}
-        <Stage label={t.hwOverview} tone="raw">
-          <Figure aria={t.hwOverviewAria} caption={t.hwOverviewCaption} viewBox="0 0 640 120">
+        <Stage index={0} label={t.hwOverview} tone="raw" current={active === 0}>
+          <Figure
+            index={0}
+            revealed={revealed[0]}
+            aria={t.hwOverviewAria}
+            caption={t.hwOverviewCaption}
+            viewBox="0 0 640 120"
+          >
             <defs>
               <marker
                 id="hw-arrow-path"
@@ -278,7 +428,14 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
                 strokeWidth="2"
               />
             ))}
-            <circle cx="610" cy="60" r="8" className="hw-decided" stroke="currentColor" strokeWidth="2" />
+            <circle
+              cx="610"
+              cy="60"
+              r="8"
+              className="hw-decided"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
 
             {PATH_ARROWS.map(([x1, x2]) => (
               <line
@@ -307,7 +464,13 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
         </Stage>
 
         {/* ---------- stage 1: the music gate ---------- */}
-        <Stage label={t.hwStageLabel(1)} title={t.hwS1Title} tone="raw">
+        <Stage
+          index={1}
+          label={t.hwStageLabel(1)}
+          title={t.hwS1Title}
+          tone="raw"
+          current={active === 1}
+        >
           <p>{t.hwS1P1}</p>
           <p>{t.hwS1P2}</p>
           <TermList terms={t.hwS1Terms} descs={t.hwS1Descs} />
@@ -316,7 +479,13 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             <em>{t.hwS1P3Em}</em>
             {t.hwS1P3b}
           </p>
-          <Figure aria={t.hwS1Aria} caption={t.hwS1Caption} viewBox="0 0 500 280">
+          <Figure
+            index={1}
+            revealed={revealed[1]}
+            aria={t.hwS1Aria}
+            caption={t.hwS1Caption}
+            viewBox="0 0 500 280"
+          >
             {t.hwS1Cols.map((col, i) => (
               <text key={col} x={100 + i * 60} y="25" className="hw-mono" textAnchor="middle">
                 {col}
@@ -327,12 +496,18 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
                 ring is the raw measurement that never cleared the bar. */}
             {GATE_ROWS.map((row, r) => (
               <g key={r}>
-                <text x="30" y={80 + r * 55} fontWeight="500">
+                <text x="20" y={80 + r * 55} fontWeight="500">
                   {t.hwS1Rows[r]}
                 </text>
                 {row.map((pass, c) =>
                   pass ? (
-                    <circle key={c} cx={100 + c * 60} cy={70 + r * 55} r="6" className="hw-decided" />
+                    <circle
+                      key={c}
+                      cx={100 + c * 60}
+                      cy={70 + r * 55}
+                      r="6"
+                      className="hw-decided"
+                    />
                   ) : (
                     <circle
                       key={c}
@@ -345,16 +520,28 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
                     />
                   ),
                 )}
-                <line x1="50" y1={50 + r * 55} x2="370" y2={50 + r * 55} className="hw-rule" />
+                <line x1="20" y1={50 + r * 55} x2="370" y2={50 + r * 55} className="hw-rule" />
               </g>
             ))}
           </Figure>
         </Stage>
 
         {/* ---------- stage 2: the FFT ---------- */}
-        <Stage label={t.hwStageLabel(2)} title={t.hwS2Title} tone="raw">
+        <Stage
+          index={2}
+          label={t.hwStageLabel(2)}
+          title={t.hwS2Title}
+          tone="raw"
+          current={active === 2}
+        >
           <p>{t.hwS2P1}</p>
-          <Figure aria={t.hwS2Aria} caption={t.hwS2Caption} viewBox="0 0 600 280">
+          <Figure
+            index={2}
+            revealed={revealed[2]}
+            aria={t.hwS2Aria}
+            caption={t.hwS2Caption}
+            viewBox="0 0 600 190"
+          >
             <defs>
               <marker
                 id="hw-arrow-fft"
@@ -383,7 +570,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               strokeWidth="2"
               markerEnd="url(#hw-arrow-fft)"
             />
-            <text x="230" y="90" textAnchor="middle" fontSize="12" className="hw-dim">
+            <text x="230" y="92" textAnchor="middle" fontSize="12" className="hw-dim">
               FFT
             </text>
 
@@ -395,39 +582,59 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             ))}
 
             <line x1="300" y1="145" x2="410" y2="145" className="hw-rule" />
-            <text x="305" y="165" fontSize="11" className="hw-dim">
+            <text x="303" y="167" fontSize="11" className="hw-dim">
               {t.hwS2Low}
             </text>
-            <text x="380" y="165" fontSize="11" className="hw-dim">
+            <text x="407" y="167" fontSize="11" textAnchor="end" className="hw-dim">
               {t.hwS2High}
             </text>
 
-            <text x="330" y="65" textAnchor="middle" fontSize="12" fontWeight="500" className="hw-raw">
+            {/* The fundamental is called out above the spectrum and the overtones
+                from the empty margin at the right, so the two labels can never
+                land in the same lane however long the words get. */}
+            <text
+              x="334"
+              y="62"
+              textAnchor="middle"
+              fontSize="12"
+              fontWeight="500"
+              className="hw-raw"
+            >
               {t.hwS2RealString}
             </text>
-            <line x1="330" y1="75" x2="330" y2="90" className="hw-raw-s" strokeWidth="1.5" />
+            <line x1="334" y1="68" x2="334" y2="91" className="hw-raw-s" strokeWidth="1.5" />
 
-            <text x="350" y="75" textAnchor="middle" fontSize="12" fontWeight="500" className="hw-raw">
-              {t.hwS2Harmonic}
+            <text x="422" y="105" fontSize="12" fontWeight="500" className="hw-raw">
+              {t.hwS2Harmonics}
             </text>
-            <line x1="350" y1="80" x2="350" y2="95" className="hw-raw-s" strokeWidth="1.5" />
-
-            <text x="370" y="60" textAnchor="middle" fontSize="12" fontWeight="500" className="hw-raw">
-              {t.hwS2Harmonic}
-            </text>
-            <line x1="370" y1="70" x2="370" y2="95" className="hw-raw-s" strokeWidth="1.5" />
+            <g className="hw-raw-s" strokeWidth="1.5" fill="none">
+              <path d="M 418 101 L 381 100" />
+              <path d="M 418 101 L 361 105" />
+            </g>
           </Figure>
         </Stage>
 
         {/* ---------- stage 3: chroma folding ---------- */}
-        <Stage label={t.hwStageLabel(3)} title={t.hwS3Title} tone="raw">
+        <Stage
+          index={3}
+          label={t.hwStageLabel(3)}
+          title={t.hwS3Title}
+          tone="raw"
+          current={active === 3}
+        >
           <p>
             {t.hwS3P1a}
             <em>{t.hwS3P1Em}</em>
             {t.hwS3P1b}
           </p>
           <p>{t.hwS3P2}</p>
-          <Figure aria={t.hwS3Aria} caption={t.hwS3Caption} viewBox="0 0 620 240">
+          <Figure
+            index={3}
+            revealed={revealed[3]}
+            aria={t.hwS3Aria}
+            caption={t.hwS3Caption}
+            viewBox="0 0 620 240"
+          >
             <defs>
               <marker
                 id="hw-arrow-fold"
@@ -441,43 +648,53 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               </marker>
             </defs>
 
-            <circle cx="80" cy="30" r="6" className="hw-raw" />
-            <text x="80" y="55" textAnchor="middle" fontSize="12">
+            {/* Names ride above their note so the fold lines never draw through
+                a label, and all three arrows land on the C bucket itself. They
+                draw in turn and the bucket then fills: the one thing a still
+                picture of this cannot show. */}
+            <text x="80" y="22" textAnchor="middle" fontSize="12">
               {t.hwS3LowC}
             </text>
+            <circle cx="80" cy="38" r="6" className="hw-raw" />
             <path
-              d="M 80 40 Q 100 60 110 85"
+              d="M 80 48 Q 78 70 66 92"
+              pathLength={1}
               fill="none"
-              className="hw-raw-s"
+              className="hw-raw-s hw-draw"
+              style={{ transitionDelay: '80ms' }}
               strokeWidth="1.5"
               markerEnd="url(#hw-arrow-fold)"
             />
 
-            <circle cx="180" cy="30" r="6" className="hw-raw" />
-            <text x="180" y="55" textAnchor="middle" fontSize="12">
+            <text x="180" y="22" textAnchor="middle" fontSize="12">
               {t.hwS3MidC}
             </text>
+            <circle cx="180" cy="38" r="6" className="hw-raw" />
             <path
-              d="M 180 40 Q 110 60 110 85"
+              d="M 180 48 Q 130 66 68 92"
+              pathLength={1}
               fill="none"
-              className="hw-raw-s"
+              className="hw-raw-s hw-draw"
+              style={{ transitionDelay: '240ms' }}
               strokeWidth="1.5"
               markerEnd="url(#hw-arrow-fold)"
             />
 
-            <circle cx="280" cy="30" r="6" className="hw-raw" />
-            <text x="280" y="55" textAnchor="middle" fontSize="12">
+            <text x="280" y="22" textAnchor="middle" fontSize="12">
               {t.hwS3HighC}
             </text>
+            <circle cx="280" cy="38" r="6" className="hw-raw" />
             <path
-              d="M 280 40 Q 120 60 110 85"
+              d="M 280 48 Q 150 62 70 92"
+              pathLength={1}
               fill="none"
-              className="hw-raw-s"
+              className="hw-raw-s hw-draw"
+              style={{ transitionDelay: '400ms' }}
               strokeWidth="1.5"
               markerEnd="url(#hw-arrow-fold)"
             />
 
-            <text x="310" y="75" className="hw-mono" fontSize="11">
+            <text x="330" y="78" className="hw-mono" fontSize="12">
               {t.hwS3Chroma}
             </text>
 
@@ -488,7 +705,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
                   y={y}
                   width="30"
                   height={h}
-                  className="hw-raw"
+                  className={i === 0 ? 'hw-raw hw-grow' : 'hw-raw'}
                   opacity={o}
                   stroke="currentColor"
                   strokeWidth="1"
@@ -506,10 +723,22 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
         </Stage>
 
         {/* ---------- stage 4: template matching ---------- */}
-        <Stage label={t.hwStageLabel(4)} title={t.hwS4Title} tone="raw">
+        <Stage
+          index={4}
+          label={t.hwStageLabel(4)}
+          title={t.hwS4Title}
+          tone="raw"
+          current={active === 4}
+        >
           <p>{t.hwS4P1}</p>
           <p>{t.hwS4P2}</p>
-          <Figure aria={t.hwS4Aria} caption={t.hwS4Caption} viewBox="0 0 600 320">
+          <Figure
+            index={4}
+            revealed={revealed[4]}
+            aria={t.hwS4Aria}
+            caption={t.hwS4Caption}
+            viewBox="0 0 600 320"
+          >
             <text x="20" y="30" fontWeight="600" fontSize="13">
               {t.hwS4Measured}
             </text>
@@ -537,7 +766,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               strokeWidth="2"
               rx="4"
             />
-            <text x="345" y="150" fontWeight="600" fontSize="13" className="hw-decided">
+            <text x="345" y="152" fontWeight="600" fontSize="13" className="hw-decided">
               C7 ← {t.hwS4BestMatch}
             </text>
             {TEMPLATE_WINNER.map(([x, y, h, o]) => (
@@ -545,9 +774,11 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             ))}
 
             <path
-              d="M 560 260 L 568 268 L 580 245"
+              d="M 550 262 L 558 270 L 570 247"
+              pathLength={1}
               fill="none"
-              className="hw-decided-s"
+              className="hw-decided-s hw-draw"
+              style={{ transitionDelay: '450ms' }}
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -556,78 +787,97 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
         </Stage>
 
         {/* ---------- stage 5: viterbi, where measurement becomes an answer ---------- */}
-        <Stage label={t.hwStageLabel(5)} title={t.hwS5Title} tone="decided">
+        <Stage
+          index={5}
+          label={t.hwStageLabel(5)}
+          title={t.hwS5Title}
+          tone="decided"
+          current={active === 5}
+        >
           <p>{t.hwS5P1}</p>
           <p>
             {t.hwS5P2a}
             <em>{t.hwS5P2Em}</em>
             {t.hwS5P2b}
           </p>
-          <Figure aria={t.hwS5Aria} caption={t.hwS5Caption} viewBox="0 0 620 220">
-            <text x="20" y="25" fontWeight="600" fontSize="13">
+          <Figure
+            index={5}
+            revealed={revealed[5]}
+            aria={t.hwS5Aria}
+            caption={t.hwS5Caption}
+            viewBox="0 0 620 220"
+          >
+            {/* Row labels sit in their own gutter left of x=150; the data lane
+                starts there, so a long English label cannot reach a chord name. */}
+            <text x="20" y="32" fontWeight="600" fontSize="13">
               {t.hwS5Raw}
             </text>
             <text x="20" y="50" fontSize="11" className="hw-dim">
               {t.hwS5RawSub}
             </text>
 
-            <g className="hw-raw-s" strokeWidth="1" opacity="0.45">
+            <g className="hw-raw-s" strokeWidth="1" opacity="0.5">
               {RAW_TICKS.map((y, i) => (
-                <line key={i} x1={60 + i * 10} y1={y} x2={70 + i * 10} y2={y} />
+                <line
+                  key={i}
+                  x1={155 + i * 10}
+                  y1={y}
+                  x2={165 + i * 10}
+                  y2={y}
+                  className="hw-flicker"
+                  style={{ transitionDelay: `${i * 32}ms` }}
+                />
               ))}
             </g>
 
             <g fontSize="11" className="hw-mono">
               {RAW_LABELS.map((name, i) => (
-                <text key={i} x={65 + i * 20} y="50" textAnchor="middle" className="hw-raw">
+                <text key={i} x={160 + i * 20} y="44" textAnchor="middle" className="hw-raw">
                   {name}
                 </text>
               ))}
             </g>
 
-            <line x1="40" y1="110" x2="580" y2="110" className="hw-rule" />
+            <line x1="20" y1="110" x2="600" y2="110" className="hw-rule" />
 
-            <text x="20" y="135" fontWeight="600" fontSize="13">
+            <text x="20" y="140" fontWeight="600" fontSize="13">
               {t.hwS5Smoothed}
             </text>
-            <text x="20" y="160" fontSize="11" className="hw-dim">
+            <text x="20" y="158" fontSize="11" className="hw-dim">
               {t.hwS5SmoothedSub}
             </text>
 
             <g className="hw-decided-s" strokeWidth="2">
-              <line x1="60" y1="175" x2="130" y2="175" />
-              <line x1="130" y1="175" x2="180" y2="190" />
-              <line x1="180" y1="190" x2="250" y2="190" />
-              <line x1="250" y1="190" x2="310" y2="175" />
-              <line x1="310" y1="175" x2="380" y2="175" />
+              {SMOOTH_PATH.map(([x1, y1, x2, y2], i) => (
+                <line
+                  key={i}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  pathLength={1}
+                  className="hw-draw"
+                  style={{ transitionDelay: `${700 + i * 110}ms` }}
+                />
+              ))}
             </g>
 
             <g fontSize="12" className="hw-mono hw-decided" fontWeight="600">
-              <text x="95" y="165" textAnchor="middle">
-                C
-              </text>
-              <text x="155" y="165" textAnchor="middle">
-                Am
-              </text>
-              <text x="215" y="185" textAnchor="middle">
-                G
-              </text>
-              <text x="280" y="185" textAnchor="middle">
-                C
-              </text>
-              <text x="345" y="165" textAnchor="middle">
-                Am
-              </text>
+              {SMOOTH_LABELS.map(([x, y, name], i) => (
+                <text key={i} x={x} y={y} textAnchor="middle">
+                  {name}
+                </text>
+              ))}
             </g>
 
             <g fontSize="10" className="hw-dim" textAnchor="middle">
-              <text x="60" y="215">
+              <text x="160" y="212">
                 0s
               </text>
-              <text x="190" y="215">
+              <text x="290" y="212">
                 0.5s
               </text>
-              <text x="320" y="215">
+              <text x="420" y="212">
                 1.0s
               </text>
             </g>
@@ -635,20 +885,44 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
         </Stage>
 
         {/* ---------- stage 6: tempo ---------- */}
-        <Stage label={t.hwStageLabel(6)} title={t.hwS6Title} tone="decided">
+        <Stage
+          index={6}
+          label={t.hwStageLabel(6)}
+          title={t.hwS6Title}
+          tone="decided"
+          current={active === 6}
+        >
           <p>{t.hwS6P1}</p>
-          <Figure aria={t.hwS6Aria} caption={t.hwS6Caption} viewBox="0 0 580 240">
+          <Figure
+            index={6}
+            revealed={revealed[6]}
+            aria={t.hwS6Aria}
+            caption={t.hwS6Caption}
+            viewBox="0 0 580 240"
+          >
             <text x="20" y="25" fontWeight="600" fontSize="13">
               {t.hwS6Onset}
             </text>
 
             <g className="hw-raw-s" strokeWidth="2.5" fill="none" strokeLinecap="round">
-              <path d="M 40 150 Q 60 80 80 140 Q 100 70 120 135 Q 140 75 160 130 Q 180 85 200 125 Q 220 95 240 120 Q 260 100 280 118 Q 300 110 320 115 Q 340 115 360 115 Q 380 120 400 130 Q 420 140 440 125 Q 460 100 480 130 Q 500 120 520 130" />
+              <path
+                d="M 40 150 Q 60 80 80 140 Q 100 70 120 135 Q 140 75 160 130 Q 180 85 200 125 Q 220 95 240 120 Q 260 100 280 118 Q 300 110 320 115 Q 340 115 360 115 Q 380 120 400 130 Q 420 140 440 125 Q 460 100 480 130 Q 500 120 520 130"
+                pathLength={1}
+                className="hw-draw"
+              />
             </g>
 
             <g className="hw-decided-s" strokeWidth="2">
-              {[80, 140, 200, 260, 320, 380, 440, 500].map((x) => (
-                <line key={x} x1={x} y1="170" x2={x} y2="190" />
+              {[80, 140, 200, 260, 320, 380, 440, 500].map((x, i) => (
+                <line
+                  key={x}
+                  x1={x}
+                  y1="170"
+                  x2={x}
+                  y2="190"
+                  className="hw-flicker"
+                  style={{ transitionDelay: `${500 + i * 70}ms` }}
+                />
               ))}
             </g>
 
@@ -671,9 +945,21 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
         </Stage>
 
         {/* ---------- stage 7: key ---------- */}
-        <Stage label={t.hwStageLabel(7)} title={t.hwS7Title} tone="decided">
+        <Stage
+          index={7}
+          label={t.hwStageLabel(7)}
+          title={t.hwS7Title}
+          tone="decided"
+          current={active === 7}
+        >
           <p>{t.hwS7P1}</p>
-          <Figure aria={t.hwS7Aria} caption={t.hwS7Caption} viewBox="0 0 600 280">
+          <Figure
+            index={7}
+            revealed={revealed[7]}
+            aria={t.hwS7Aria}
+            caption={t.hwS7Caption}
+            viewBox="0 0 600 280"
+          >
             <text x="20" y="30" fontWeight="600" fontSize="13">
               {t.hwS7SongChroma}
             </text>
@@ -691,7 +977,9 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               {t.hwS7Candidates}
             </text>
 
-            <text x="40" y="215" className="hw-mono" fontWeight="600">
+            {/* Candidate names live in a gutter that ends at x=130, where the
+                profiles begin. */}
+            <text x="20" y="215" className="hw-mono" fontWeight="600">
               G maj
             </text>
             {KEY_RUNNER_UP.map(([x, y, h, o]) => (
@@ -699,7 +987,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             ))}
 
             <rect
-              x="100"
+              x="130"
               y="235"
               width="160"
               height="35"
@@ -708,7 +996,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
               strokeWidth="2"
               rx="3"
             />
-            <text x="40" y="265" className="hw-mono hw-decided" fontWeight="600">
+            <text x="20" y="265" className="hw-mono hw-decided" fontWeight="600">
               C maj ← {t.hwS7Best}
             </text>
             {KEY_WINNER.map(([x, y, h, o]) => (
@@ -718,46 +1006,60 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
         </Stage>
 
         {/* ---------- stages 8 and 9: arranging, and the finished chart ---------- */}
-        <Stage label={t.hwStages89} title={t.hwS89Title} tone="decided">
+        <Stage
+          index={8}
+          label={t.hwStages89}
+          title={t.hwS89Title}
+          tone="decided"
+          current={active === 8}
+        >
           <p>{t.hwS89P1}</p>
           <TermList terms={t.hwS89Terms} descs={t.hwS89Descs} />
-          <Figure aria={t.hwS89Aria} caption={t.hwS89Caption} viewBox="0 0 520 200">
+          <Figure
+            index={8}
+            revealed={revealed[8]}
+            aria={t.hwS89Aria}
+            caption={t.hwS89Caption}
+            viewBox="0 0 520 200"
+          >
+            {/* Only short labels live inside the drawing; the sentence that used
+                to run past the viewBox is in the figcaption now. */}
             <text x="20" y="30" fontWeight="600" fontSize="13">
               {t.hwS89Final}
             </text>
 
             {CHART_BARS.map(([x, name, strumX]) => (
               <g key={x}>
-                <line x1={x} y1="60" x2={x} y2="140" stroke="currentColor" strokeWidth="2" />
-                <text x={x + 10} y="50" className="hw-mono hw-decided" fontWeight="600">
+                <line x1={x} y1="70" x2={x} y2="150" stroke="currentColor" strokeWidth="2" />
+                <text x={x + 10} y="60" className="hw-mono hw-decided" fontWeight="600">
                   {name}
                 </text>
                 <g textAnchor="middle" fontSize="16" className="hw-decided">
-                  <text x={strumX} y="80">
+                  <text x={strumX} y="90">
                     v
                   </text>
-                  <text x={strumX} y="100">
+                  <text x={strumX} y="110">
                     v
                   </text>
-                  <text x={strumX} y="120">
+                  <text x={strumX} y="130">
                     v
                   </text>
-                  <text x={strumX} y="140">
+                  <text x={strumX} y="150">
                     v
                   </text>
                 </g>
               </g>
             ))}
-            <line x1="380" y1="60" x2="380" y2="140" stroke="currentColor" strokeWidth="2" />
+            <line x1="380" y1="70" x2="380" y2="150" stroke="currentColor" strokeWidth="2" />
 
             <text x="20" y="180" fontSize="11" className="hw-dim">
-              {t.hwS89ChartNote}
+              {t.hwS89Strum}
             </text>
           </Figure>
         </Stage>
       </div>
 
-      <div className="card hw-limits">
+      <div className="card hw-limits" data-stage={STAGE_COUNT}>
         <h2>{t.hwLimitsTitle}</h2>
         <p>{t.hwLimitsIntro}</p>
         <ul className="hw-list">
