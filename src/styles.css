@@ -181,7 +181,10 @@
   --accent-rgb: 143 86 6;
   --accent-strong: #6f4104;
   --accent-strong-rgb: 111 65 4;
-  --accent-dim: rgb(var(--accent-rgb) / 0.1);
+  /* A tenth of the dark brass is enough to darken its own text below 4.5:1
+     where the tint lands on --surface-3; eight hundredths keeps every tinted
+     chip, pill and counter legible on all four grounds. */
+  --accent-dim: rgb(var(--accent-rgb) / 0.08);
   --accent-tint: #6f4104;
   --on-accent: #fff6e6;
   --accent-hover: #a8681a;
@@ -235,18 +238,20 @@
   --pc-glow-a: 0.16;
   --pc-label-l: 26%;
 
-  /* The string field is nearly invisible at the dark theme's opacities. */
-  --backdrop-gain: 2.2;
+  /* The string field is nearly invisible at the dark theme's opacities, but it
+     wants far less lifting than the arithmetic suggests: dark strokes on paper
+     read as scratches across the headline long before they read as ambience. */
+  --backdrop-gain: 1.4;
 
   /* Spectrogram: dark ink on paper reads far stronger than light on black at
      the same alpha, so the curve gets steeper, the floor higher and the whole
      layer quieter — otherwise the take turns the screen to mud. */
-  --spectro-s: 76%;
-  --spectro-l: 34%;
-  --spectro-gain: 1;
-  --spectro-gamma: 2.1;
-  --spectro-floor: 0.1;
-  --spectro-opacity: 0.26;
+  --spectro-s: 72%;
+  --spectro-l: 40%;
+  --spectro-gain: 1.15;
+  --spectro-gamma: 1.7;
+  --spectro-floor: 0.05;
+  --spectro-opacity: 0.3;
 
   color-scheme: light;
   }
@@ -279,7 +284,10 @@
   --accent-rgb: 143 86 6;
   --accent-strong: #6f4104;
   --accent-strong-rgb: 111 65 4;
-  --accent-dim: rgb(var(--accent-rgb) / 0.1);
+  /* A tenth of the dark brass is enough to darken its own text below 4.5:1
+     where the tint lands on --surface-3; eight hundredths keeps every tinted
+     chip, pill and counter legible on all four grounds. */
+  --accent-dim: rgb(var(--accent-rgb) / 0.08);
   --accent-tint: #6f4104;
   --on-accent: #fff6e6;
   --accent-hover: #a8681a;
@@ -333,18 +341,20 @@
   --pc-glow-a: 0.16;
   --pc-label-l: 26%;
 
-  /* The string field is nearly invisible at the dark theme's opacities. */
-  --backdrop-gain: 2.2;
+  /* The string field is nearly invisible at the dark theme's opacities, but it
+     wants far less lifting than the arithmetic suggests: dark strokes on paper
+     read as scratches across the headline long before they read as ambience. */
+  --backdrop-gain: 1.4;
 
   /* Spectrogram: dark ink on paper reads far stronger than light on black at
      the same alpha, so the curve gets steeper, the floor higher and the whole
      layer quieter — otherwise the take turns the screen to mud. */
-  --spectro-s: 76%;
-  --spectro-l: 34%;
-  --spectro-gain: 1;
-  --spectro-gamma: 2.1;
-  --spectro-floor: 0.1;
-  --spectro-opacity: 0.26;
+  --spectro-s: 72%;
+  --spectro-l: 40%;
+  --spectro-gain: 1.15;
+  --spectro-gamma: 1.7;
+  --spectro-floor: 0.05;
+  --spectro-opacity: 0.3;
 
   color-scheme: light;
 }
@@ -619,8 +629,12 @@ p {
   color: var(--text-dim);
 }
 
+/* A ghost button is a hover tint, not an outline: the warm border the solid
+   buttons take on hover reads as a stray box around a bare word, and on paper
+   it is loud enough to look like the button is already pressed. */
 .btn-ghost:hover:not(:disabled) {
   background: var(--surface-2);
+  border-color: transparent;
   color: var(--text);
 }
 

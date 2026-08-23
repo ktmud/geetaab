@@ -571,6 +571,44 @@ try {
   });
   check('chords button switches back to English', chordButtonBackEn, 'Chords');
 
+  console.log('\n6b. theme switch');
+  // Start from the system preference with nothing stored, so the default path
+  // is exercised before the override is.
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.evaluate(() => localStorage.removeItem('geetaab-theme'));
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  const themeState = () =>
+    page.evaluate(() => ({
+      attr: document.documentElement.getAttribute('data-theme'),
+      scheme: getComputedStyle(document.documentElement).colorScheme,
+      surface: getComputedStyle(document.querySelector('.feature')).backgroundColor,
+    }));
+  const dark = await themeState();
+  check('the system preference decides when nothing is stored', dark.attr, 'dark');
+  await page.getByRole('button', { name: 'Switch to the light theme' }).click();
+  await page.waitForTimeout(200);
+  const light = await themeState();
+  check('the switch puts the light theme on the document', light.attr, 'light');
+  check('and keeps color-scheme in step, so controls follow', light.scheme, 'light');
+  // The attribute alone proves nothing: a card has to actually repaint.
+  checkThat(
+    'a card really changes colour',
+    light.surface !== dark.surface,
+    `${dark.surface} -> ${light.surface}`,
+  );
+  await page.getByRole('button', { name: 'Switch to the dark theme' }).click();
+  await page.waitForTimeout(200);
+  const backToDark = await themeState();
+  check('and back again', backToDark.attr, 'dark');
+  check('with the card back to where it started', backToDark.surface, dark.surface);
+  // The choice persists, so a reload must not fall back to the system.
+  await page.getByRole('button', { name: 'Switch to the light theme' }).click();
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  const remembered = await themeState();
+  check('the choice outlives a reload', remembered.attr, 'light');
+  await page.evaluate(() => localStorage.removeItem('geetaab-theme'));
+  await page.emulateMedia({ colorScheme: null });
+
   console.log('\n7. the how-it-works explainer');
   await page.setViewportSize({ width: 1100, height: 900 });
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
