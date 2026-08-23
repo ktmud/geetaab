@@ -5,7 +5,7 @@ import { pitchClassHue } from '../music/pitchColor';
 import { NC_STATE } from '../core/chords';
 import { MUSIC_CHORD_FLOOR } from '../core/music';
 import { useT } from '../i18n';
-import { Recorder, type LiveFrame } from '../audio/recorder';
+import { Recorder, type LiveFrame, type RecorderNotice, type TakeGap } from '../audio/recorder';
 import { SpectroPainter } from './spectroPainter';
 import { BackIcon, StopIcon, TrashIcon } from './icons';
 
@@ -13,9 +13,17 @@ const MAX_SECONDS = 180;
 const MIN_SECONDS = 6;
 
 export interface ListeningProps {
-  onDone: (samples: Float32Array, sampleRate: number) => void;
+  onDone: (samples: Float32Array, sampleRate: number, gaps: TakeGap[]) => void;
   onCancel: () => void;
 }
+
+/**
+ * How long a mid-take warning stays on screen.
+ *
+ * Long enough to read, short enough that a resolved interruption stops
+ * shouting about itself while the player is trying to watch the meter.
+ */
+const NOTICE_LINGER_MS = 6000;
 
 /**
  * Size class for a chord name, so the ring can hold its longest one.
@@ -50,6 +58,15 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
   const finishRef = useRef<(() => void) | null>(null);
   /** The last chroma heard while there really was music, for the frozen meter. */
   const heldChroma = useRef<number[]>(new Array(12).fill(0));
+  /**
+   * The most recent thing that went wrong with the capture itself.
+   *
+   * Kept apart from the level-based hints below and shown ahead of them: a
+   * player whose microphone has just been taken by a phone call does not need
+   * to be told the room is quiet as well.
+   */
+  const [trouble, setTrouble] = useState<RecorderNotice | null>(null);
+  const troubleTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,9 +76,36 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     // the backdrop shows this take, never the one that was thrown away.
     if (canvasRef.current) painter.attach(canvasRef.current);
 
+    const showTrouble = (notice: RecorderNotice | null, linger: boolean): void => {
+      if (cancelled) return;
+      setTrouble(notice);
+      if (troubleTimer.current !== null) window.clearTimeout(troubleTimer.current);
+      troubleTimer.current = linger
+        ? window.setTimeout(() => setTrouble(null), NOTICE_LINGER_MS)
+        : null;
+    };
+
     const recorder = new Recorder({
       onFrame: (f) => {
         if (!cancelled) setFrame(f);
+      },
+      onNotice: (notice) => {
+        switch (notice.kind) {
+          case 'interrupted':
+          case 'deviceLost':
+          case 'stalled':
+          case 'processing':
+            // Still true right now, so it stays until something changes it.
+            showTrouble(notice, false);
+            break;
+          case 'resumed':
+            showTrouble(notice, true);
+            break;
+          case 'gap':
+            // Already covered by the interruption message that produced it;
+            // the hole itself travels with the take rather than on screen.
+            break;
+        }
       },
       maxSeconds: MAX_SECONDS,
       onMaxReached: () => finishRef.current?.(),
@@ -93,6 +137,7 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     return () => {
       cancelled = true;
       clearInterval(timer);
+      if (troubleTimer.current !== null) window.clearTimeout(troubleTimer.current);
       void recorder.cancel();
       recorderRef.current = null;
       painter.dispose();
@@ -105,8 +150,8 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
     if (!recorder) return;
     recorderRef.current = null;
     setStopping(true);
-    void recorder.stop().then(({ samples, sampleRate }) => {
-      onDone(samples, sampleRate);
+    void recorder.stop().then(({ samples, sampleRate, gaps }) => {
+      onDone(samples, sampleRate, gaps);
     });
   }, [onDone]);
 
@@ -125,6 +170,7 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
   const discard = useCallback((): void => {
     heldChroma.current = new Array(12).fill(0);
     setFrame(null);
+    setTrouble(null);
     setSeconds(0);
     setStopping(false);
     setError(null);
@@ -160,6 +206,27 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
   if (frame && !noMusic) heldChroma.current = frame.chroma;
   const chroma = frame && !noMusic ? frame.chroma : heldChroma.current;
   const ready = seconds >= MIN_SECONDS;
+
+  const troubleText = ((): string | null => {
+    if (!trouble) return null;
+    switch (trouble.kind) {
+      case 'interrupted':
+        return t.takeInterrupted;
+      case 'resumed':
+        return t.takeResumed(Math.max(1, Math.round(trouble.gapSeconds)));
+      case 'stalled':
+        return t.takeStalled;
+      case 'deviceLost':
+        return t.deviceLost;
+      case 'processing':
+        return t.processedInput;
+      case 'gap':
+        // The hole travels with the take; the interruption that caused it has
+        // already said its piece on screen.
+        return null;
+    }
+  })();
+  const troubleIsWarning = trouble !== null && trouble.kind !== 'resumed';
 
   const radius = 46;
   const circumference = 2 * Math.PI * radius;
@@ -253,7 +320,11 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
         {String(Math.floor(seconds % 60)).padStart(2, '0')}
       </div>
 
-      {clipping ? (
+      {troubleText ? (
+        <div className={`notice ${troubleIsWarning ? 'notice-warn' : 'notice-info'}`} role="status">
+          {troubleText}
+        </div>
+      ) : clipping ? (
         <div className="notice notice-warn">{t.tooLoud}</div>
       ) : quiet ? (
         <div className="notice notice-info">{t.veryQuiet}</div>

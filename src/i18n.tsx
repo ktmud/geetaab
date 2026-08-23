@@ -79,6 +79,14 @@ export const dictionary = {
     backHome: 'Back to home',
     back: 'Back',
 
+    // Things that went wrong mid-take, and are worth saying while they do
+    takeInterrupted: 'Something took the microphone. What you have is safe — recording picks up when it comes back.',
+    takeResumed: (seconds: number) =>
+      `Back. The ${seconds}s that were missed are marked as a gap, not pretended away.`,
+    takeStalled: 'No audio is arriving. Stopping and starting again usually fixes it.',
+    deviceLost: 'The microphone was disconnected. Stop here and the take is still yours.',
+    processedInput: 'This browser is processing the microphone for speech, which removes some of the music. The tab will be rougher than it could be. A native app, or opening the audio file directly, avoids it.',
+
     // TabView screen
     songTitle: 'Song title',
     nameThisSong: 'Name this song',
@@ -568,6 +576,13 @@ export const dictionary = {
     discardTake: '删掉重录',
     backHome: '回首页',
     back: '返回',
+
+    // Things that went wrong mid-take, and are worth saying while they do
+    takeInterrupted: '有别的东西占用了麦克风。已经录到的没丢，等它放开会自己接着录。',
+    takeResumed: (seconds: number) => `回来了。中断的 ${seconds} 秒标成了断口，不会当作没发生。`,
+    takeStalled: '没有音频进来了。停下来重新开始通常就好。',
+    deviceLost: '麦克风断开了。现在停下，已经录到的还是你的。',
+    processedInput: '这个浏览器在按语音处理麦克风，会削掉音乐里的一部分。谱子会比本来该有的粗糙一些。用原生 app，或者直接打开音频文件，就没有这个问题。',
 
     // TabView screen
     songTitle: '歌曲名',
