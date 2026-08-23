@@ -34,8 +34,12 @@
   --surface-rgb: 13 15 25;
   --surface-2: #151827;
   --surface-3: #1e2233;
+  /* Inset tracks — progress, seek, the unlit chroma bars — read as a recess
+     rather than as a raised panel, which is the opposite direction on paper. */
+  --track: #1e2233;
   --line: #2c3245;
   --line-soft: #191d2b;
+  --line-hover: #55443a;
 
   --text: #eff1f7;
   --text-dim: #a1a8bd;
@@ -43,7 +47,9 @@
 
   /* Brass — the primary. High chroma so it lights up against the warm dark.
      The channel tokens exist so every translucent tint derives from the palette
-     instead of being retyped, which is how the old blue survived a repaint. */
+     instead of being retyped, which is how the old blue survived a repaint.
+     --accent-fill is the same brass here; on paper the two part company,
+     because a brass bright enough to decorate cannot also carry text. */
   --accent: #f5b03c;
   --accent-rgb: 245 176 60;
   --accent-strong: #e07f2a;
@@ -51,6 +57,10 @@
   --accent-dim: rgb(var(--accent-rgb) / 0.15);
   --accent-tint: #ffe3b4;
   --on-accent: #2b1c08;
+  --accent-hover: #ffc766;
+  --accent-strong-hover: #ef9034;
+  --accent-fill: #f5b03c;
+  --accent-fill-rgb: 245 176 60;
 
   /* Verdigris — the complement, kept for "next" and informational states. */
   --cool: #46c2a4;
@@ -60,13 +70,70 @@
   --good: #6bd49b;
   --warn: #f5c862;
   --warn-rgb: 245 200 98;
+  --warn-bg: rgb(var(--warn-rgb) / 0.1);
+  --warn-border: rgb(var(--warn-rgb) / 0.25);
+  --warn-text: #ffeac2;
   --bad: #f0736b;
   --bad-rgb: 240 115 107;
+  --bad-bg: rgb(var(--bad-rgb) / 0.1);
+  --bad-border: rgb(var(--bad-rgb) / 0.28);
+  --bad-text: #ffd0cc;
+
+  /* The brand mark's brass gradient, and the dark it is cut out of. */
+  --mark-hi: #ffd487;
+  --mark-mid: #f5b03c;
+  --mark-lo: #dd7a26;
+  --mark-ink: #2a1a08;
+
+  --scrim: rgb(6 7 13 / 0.82);
+  --scrim-soft: rgb(6 7 13 / 0.78);
+  /* Masks care only about alpha; the colour never reaches the screen. */
+  --mask-ink: #000;
+  --practice-glow: #131728;
+  --wash-accent: rgb(var(--accent-rgb) / 0.055);
+  --wash-cool: rgb(var(--cool-rgb) / 0.05);
 
   --radius: 14px;
   --radius-sm: 9px;
   --radius-lg: 22px;
-  --shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  --shadow: 0 18px 44px rgb(0 0 0 / 0.5);
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  --shadow-handle: 0 2px 10px rgb(0 0 0 / 0.45);
+  --shadow-hero: 0 10px 30px -12px rgb(var(--accent-strong-rgb) / 0.75);
+  --glow-accent: 0 0 16px 2px rgb(var(--accent-rgb) / 0.55);
+  --glow-accent-sm: 0 0 12px 2px rgb(var(--accent-rgb) / 0.5);
+  --glow-accent-scan: 0 0 18px 3px rgb(var(--accent-rgb) / 0.5);
+  --glow-mark: drop-shadow(0 4px 12px rgb(var(--accent-rgb) / 0.22));
+
+  /* The chroma meter and the spectrogram both colour by pitch class, so both
+     read their lightness from here rather than baking it in. */
+  --pc-s: 72%;
+  --pc-l: 58%;
+  --pc-glow-l: 52%;
+  --pc-glow-a: 0.7;
+  --pc-label-l: 64%;
+
+  --backdrop-gain: 1;
+
+  --spectro-s: 72%;
+  --spectro-l: 58%;
+  --spectro-gain: 1.25;
+  --spectro-gamma: 1.6;
+  --spectro-floor: 0.04;
+  --spectro-opacity: 0.48;
+
+  /* Ink for paper. Identical in both themes: a sheet printed from the dark
+     screen has to come out of the printer looking like the light one. */
+  --print-paper: #ffffff;
+  --print-text: #14171c;
+  --print-text-dim: #3a3f48;
+  --print-text-faint: #656b76;
+  --print-line: #9aa1ac;
+  --print-line-soft: #ccd1d9;
+  --print-accent: #8a5a12;
+  --print-accent-rgb: 138 90 18;
+  --print-cool: #16645a;
+  --print-cool-rgb: 22 100 90;
 
   /* A warm serif carries the voice; a grotesque does the work; a mono holds the
      tablature, where every column has to line up. */
@@ -76,6 +143,210 @@
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   color-scheme: dark;
+}
+
+/* The light theme is the same product in daylight: the same warm brass on a
+   slightly cool paper, the same verdigris for "not decided yet". Only token
+   values change below — no rule is redeclared, so a widget added to the dark
+   theme is dressed for both automatically.
+
+   Bare :root above holds one complete palette. The media query catches visitors
+   who have chosen nothing and whose system says light; the attribute rule
+   catches an explicit choice and so wins in both directions. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+  /* ---- ground: a faintly cool paper, so the brass on it still reads warm ---- */
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --surface-rgb: 255 255 255;
+  --surface-2: #eeeff5;
+  --surface-3: #eaecf3;
+  --track: #d9dce8;
+  --line: #d8dae4;
+  --line-soft: #e8eaf1;
+  --line-hover: #b98a45;
+
+  --text: #14161f;
+  --text-dim: #545b6d;
+  /* Darker than a purely decorative tertiary grey would be: this token carries
+     10-13px labels all over the app, so it has to clear 4.5:1 on paper, on
+     white and on both raised surfaces. */
+  --text-faint: #646b7e;
+
+  /* Brass, split in two. On a light ground no single mid-tone carries both dark
+     and light text, so --accent is the text-and-fill brass (dark enough to sit
+     on paper and to hold --on-accent), and --accent-fill is the bright brass
+     kept for decoration — bars and chord blocks — and never put under text. */
+  --accent: #8f5606;
+  --accent-rgb: 143 86 6;
+  --accent-strong: #6f4104;
+  --accent-strong-rgb: 111 65 4;
+  --accent-dim: rgb(var(--accent-rgb) / 0.1);
+  --accent-tint: #6f4104;
+  --on-accent: #fff6e6;
+  --accent-hover: #a8681a;
+  --accent-strong-hover: #86500a;
+  --accent-fill: #e79a24;
+  --accent-fill-rgb: 231 154 36;
+
+  --cool: #0f7a68;
+  --cool-rgb: 15 122 104;
+  --cool-dim: rgb(var(--cool-rgb) / 0.06);
+
+  --good: #0f7a3c;
+  --warn: #8a5a00;
+  --warn-rgb: 138 90 0;
+  --warn-bg: #fdf4e0;
+  --warn-border: #e6cd93;
+  --warn-text: #6b4700;
+  --bad: #c02718;
+  --bad-rgb: 192 39 24;
+  --bad-bg: #fdecea;
+  --bad-border: #f0b6ae;
+  --bad-text: #93190e;
+
+  /* The mark keeps its brass gradient, pitched down so it does not glare. */
+  --mark-hi: #f6c46a;
+  --mark-mid: #e08c14;
+  --mark-lo: #b25e08;
+  --mark-ink: #2a1a08;
+
+  --scrim: rgb(247 247 251 / 0.88);
+  --scrim-soft: rgb(247 247 251 / 0.82);
+  --practice-glow: #ffffff;
+  --wash-accent: rgb(var(--accent-fill-rgb) / 0.1);
+  --wash-cool: rgb(var(--cool-rgb) / 0.05);
+
+  /* On paper a deep shadow is a smudge. Hairlines carry the edges instead, and
+     what shadow is left is short, soft and cool. */
+  --shadow: 0 14px 34px rgb(20 22 31 / 0.1);
+  --shadow-card: 0 1px 2px rgb(20 22 31 / 0.05);
+  --shadow-handle: 0 1px 4px rgb(20 22 31 / 0.3);
+  --shadow-hero: 0 10px 24px -14px rgb(var(--accent-strong-rgb) / 0.55);
+  --glow-accent: 0 0 0 1px rgb(var(--accent-rgb) / 0.18);
+  --glow-accent-sm: 0 0 0 1px rgb(var(--accent-rgb) / 0.16);
+  --glow-accent-scan: 0 0 10px 1px rgb(var(--accent-rgb) / 0.22);
+  --glow-mark: drop-shadow(0 3px 8px rgb(var(--accent-strong-rgb) / 0.18));
+
+  /* The chroma meter turns from light on dark into ink on paper. */
+  --pc-s: 72%;
+  --pc-l: 32%;
+  --pc-glow-l: 30%;
+  --pc-glow-a: 0.16;
+  --pc-label-l: 26%;
+
+  /* The string field is nearly invisible at the dark theme's opacities. */
+  --backdrop-gain: 2.2;
+
+  /* Spectrogram: dark ink on paper reads far stronger than light on black at
+     the same alpha, so the curve gets steeper, the floor higher and the whole
+     layer quieter — otherwise the take turns the screen to mud. */
+  --spectro-s: 76%;
+  --spectro-l: 34%;
+  --spectro-gain: 1;
+  --spectro-gamma: 2.1;
+  --spectro-floor: 0.1;
+  --spectro-opacity: 0.26;
+
+  color-scheme: light;
+  }
+}
+
+:root[data-theme='light'] {
+  /* ---- ground: a faintly cool paper, so the brass on it still reads warm ---- */
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --surface-rgb: 255 255 255;
+  --surface-2: #eeeff5;
+  --surface-3: #eaecf3;
+  --track: #d9dce8;
+  --line: #d8dae4;
+  --line-soft: #e8eaf1;
+  --line-hover: #b98a45;
+
+  --text: #14161f;
+  --text-dim: #545b6d;
+  /* Darker than a purely decorative tertiary grey would be: this token carries
+     10-13px labels all over the app, so it has to clear 4.5:1 on paper, on
+     white and on both raised surfaces. */
+  --text-faint: #646b7e;
+
+  /* Brass, split in two. On a light ground no single mid-tone carries both dark
+     and light text, so --accent is the text-and-fill brass (dark enough to sit
+     on paper and to hold --on-accent), and --accent-fill is the bright brass
+     kept for decoration — bars and chord blocks — and never put under text. */
+  --accent: #8f5606;
+  --accent-rgb: 143 86 6;
+  --accent-strong: #6f4104;
+  --accent-strong-rgb: 111 65 4;
+  --accent-dim: rgb(var(--accent-rgb) / 0.1);
+  --accent-tint: #6f4104;
+  --on-accent: #fff6e6;
+  --accent-hover: #a8681a;
+  --accent-strong-hover: #86500a;
+  --accent-fill: #e79a24;
+  --accent-fill-rgb: 231 154 36;
+
+  --cool: #0f7a68;
+  --cool-rgb: 15 122 104;
+  --cool-dim: rgb(var(--cool-rgb) / 0.06);
+
+  --good: #0f7a3c;
+  --warn: #8a5a00;
+  --warn-rgb: 138 90 0;
+  --warn-bg: #fdf4e0;
+  --warn-border: #e6cd93;
+  --warn-text: #6b4700;
+  --bad: #c02718;
+  --bad-rgb: 192 39 24;
+  --bad-bg: #fdecea;
+  --bad-border: #f0b6ae;
+  --bad-text: #93190e;
+
+  /* The mark keeps its brass gradient, pitched down so it does not glare. */
+  --mark-hi: #f6c46a;
+  --mark-mid: #e08c14;
+  --mark-lo: #b25e08;
+  --mark-ink: #2a1a08;
+
+  --scrim: rgb(247 247 251 / 0.88);
+  --scrim-soft: rgb(247 247 251 / 0.82);
+  --practice-glow: #ffffff;
+  --wash-accent: rgb(var(--accent-fill-rgb) / 0.1);
+  --wash-cool: rgb(var(--cool-rgb) / 0.05);
+
+  /* On paper a deep shadow is a smudge. Hairlines carry the edges instead, and
+     what shadow is left is short, soft and cool. */
+  --shadow: 0 14px 34px rgb(20 22 31 / 0.1);
+  --shadow-card: 0 1px 2px rgb(20 22 31 / 0.05);
+  --shadow-handle: 0 1px 4px rgb(20 22 31 / 0.3);
+  --shadow-hero: 0 10px 24px -14px rgb(var(--accent-strong-rgb) / 0.55);
+  --glow-accent: 0 0 0 1px rgb(var(--accent-rgb) / 0.18);
+  --glow-accent-sm: 0 0 0 1px rgb(var(--accent-rgb) / 0.16);
+  --glow-accent-scan: 0 0 10px 1px rgb(var(--accent-rgb) / 0.22);
+  --glow-mark: drop-shadow(0 3px 8px rgb(var(--accent-strong-rgb) / 0.18));
+
+  /* The chroma meter turns from light on dark into ink on paper. */
+  --pc-s: 72%;
+  --pc-l: 32%;
+  --pc-glow-l: 30%;
+  --pc-glow-a: 0.16;
+  --pc-label-l: 26%;
+
+  /* The string field is nearly invisible at the dark theme's opacities. */
+  --backdrop-gain: 2.2;
+
+  /* Spectrogram: dark ink on paper reads far stronger than light on black at
+     the same alpha, so the curve gets steeper, the floor higher and the whole
+     layer quieter — otherwise the take turns the screen to mud. */
+  --spectro-s: 76%;
+  --spectro-l: 34%;
+  --spectro-gain: 1;
+  --spectro-gamma: 2.1;
+  --spectro-floor: 0.1;
+  --spectro-opacity: 0.26;
+
+  color-scheme: light;
 }
 
 /* Fraunces has axes past weight; these settings are what stop it reading as a
@@ -102,8 +373,8 @@ body {
 
 body {
   background:
-    radial-gradient(1100px 600px at 10% -10%, rgb(var(--accent-rgb) / 0.055), transparent 66%),
-    radial-gradient(820px 460px at 94% 2%, rgb(var(--cool-rgb) / 0.05), transparent 68%),
+    radial-gradient(1100px 600px at 10% -10%, var(--wash-accent), transparent 66%),
+    radial-gradient(820px 460px at 94% 2%, var(--wash-cool), transparent 68%),
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
@@ -141,8 +412,8 @@ button {
   overflow: hidden;
   pointer-events: none;
   /* Fades out down the screen so the strings never compete with dense content. */
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
+  -webkit-mask-image: linear-gradient(to bottom, var(--mask-ink) 0%, var(--mask-ink) 42%, transparent 88%);
+  mask-image: linear-gradient(to bottom, var(--mask-ink) 0%, var(--mask-ink) 42%, transparent 88%);
 }
 
 .backdrop-field {
@@ -157,6 +428,14 @@ button {
   height: 100%;
   display: block;
   fill: none;
+}
+
+/* Each string carries its own resting opacity, and the theme scales all of
+   them: the same 4-10% that reads as a whisper on near-black disappears
+   entirely on paper. Keeping the multiplier in CSS means a theme change
+   repaints the field with no JavaScript involved at all. */
+.backdrop-field path {
+  opacity: calc(var(--string-opacity, 0.06) * var(--backdrop-gain));
 }
 
 .shell {
@@ -195,7 +474,7 @@ button {
 
 .brand-mark {
   flex: none;
-  filter: drop-shadow(0 4px 12px rgb(var(--accent-rgb) / 0.22));
+  filter: var(--glow-mark);
 }
 
 /* The landing page carries the full lockup, and gives up the sticky header for
@@ -295,7 +574,7 @@ p {
 
 .btn:hover:not(:disabled) {
   background: var(--surface-3);
-  border-color: #55443a;
+  border-color: var(--line-hover);
 }
 
 .btn:active:not(:disabled) {
@@ -324,7 +603,7 @@ p {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #ffc766 0%, #ef9034 100%);
+  background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent-strong-hover) 100%);
   border-color: transparent;
 }
 
@@ -382,7 +661,7 @@ p {
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
   padding: 18px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  box-shadow: var(--shadow-card);
 }
 
 .card + .card {
@@ -509,15 +788,15 @@ input[type='range'] {
 }
 
 .notice-warn {
-  background: rgb(var(--warn-rgb) / 0.1);
-  border-color: rgb(var(--warn-rgb) / 0.25);
-  color: #ffeac2;
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-text);
 }
 
 .notice-bad {
-  background: rgb(var(--bad-rgb) / 0.1);
-  border-color: rgb(var(--bad-rgb) / 0.28);
-  color: #ffd0cc;
+  background: var(--bad-bg);
+  border-color: var(--bad-border);
+  color: var(--bad-text);
 }
 
 .notice-info {
@@ -572,7 +851,7 @@ input[type='range'] {
 }
 
 .action-card:hover:not(:disabled) {
-  border-color: #55443a;
+  border-color: var(--line-hover);
   background: var(--surface-2);
 }
 
@@ -598,7 +877,7 @@ input[type='range'] {
 
 .action-primary {
   border-color: rgb(var(--accent-rgb) / 0.35);
-  background: linear-gradient(160deg, rgb(var(--accent-rgb) / 0.13), rgb(var(--accent-strong-rgb) / 0.04));
+  background: linear-gradient(160deg, rgb(var(--accent-fill-rgb) / 0.13), rgb(var(--accent-strong-rgb) / 0.04));
 }
 
 .song-list {
@@ -663,12 +942,12 @@ input[type='range'] {
   pointer-events: none;
   opacity: 0;
   transition: opacity 1.4s ease;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, var(--mask-ink) 16%, var(--mask-ink) 84%, transparent);
+  mask-image: linear-gradient(to bottom, transparent 0, var(--mask-ink) 16%, var(--mask-ink) 84%, transparent);
 }
 
 .listen-spectro.on {
-  opacity: 0.48;
+  opacity: var(--spectro-opacity);
 }
 
 .listen-ring.waiting svg {
@@ -839,7 +1118,7 @@ input[type='range'] {
 }
 
 .chroma-bar {
-  background: var(--surface-3);
+  background: var(--track);
   border-radius: 3px 3px 0 0;
   min-height: 3px;
   transition: height 0.12s linear, background 0.2s ease, box-shadow 0.2s ease;
@@ -850,8 +1129,8 @@ input[type='range'] {
    their colour; the rest stay neutral so the meter reads as a chord and not as
    a rainbow. */
 .chroma-bar.lit {
-  background: hsl(var(--pc-hue) 72% 58%);
-  box-shadow: 0 0 9px -3px hsl(var(--pc-hue) 72% 52% / 0.7);
+  background: hsl(var(--pc-hue) var(--pc-s) var(--pc-l));
+  box-shadow: 0 0 9px -3px hsl(var(--pc-hue) var(--pc-s) var(--pc-glow-l) / var(--pc-glow-a));
 }
 
 .chroma-labels {
@@ -867,7 +1146,7 @@ input[type='range'] {
 }
 
 .chroma-labels span.on {
-  color: hsl(var(--pc-hue) 72% 64%);
+  color: hsl(var(--pc-hue) var(--pc-s) var(--pc-label-l));
 }
 
 /* Wide apart on purpose. These two do opposite things — one keeps you here,
@@ -912,7 +1191,7 @@ input[type='range'] {
 .progress-track {
   height: 6px;
   border-radius: 999px;
-  background: var(--surface-3);
+  background: var(--track);
   overflow: hidden;
 }
 
@@ -1216,7 +1495,7 @@ input[type='range'] {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: radial-gradient(130% 100% at 50% 0%, #131728 0%, var(--bg) 64%);
+  background: radial-gradient(130% 100% at 50% 0%, var(--practice-glow) 0%, var(--bg) 64%);
   display: flex;
   flex-direction: column;
   padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
@@ -1349,8 +1628,12 @@ input[type='range'] {
 }
 
 .lane-block.active {
-  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.28), rgb(var(--accent-strong-rgb) / 0.12));
+  background: linear-gradient(180deg, rgb(var(--accent-fill-rgb) / 0.28), rgb(var(--accent-strong-rgb) / 0.12));
   border-color: rgb(var(--accent-rgb) / 0.6);
+  color: var(--accent-tint);
+}
+
+.lane-block.active .lane-block-numeral {
   color: var(--accent-tint);
 }
 
@@ -1383,7 +1666,7 @@ input[type='range'] {
   bottom: 0;
   width: 2px;
   background: var(--accent);
-  box-shadow: 0 0 16px 2px rgb(var(--accent-rgb) / 0.55);
+  box-shadow: var(--glow-accent);
   z-index: 3;
 }
 
@@ -1464,7 +1747,7 @@ input[type='range'] {
   display: grid;
   place-items: center;
   padding: 10px;
-  background: rgb(6 7 13 / 0.82);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
 }
 
@@ -1556,7 +1839,7 @@ input[type='range'] {
   width: 100%;
   height: 7px;
   border-radius: 999px;
-  background: var(--surface-3);
+  background: var(--track);
 }
 
 .seekbar-loop {
@@ -1586,7 +1869,7 @@ input[type='range'] {
   background: var(--accent-tint);
   border: 2.5px solid var(--accent-strong);
   transform: translate(-50%, -50%);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-handle);
   pointer-events: none;
 }
 
@@ -1607,7 +1890,7 @@ input[type='range'] {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--surface-3);
+  background: var(--track);
   transition: transform 0.08s ease, background 0.08s ease;
 }
 
@@ -1713,7 +1996,7 @@ input[type='range'] {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(6 7 13 / 0.78);
+  background: var(--scrim-soft);
   backdrop-filter: blur(3px);
   z-index: 5;
   font-size: clamp(48px, 16vh, 120px);
@@ -1779,7 +2062,7 @@ input[type='range'] {
   border-radius: var(--radius-lg);
   border: 1px solid var(--line-soft);
   background:
-    radial-gradient(120% 140% at 12% 0%, rgb(var(--accent-rgb) / 0.1), transparent 62%),
+    radial-gradient(120% 140% at 12% 0%, rgb(var(--accent-fill-rgb) / 0.1), transparent 62%),
     linear-gradient(170deg, var(--surface-2), var(--surface));
   box-shadow: var(--shadow);
 }
@@ -1846,12 +2129,12 @@ input[type='range'] {
 .hv-wave i {
   flex: 1;
   border-radius: 2px;
-  background: var(--surface-3);
+  background: var(--track);
   min-width: 0;
 }
 
 .hv-lit .hv-wave i {
-  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  background: linear-gradient(180deg, var(--accent-fill), var(--accent-strong));
 }
 
 .hv-chords {
@@ -1878,7 +2161,7 @@ input[type='range'] {
 
 .hv-lit .hv-chord {
   border-color: rgb(var(--accent-rgb) / 0.55);
-  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.24), rgb(var(--accent-strong-rgb) / 0.09));
+  background: linear-gradient(180deg, rgb(var(--accent-fill-rgb) / 0.24), rgb(var(--accent-strong-rgb) / 0.09));
   color: var(--accent-tint);
 }
 
@@ -1890,7 +2173,7 @@ input[type='range'] {
   width: 2px;
   border-radius: 2px;
   background: linear-gradient(180deg, transparent, var(--accent) 14%, var(--accent) 86%, transparent);
-  box-shadow: 0 0 18px 3px rgb(var(--accent-rgb) / 0.5);
+  box-shadow: var(--glow-accent-scan);
   opacity: 0;
   animation: hv-scan 7s cubic-bezier(0.4, 0, 0.5, 1) infinite;
 }
@@ -1976,7 +2259,7 @@ input[type='range'] {
   padding: 17px 26px;
   font-size: 16.5px;
   border-radius: 999px;
-  box-shadow: 0 10px 30px -12px rgb(var(--accent-strong-rgb) / 0.75);
+  box-shadow: var(--shadow-hero);
 }
 
 .hero-alt {
@@ -2039,7 +2322,7 @@ input[type='range'] {
   border-radius: var(--radius-lg);
   border: 1px solid var(--line-soft);
   background: var(--surface);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  box-shadow: var(--shadow-card);
 }
 
 .feature-stage {
@@ -2133,7 +2416,7 @@ input[type='range'] {
 
 .mini-lane-block.on {
   border-color: rgb(var(--accent-rgb) / 0.6);
-  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.26), rgb(var(--accent-strong-rgb) / 0.1));
+  background: linear-gradient(180deg, rgb(var(--accent-fill-rgb) / 0.26), rgb(var(--accent-strong-rgb) / 0.1));
   color: var(--accent-tint);
 }
 
@@ -2144,7 +2427,7 @@ input[type='range'] {
   left: 27%;
   width: 2px;
   background: var(--accent);
-  box-shadow: 0 0 12px 2px rgb(var(--accent-rgb) / 0.5);
+  box-shadow: var(--glow-accent-sm);
 }
 
 .mini-lane-beat {
@@ -2183,7 +2466,7 @@ input[type='range'] {
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--text-dim);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  box-shadow: var(--shadow-card);
 }
 
 .steps li::before {
@@ -2334,7 +2617,7 @@ input[type='range'] {
 }
 
 .chord-tile:hover {
-  border-color: #55443a;
+  border-color: var(--line-hover);
   background: var(--surface-2);
 }
 
@@ -2394,7 +2677,7 @@ input[type='range'] {
 }
 
 .filter-chip:hover {
-  border-color: #55443a;
+  border-color: var(--line-hover);
 }
 
 .filter-chip[aria-pressed='true'] {
@@ -2433,8 +2716,8 @@ input[type='range'] {
   --hw-raw: var(--cool);
   --hw-decided: var(--accent);
   --hw-raw-tint: rgb(var(--cool-rgb) / 0.055);
-  --hw-decided-tint: rgb(var(--accent-rgb) / 0.05);
-  --hw-decided-tint-strong: rgb(var(--accent-rgb) / 0.075);
+  --hw-decided-tint: rgb(var(--accent-fill-rgb) / 0.05);
+  --hw-decided-tint-strong: rgb(var(--accent-fill-rgb) / 0.075);
 }
 
 .how-it-works .hw-lede {
@@ -2914,15 +3197,16 @@ input[type='range'] {
   }
 
   .how-it-works {
-    --text: #14171c;
-    --text-dim: #3a3f48;
-    --text-faint: #656b76;
-    --line: #9aa1ac;
-    --line-soft: #ccd1d9;
-    --accent: #8a5a12;
-    --accent-rgb: 138 90 18;
-    --cool: #16645a;
-    --cool-rgb: 22 100 90;
+    --text: var(--print-text);
+    --text-dim: var(--print-text-dim);
+    --text-faint: var(--print-text-faint);
+    --line: var(--print-line);
+    --line-soft: var(--print-line-soft);
+    --accent: var(--print-accent);
+    --accent-rgb: var(--print-accent-rgb);
+    --accent-fill-rgb: var(--print-accent-rgb);
+    --cool: var(--print-cool);
+    --cool-rgb: var(--print-cool-rgb);
     color: var(--text);
   }
 
@@ -2949,8 +3233,17 @@ input[type='range'] {
     margin: 12mm;
   }
 
+  /* Whichever theme the screen is wearing, the sheet is ink on paper: the
+     colour scheme, the canvas and the inherited text colour are all forced,
+     so printing from the dark theme cannot emit a black page. */
+  :root {
+    color-scheme: light;
+  }
+
+  html,
   body {
-    background: #fff !important;
+    background: var(--print-paper) !important;
+    color: var(--print-text) !important;
   }
 
   body:has(.print-sheet) .backdrop,
@@ -2970,12 +3263,13 @@ input[type='range'] {
 
   .print-sheet {
     display: block !important;
-    --text: #14171c;
-    --text-dim: #3a3f48;
-    --text-faint: #656b76;
-    --line: #9aa1ac;
-    --line-soft: #ccd1d9;
-    --accent: #8a5a12;
+    --text: var(--print-text);
+    --text-dim: var(--print-text-dim);
+    --text-faint: var(--print-text-faint);
+    --line: var(--print-line);
+    --line-soft: var(--print-line-soft);
+    --accent: var(--print-accent);
+    --on-accent: var(--print-paper);
     color: var(--text);
     font-size: 12px;
   }

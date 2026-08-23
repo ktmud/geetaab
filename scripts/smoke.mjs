@@ -31,6 +31,37 @@ function checkThat(label, ok, detail) {
   if (!ok) failures.push(label);
 }
 
+/** Everything the recording screen is currently saying, read out of the DOM. */
+function listenState() {
+  const canvas = document.querySelector('.listen-spectro');
+  let painted = 0;
+  if (canvas && canvas.width > 0) {
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > 12) painted++;
+  }
+  const overlay = document.querySelector('.listen-nomusic');
+  return {
+    onScreen: Boolean(document.querySelector('.listen')),
+    eyebrow: document.querySelector('.eyebrow')?.textContent.trim() ?? null,
+    chord: document.querySelector('.listen-chord')?.textContent.trim() ?? null,
+    timer: document.querySelector('.listen-timer')?.textContent.trim() ?? null,
+    spectroOn: Boolean(canvas?.classList.contains('on')),
+    painted,
+    overlay: overlay ? overlay.textContent.trim() : null,
+    overlayBlocks: overlay ? getComputedStyle(overlay).pointerEvents !== 'none' : false,
+    // Share of the viewport the overlay covers: it belongs over the meter, not
+    // over the screen.
+    overlayShare: overlay
+      ? +(
+          (overlay.getBoundingClientRect().width * overlay.getBoundingClientRect().height) /
+          (innerWidth * innerHeight)
+        ).toFixed(3)
+      : 0,
+    still: Boolean(document.querySelector('.chroma-bars.still')),
+    bars: [...document.querySelectorAll('.chroma-bar')].map((bar) => bar.style.height).join(' '),
+  };
+}
+
 async function waitForServer(url, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -65,14 +96,38 @@ async function writeFixture(dir) {
   return path;
 }
 
+/** Twenty seconds of room tone: plainly audible, but never a song. */
+async function writeRoomTone(dir) {
+  const { encodeWav } = await import('../src/audio/wav.ts');
+  const sampleRate = 44100;
+  const samples = new Float32Array(sampleRate * 20);
+  let seed = 4242;
+  let acc = 0;
+  for (let i = 0; i < samples.length; i++) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    // Tilted towards the low end rather than white, the way a room is, and loud
+    // enough (RMS around 0.05) that the gate has to turn it down on tonality,
+    // steadiness and activity rather than on silence. Measured through the live
+    // readout's own pipeline, its best chord score peaks at 0.061 — under the
+    // 0.08 floor the readout believes, with room to spare.
+    acc = 0.9 * acc + (seed / 4294967296 - 0.5) * 0.4;
+    samples[i] = Math.max(-1, Math.min(1, acc * 0.2));
+  }
+  const path = join(dir, 'room-tone.wav');
+  await writeFile(path, Buffer.from(await encodeWav(samples, sampleRate).arrayBuffer()));
+  return path;
+}
+
 const dir = await mkdtemp(join(tmpdir(), 'geetaab-smoke-'));
 const fixture = await writeFixture(dir);
+const roomTone = await writeRoomTone(dir);
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
   stdio: 'ignore',
   detached: true,
 });
 let browser;
+let quietBrowser;
 try {
   await waitForServer(ORIGIN);
 
@@ -270,6 +325,155 @@ try {
   ]);
   check('shapes a beginner can play', mic.palette, ['C', 'G', 'Am', 'Fmaj7']);
 
+  console.log('\n3c. a room that is not a song');
+  // The fake capture device is a browser-level flag, so hearing something else
+  // means launching a second browser to hear it with.
+  quietBrowser = await chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
+    args: [
+      '--use-fake-ui-for-media-stream',
+      '--use-fake-device-for-media-stream',
+      `--use-file-for-fake-audio-capture=${roomTone}`,
+      '--autoplay-policy=no-user-gesture-required',
+    ],
+  });
+  const quietContext = await quietBrowser.newContext({
+    permissions: ['microphone'],
+    viewport: { width: 430, height: 932 },
+  });
+  const quiet = await quietContext.newPage();
+  quiet.on('pageerror', (error) => consoleErrors.push(String(error.message)));
+  quiet.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  await quiet.goto(ORIGIN, { waitUntil: 'networkidle' });
+  await quiet.getByRole('button', { name: 'Listen with the mic' }).click();
+  await quiet.waitForTimeout(4000);
+  const room = await quiet.evaluate(listenState);
+  await quiet.waitForTimeout(1500);
+  const roomLater = await quiet.evaluate(listenState);
+  checkThat(
+    'room tone never passes for a song',
+    room.eyebrow === 'Waiting for the song' && roomLater.eyebrow === 'Waiting for the song',
+    `eyebrow says "${roomLater.eyebrow}"`,
+  );
+  checkThat(
+    'the meter is covered by a verdict instead of dancing',
+    room.overlay === 'No music detected' && room.still,
+    `overlay ${JSON.stringify(room.overlay)}`,
+  );
+  checkThat(
+    'and the bars really are held still across a second and a half',
+    room.bars === roomLater.bars && room.bars.length > 0,
+    room.bars === roomLater.bars ? 'unchanged' : `${room.bars} -> ${roomLater.bars}`,
+  );
+  checkThat('no chord name is claimed over noise', roomLater.chord === '···', `readout shows ${roomLater.chord}`);
+  checkThat(
+    'the overlay sits on the meter, not on the screen, and takes no clicks',
+    !room.overlayBlocks && room.overlayShare > 0 && room.overlayShare < 0.12,
+    `${Math.round(room.overlayShare * 100)}% of the viewport`,
+  );
+  // Every name the readout can print has to sit inside the ring rather than on
+  // it. The ring is r=46 with a 6-unit stroke in a 120-unit viewBox, so its
+  // inner edge is 43/120 of the rendered width, and a name fits when all four
+  // corners of its box are inside that radius. The size buckets mirror
+  // nameSize() in src/ui/Listening.tsx.
+  const fit = await quiet.evaluate(() => {
+    const el = document.querySelector('.listen-chord');
+    const box = document.querySelector('.listen-ring').getBoundingClientRect();
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    const inner = (43 / 120) * box.width;
+    const roots = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const suffixes = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2'];
+    const names = [...roots.flatMap((root) => suffixes.map((suffix) => root + suffix)), 'N.C.'];
+    const before = { text: el.textContent, className: el.className };
+    let worst = { name: '', clear: Infinity, width: 0 };
+    let widest = { name: '', width: 0 };
+    for (const name of names) {
+      el.textContent = name;
+      el.className = `listen-chord${
+        name.length >= 6 ? ' longest' : name.length === 5 ? ' longer' : name.length === 4 ? ' long' : ''
+      }`;
+      const r = el.getBoundingClientRect();
+      const reach = Math.max(
+        ...[
+          [r.left, r.top],
+          [r.right, r.top],
+          [r.left, r.bottom],
+          [r.right, r.bottom],
+        ].map(([x, y]) => Math.hypot(x - cx, y - cy)),
+      );
+      if (inner - reach < worst.clear) worst = { name, clear: +(inner - reach).toFixed(1), width: +r.width.toFixed(1) };
+      if (r.width > widest.width) widest = { name, width: +r.width.toFixed(1) };
+    }
+    el.textContent = before.text;
+    el.className = before.className;
+    return { count: names.length, worst, widest };
+  });
+  checkThat(
+    'every chord name in the vocabulary clears the ring',
+    fit.count === 85 && fit.worst.clear > 12,
+    `${fit.count} names, widest ${fit.widest.name} at ${fit.widest.width}px, tightest ${fit.worst.name} with ${fit.worst.clear}px to spare`,
+  );
+
+  // Recording by hand still works from under the overlay — and a take that is
+  // running does not make a chord out of noise either.
+  await quiet.getByRole('button', { name: 'Record anyway' }).click();
+  await quiet.waitForTimeout(2500);
+  const forced = await quiet.evaluate(listenState);
+  checkThat(
+    'the controls under the overlay are still reachable',
+    forced.eyebrow === 'Recording',
+    `eyebrow says "${forced.eyebrow}"`,
+  );
+  checkThat(
+    'and a take with no chord in it still says so rather than naming one',
+    forced.overlay === 'No music detected' && forced.chord === '···' && forced.still,
+    `chord ${forced.chord}, overlay ${JSON.stringify(forced.overlay)}`,
+  );
+
+  console.log('\n3d. cancelling a take, without leaving the screen');
+  // A room that never turns into a song is the only place this can be watched
+  // without a race: the gate cannot re-open behind the assertions.
+  checkThat(
+    'a take is running, with something to throw away',
+    forced.timer !== '00:00' && forced.painted > 0 && forced.spectroOn,
+    `${forced.timer}, ${forced.painted} px of backdrop`,
+  );
+  await quiet.getByRole('button', { name: 'Discard this take' }).click();
+  await quiet.waitForTimeout(400);
+  const discarded = await quiet.evaluate(listenState);
+  checkThat(
+    'cancelling returns the screen to waiting instead of leaving it',
+    discarded.onScreen && discarded.eyebrow === 'Waiting for the song',
+    `${discarded.onScreen ? 'still here' : 'gone'}, eyebrow says "${discarded.eyebrow}"`,
+  );
+  checkThat(
+    'and the discarded take leaves no timer, no backdrop and no chord behind',
+    discarded.timer === '00:00' && discarded.painted === 0 && !discarded.spectroOn && discarded.chord === '···',
+    `${discarded.timer}, ${discarded.painted} px, chord ${discarded.chord}`,
+  );
+  // A music gate that survived the discard would still be latched open, and the
+  // take would spring straight back to life on the next reading.
+  await quiet.waitForTimeout(2000);
+  const stillWaiting = await quiet.evaluate(listenState);
+  checkThat(
+    'the music gate starts over too, rather than staying open',
+    stillWaiting.eyebrow === 'Waiting for the song' && stillWaiting.timer === '00:00',
+    `${stillWaiting.eyebrow} at ${stillWaiting.timer}`,
+  );
+  await quiet.getByRole('button', { name: 'Record anyway' }).click();
+  await quiet.waitForTimeout(1500);
+  const again = await quiet.evaluate(listenState);
+  checkThat(
+    'and the screen can record again straight away',
+    again.eyebrow === 'Recording' && again.timer !== '00:00',
+    `${again.eyebrow} at ${again.timer}`,
+  );
+  await quietBrowser.close();
+  quietBrowser = undefined;
+
   console.log('\n4. the ambient backdrop stays behind the content');
   await page.setViewportSize({ width: 1180, height: 900 });
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
@@ -404,6 +608,7 @@ try {
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {
   await browser?.close();
+  await quietBrowser?.close();
   try {
     process.kill(-server.pid);
   } catch {
