@@ -139,47 +139,50 @@ button {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  /* Fades out down the page so the strings never compete with dense content. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
 }
 
-.backdrop-shape {
+.backdrop-strings {
   position: absolute;
+  /* Oversized and rotated, so turning it never uncovers an edge. */
+  inset: -60%;
   display: block;
+  transform: rotate(-14deg);
 }
 
-.backdrop-shape svg {
-  width: 100%;
-  height: 100%;
+.backdrop-strings i {
+  position: absolute;
+  inset: 0;
   display: block;
+  background: repeating-linear-gradient(
+    90deg,
+    rgb(var(--accent-rgb) / 0.1) 0 1.7px,
+    transparent 1.7px 70px,
+    rgb(var(--accent-rgb) / 0.088) 70px 71.45px,
+    transparent 71.45px 140px,
+    rgb(var(--accent-rgb) / 0.076) 140px 141.2px,
+    transparent 141.2px 210px,
+    rgb(var(--cool-rgb) / 0.07) 210px 211px,
+    transparent 211px 280px,
+    rgb(var(--cool-rgb) / 0.058) 280px 280.8px,
+    transparent 280.8px 350px,
+    rgb(var(--cool-rgb) / 0.046) 350px 350.65px,
+    transparent 350.65px 420px
+  );
+  /* One full repeat per cycle, so the loop has no seam. */
+  animation: strings-drift 240s linear infinite;
 }
 
-.backdrop-a {
-  width: 66vmax;
-  height: 66vmax;
-  top: -21vmax;
-  right: -16vmax;
-  color: var(--accent);
-  opacity: 0.075;
-  animation: backdrop-spin 260s linear infinite;
-}
-
-.backdrop-b {
-  width: 50vmax;
-  height: 50vmax;
-  bottom: -17vmax;
-  left: -13vmax;
-  color: var(--cool);
-  opacity: 0.07;
-  animation: backdrop-spin 380s linear infinite reverse;
-}
-
-@keyframes backdrop-spin {
+@keyframes strings-drift {
   to {
-    transform: rotate(360deg);
+    transform: translateX(420px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .backdrop-shape {
+  .backdrop-strings i {
     animation: none;
   }
 }
