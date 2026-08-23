@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../core/analyze';
 import { chooseCapo, patternsFor } from '../music/arrange';
 import { buildTab, type SongTab } from '../music/tab';
-import { barTab, songTabText } from '../music/tabText';
+import { songTabText, tabSystems } from '../music/tabText';
 import { ChordCard } from './ChordDiagram';
-import { BackIcon, PlayIcon } from './icons';
+import { PrintSheet } from './PrintSheet';
+import { BackIcon, PlayIcon, PrintIcon } from './icons';
 
 export interface TabOptions {
   capo?: number;
@@ -37,6 +38,7 @@ export function TabView({
   busy,
 }: TabViewProps) {
   const [copied, setCopied] = useState(false);
+  const [tabScope, setTabScope] = useState<'song' | 'loop'>('song');
 
   const tab = useMemo(() => {
     const patterns = patternsFor(analysis.beatsPerBar);
@@ -49,9 +51,16 @@ export function TabView({
     [analysis, options.simplify],
   );
   const patterns = patternsFor(tab.beatsPerBar);
-  const loopBars = tab.bars.slice(0, Math.min(tab.bars.length, tab.loop?.length ?? 4));
   const hardChords = tab.palette.filter((chord) => chord.shape.difficulty === 3);
   const lowConfidence = tab.confidence < 0.24;
+
+  const systems = useMemo(() => {
+    const bars =
+      tabScope === 'loop' && tab.loop
+        ? tab.bars.slice(0, Math.min(tab.bars.length, tab.loop.length))
+        : tab.bars;
+    return tabSystems(bars, tab.strum, 2);
+  }, [tab, tabScope]);
 
   const copyText = async (): Promise<void> => {
     const text = songTabText(tab, title);
@@ -271,26 +280,41 @@ export function TabView({
         </div>
       </div>
 
-      {loopBars.length > 0 ? (
+      {tab.bars.length > 0 ? (
         <div className="card">
-          <h2>Tablature</h2>
+          <div className="tab-card-head">
+            <h2>Tablature</h2>
+            {tab.loop ? (
+              <div className="segmented">
+                <button aria-pressed={tabScope === 'song'} onClick={() => setTabScope('song')}>
+                  Whole song
+                </button>
+                <button aria-pressed={tabScope === 'loop'} onClick={() => setTabScope('loop')}>
+                  Just the loop
+                </button>
+              </div>
+            ) : null}
+          </div>
           <div className="tablature">
-            <pre className="tab-grid">
-              {loopBars
-                .map((bar) => {
-                  const rendered = barTab(bar, tab.strum);
-                  return [rendered.names, ...rendered.rows, rendered.directions].join('\n');
-                })
-                .join('\n\n')}
-            </pre>
+            {systems.map((system) => (
+              <div className="tab-sys" key={system.startBar}>
+                <div className="tab-sys-label">{system.label}</div>
+                <pre className="tab-grid">{system.text}</pre>
+              </div>
+            ))}
           </div>
           <div className="btn-row" style={{ marginTop: 12 }}>
+            <button className="btn" onClick={() => window.print()}>
+              <PrintIcon size={16} /> Print the tab
+            </button>
             <button className="btn" onClick={copyText}>
               {copied ? 'Copied' : 'Copy the whole tab as text'}
             </button>
           </div>
         </div>
       ) : null}
+
+      <PrintSheet tab={tab} title={title} />
 
       <div className="sticky-cta">
         <button className="btn btn-primary btn-lg" onClick={() => onPractice(tab)}>

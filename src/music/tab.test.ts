@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeAudio } from '../core/analyze';
 import { DEMO_PROGRESSION, renderProgression } from '../audio/synth';
 import { buildTab, findLoop } from './tab';
-import { barTab, songTabText } from './tabText';
+import { barTab, songTabText, tabSystems } from './tabText';
 
 const audio = renderProgression([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], {
   sampleRate: 44100,
@@ -62,6 +62,19 @@ describe('tablature text', () => {
     expect(rendered.rows[2]).toContain('0');
     expect(rendered.directions).toContain('D');
     expect(rendered.names).toContain('G');
+  });
+
+  it('joins bars side by side into aligned printable systems', () => {
+    const tab = buildTab(analysis);
+    const systems = tabSystems(tab.bars, tab.strum, 2);
+    expect(systems).toHaveLength(Math.ceil(tab.bars.length / 2));
+    expect(systems[0].label).toBe('Bars 1–2');
+    const lines = systems[0].text.split('\n');
+    expect(lines).toHaveLength(8);
+    // Each string row carries two complete |-…-| boxes, one per bar.
+    expect(lines[1].match(/\|/g)).toHaveLength(4);
+    // The six string rows all line up, or the columns would zigzag on paper.
+    expect(new Set(lines.slice(1, 7).map((line) => line.length)).size).toBe(1);
   });
 
   it('exports a text tab carrying the key, capo and chord shapes', () => {

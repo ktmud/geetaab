@@ -17,11 +17,12 @@ processing that ship with the page.
 3. **Rewrites it for your hands.** Picks a capo position that puts as much of the
    song as possible on open shapes, and swaps the chords that are still awkward for
    the stand-ins a teacher would suggest — F becomes Fmaj7, Bm becomes Bm7.
-4. **Teaches it to you.** Chord diagrams, a bar-by-bar chart, six-line tablature, the
-   repeating loop the song is built on, and a practice screen where the chords scroll
-   past a playhead with a count-in, a metronome, section looping, slow-down that
-   keeps the pitch, a scrubbable position bar with ten-second skips, and a volume
-   control tucked behind a button.
+4. **Teaches it to you.** Chord diagrams, a bar-by-bar chart, six-line tablature of
+   the whole song — on screen and as a printable sheet — the repeating loop the song
+   is built on, and a practice screen where the chords scroll past a playhead with a
+   count-in, a metronome, a live strumming guide, the next chord previewed beside the
+   current one, section looping, slow-down that keeps the pitch, a scrubbable
+   position bar with ten-second skips, and a volume control tucked behind a button.
 
 ## Running it
 

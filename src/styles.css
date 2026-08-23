@@ -937,6 +937,32 @@ input[type='range'] {
   padding-bottom: 6px;
 }
 
+.tab-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tab-card-head h2 {
+  margin: 0;
+}
+
+.tab-sys + .tab-sys {
+  margin-top: 14px;
+}
+
+.tab-sys-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
+}
+
 .tab-grid {
   font-family: var(--mono);
   font-size: 13px;
@@ -1122,11 +1148,38 @@ input[type='range'] {
   text-align: center;
 }
 
-.practice-now svg {
+.practice-now > svg {
   width: 100%;
   height: auto;
-  max-width: 190px;
-  max-height: 46vh;
+  max-width: 170px;
+  max-height: 36vh;
+}
+
+.practice-next {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.practice-next svg {
+  flex: none;
+}
+
+.practice-next-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.practice-next-name {
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .practice-lane {
@@ -1219,6 +1272,120 @@ input[type='range'] {
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
   border-top: 8px solid var(--accent);
+}
+
+/* A live copy of the strumming pattern, with the eighth being played lit. */
+.strum-strip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px;
+}
+
+.strum-strip-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.strum-strip-steps {
+  display: flex;
+  gap: 3px;
+}
+
+.strum-cell {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+  transition: background 0.08s ease, color 0.08s ease, transform 0.08s ease;
+}
+
+.strum-cell.accent {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.strum-cell.gap {
+  background: transparent;
+  border: 1px dashed var(--line-soft);
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.strum-cell.now {
+  background: var(--accent);
+  color: var(--on-accent);
+  transform: scale(1.12);
+}
+
+.strum-strip-bar {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  background: rgb(6 7 13 / 0.82);
+  backdrop-filter: blur(4px);
+}
+
+.practice-hint-card {
+  max-width: 500px;
+  max-height: 100%;
+  overflow: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  text-align: left;
+}
+
+.practice-hint-card h3 {
+  margin: 0 0 8px;
+}
+
+.practice-hint-card ul {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.practice-hint-card li {
+  padding-left: 16px;
+  position: relative;
+}
+
+.practice-hint-card li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 /* The dock leads with where you are in the song; everything else is second. */
@@ -1354,14 +1521,28 @@ input[type='range'] {
   height: 38px;
 }
 
+/* A labelled pill rather than a bare slider: an unlabelled range input is the
+   one control on this screen people report not finding. */
 .speed-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
 }
 
 .speed-control input {
-  width: 96px;
+  width: 92px;
+}
+
+.ctl-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
 }
 
 .volume-wrap {
@@ -1456,6 +1637,14 @@ input[type='range'] {
   }
   .practice-dock {
     gap: 5px;
+  }
+  .strum-cell {
+    width: 20px;
+    height: 20px;
+    font-size: 11.5px;
+  }
+  .practice-now > svg {
+    max-height: 30vh;
   }
 }
 
@@ -1919,4 +2108,152 @@ input[type='range'] {
   font-size: 13px;
   color: var(--text-faint);
   line-height: 1.6;
+}
+
+/* ---------- print ---------- */
+
+/* The sheet is always in the document and only the print stylesheet reveals
+   it, so plain Ctrl+P gives the same page as the Print button. Colours are
+   re-declared as light values on the sheet itself; the chord diagrams draw
+   with the same variables and follow along without knowing about paper. */
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  body:has(.print-sheet) .backdrop,
+  body:has(.print-sheet) .topbar,
+  body:has(.print-sheet) .sticky-cta {
+    display: none !important;
+  }
+
+  .shell:has(.print-sheet) {
+    padding: 0;
+    width: 100%;
+  }
+
+  .shell:has(.print-sheet) > :not(.print-sheet) {
+    display: none !important;
+  }
+
+  .print-sheet {
+    display: block !important;
+    --text: #14171c;
+    --text-dim: #3a3f48;
+    --text-faint: #656b76;
+    --line: #9aa1ac;
+    --line-soft: #ccd1d9;
+    --accent: #8a5a12;
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .print-sheet h1 {
+    font-size: 24px;
+    margin: 0 0 4px;
+  }
+
+  .print-sheet h2 {
+    font-size: 15px;
+    margin: 16px 0 8px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .print-meta {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin: 0 0 12px;
+  }
+
+  .print-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+  }
+
+  .print-chord {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 10.5px;
+    color: var(--text-dim);
+    break-inside: avoid;
+  }
+
+  .print-chord b {
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .print-loop {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .print-bars {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+  }
+
+  .print-bar {
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: 3px 5px;
+    min-height: 26px;
+    font-size: 11px;
+    break-inside: avoid;
+  }
+
+  .print-bar i {
+    display: block;
+    font-style: normal;
+    font-size: 8.5px;
+    color: var(--text-faint);
+  }
+
+  .print-bar span {
+    font-weight: 600;
+  }
+
+  .print-bar.section {
+    border-color: var(--accent);
+  }
+
+  .print-sys {
+    margin-top: 10px;
+    break-inside: avoid;
+  }
+
+  .print-sys i {
+    font-style: normal;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    color: var(--text-faint);
+  }
+
+  .print-sys pre {
+    margin: 2px 0 0;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.35;
+    white-space: pre;
+  }
+
+  .print-foot {
+    margin-top: 16px;
+    font-size: 10px;
+    color: var(--text-faint);
+  }
 }

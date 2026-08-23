@@ -21,8 +21,21 @@ import {
   RotateIcon,
   SkipBackTenIcon,
   SkipForwardTenIcon,
+  SpeedIcon,
   VolumeIcon,
 } from './icons';
+
+/** Versioned so a future rewrite of the hint can show itself once more. */
+const HINT_SEEN_KEY = 'geetaab-practice-hint-v1';
+
+function hintAlreadySeen(): boolean {
+  try {
+    return localStorage.getItem(HINT_SEEN_KEY) !== null;
+  } catch {
+    // Storage can be blocked; showing the hint again is the safe failure.
+    return false;
+  }
+}
 
 export interface PracticeProps {
   tab: SongTab;
@@ -59,6 +72,16 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   const [scrub, setScrub] = useState<number | null>(null);
   const seekbarRef = useRef<HTMLDivElement>(null);
   const scrubbingRef = useRef(false);
+  const [hintOpen, setHintOpen] = useState(() => !hintAlreadySeen());
+
+  const dismissHint = useCallback((): void => {
+    setHintOpen(false);
+    try {
+      localStorage.setItem(HINT_SEEN_KEY, 'seen');
+    } catch {
+      // Nothing to do; the hint will simply show again next time.
+    }
+  }, []);
 
   const beatSeconds = 60 / tab.tempo;
   const pxPerSecond = useMemo(() => {
@@ -198,6 +221,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   const start = async (): Promise<void> => {
     const transport = transportRef.current;
     if (!transport) return;
+    if (hintOpen) dismissHint();
     await resumeAudio();
     if (transport instanceof MediaTransport) await transport.whenReady();
     transport.rate = rate;
@@ -288,6 +312,42 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
     event.preventDefault();
   };
 
+  // Refs so the one window listener always sees the current handlers.
+  const toggleRef = useRef<() => void>(() => {});
+  toggleRef.current = toggle;
+  const skipRef = useRef<(delta: number) => void>(() => {});
+  skipRef.current = skipBy;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null;
+      // Buttons handle space themselves and sliders own their arrow keys;
+      // stepping in front of either would fire everything twice.
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'BUTTON' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.getAttribute?.('role') === 'slider')
+      ) {
+        return;
+      }
+      if (event.code === 'Space') {
+        event.preventDefault();
+        toggleRef.current();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        skipRef.current(-5);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        skipRef.current(5);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const toggleLoop = (): void => {
     if (loopRange) {
       setLoopRange(null);
@@ -312,6 +372,24 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
   const barBeat = ((beatIndex - barPhase) % tab.beatsPerBar + tab.beatsPerBar) % tab.beatsPerBar;
   const shown = scrub ?? Math.min(position, duration);
   const fillPercent = duration > 0 ? Math.min(100, (shown / duration) * 100) : 0;
+
+  const strumSlots = useMemo(() => {
+    const slots: { label: string; step?: (typeof tab.strum.steps)[number] }[] = [];
+    for (let beat = 0; beat < tab.beatsPerBar; beat += 0.5) {
+      const step = tab.strum.steps.find((s) => Math.abs(s.beat - beat) < 1e-6);
+      slots.push({ label: beat % 1 === 0 ? String(beat + 1) : '&', step });
+    }
+    return slots;
+  }, [tab]);
+  const barStartTime = beats[Math.max(0, Math.min(beats.length - 1, beatIndex - barBeat))] ?? 0;
+  const eighth = Math.max(
+    0,
+    Math.min(tab.beatsPerBar * 2 - 1, Math.floor(((position - barStartTime) / beatSeconds) * 2)),
+  );
+  const currentBar = Math.max(
+    1,
+    Math.min(tab.bars.length, Math.floor((beatIndex - barPhase) / tab.beatsPerBar) + 1),
+  );
 
   if (portrait) {
     return (
@@ -370,6 +448,25 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
           ) : (
             <div className="practice-now-name faint">—</div>
           )}
+          <div className="practice-next">
+            {next?.chord ? (
+              <>
+                <span className="practice-next-label">next</span>
+                <ChordDiagram
+                  shape={next.chord.shape}
+                  width={54}
+                  showFingers={false}
+                  title={`${next.chord.shapeLabel}, the next chord`}
+                />
+                <span className="practice-next-name">
+                  {next.chord.shapeLabel}
+                  {beatsToNext !== null && beatsToNext > 0 ? ` · in ${beatsToNext}` : ''}
+                </span>
+              </>
+            ) : (
+              <span className="practice-next-label">last chord</span>
+            )}
+          </div>
         </div>
 
         <div className="practice-lane" ref={laneRef}>
@@ -403,7 +500,51 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
             style={{ left: `${PLAYHEAD_FRACTION * 100}%` }}
           />
           {countIn !== null ? <div className="countin">{countIn}</div> : null}
+          {hintOpen && countIn === null ? (
+            <div className="practice-hint">
+              <div className="practice-hint-card">
+                <h3>How this screen works</h3>
+                <ul>
+                  <li>
+                    Press play for a {tab.beatsPerBar}-beat count-in, then change chords as each
+                    block reaches the amber line.
+                  </li>
+                  <li>
+                    The bar below scrubs the song, and ±10 jumps around it. The loop button repeats
+                    the section you are in.
+                  </li>
+                  <li>
+                    Speed, bottom right, slows the song without changing its pitch. Volume sits
+                    behind the speaker button.
+                  </li>
+                  <li>Space plays and pauses · ← → skip five seconds.</li>
+                </ul>
+                <button className="btn btn-primary" onClick={dismissHint}>
+                  Got it
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
+      </div>
+
+      <div className="strum-strip" aria-hidden="true">
+        <span className="strum-strip-label">strum</span>
+        <div className="strum-strip-steps">
+          {strumSlots.map((slot, index) => (
+            <span
+              key={index}
+              className={`strum-cell${slot.step ? (slot.step.accent ? ' accent' : '') : ' gap'}${
+                playing && index === eighth ? ' now' : ''
+              }`}
+            >
+              {slot.step ? (slot.step.direction === 'D' ? '↓' : '↑') : '·'}
+            </span>
+          ))}
+        </div>
+        <span className="strum-strip-bar mono">
+          Bar {currentBar} of {tab.bars.length}
+        </span>
       </div>
 
       <div className="practice-dock">
@@ -484,7 +625,9 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
 
           <span className="spacer" />
 
-          <div className="speed-control">
+          <div className="speed-control" title="Play the song slower without changing its pitch">
+            <SpeedIcon size={15} />
+            <span className="ctl-label">Speed</span>
             <input
               type="range"
               min={0.5}
@@ -523,11 +666,7 @@ export function Practice({ tab, title, beats, barPhase, audio, onExit }: Practic
             ) : null}
           </div>
 
-          <span className="chip">
-            {next && beatsToNext !== null
-              ? `${next.chord?.shapeLabel} in ${beatsToNext}`
-              : `${Math.round(tab.tempo * rate)} BPM`}
-          </span>
+          <span className="chip">{Math.round(tab.tempo * rate)} BPM</span>
         </div>
       </div>
     </div>

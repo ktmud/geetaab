@@ -123,6 +123,26 @@ export function SkipForwardTenIcon({ size = 24, className }: IconProps) {
   );
 }
 
+export function PrintIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M6 9V3h12v6" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect x="6" y="14" width="12" height="7" rx="1" />
+    </svg>
+  );
+}
+
+export function SpeedIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...svgProps(size, className)}>
+      <path d="M4.5 17a8 8 0 1 1 15 0" />
+      <path d="M12 17l4-5.5" />
+      <circle cx="12" cy="17" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function VolumeIcon({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

@@ -69,6 +69,45 @@ function center(text: string, width: number): string {
   return ' '.repeat(left) + text + ' '.repeat(width - text.length - left);
 }
 
+export interface TabSystem {
+  /** Which bars the system covers, e.g. "Bars 5–6". */
+  label: string;
+  /** The bars rendered side by side: names, six strings, directions. */
+  text: string;
+  /** Index of the system's first bar. */
+  startBar: number;
+}
+
+/**
+ * The whole song's tablature as printable systems, a few bars to a line.
+ *
+ * One bar per system reads fine on a phone but turns a three-minute song into
+ * seven pages of paper; side-by-side bars are how printed tab has always
+ * managed the length.
+ */
+export function tabSystems(bars: TabBar[], strum: StrumPattern, barsPerSystem = 2): TabSystem[] {
+  const systems: TabSystem[] = [];
+  for (let i = 0; i < bars.length; i += barsPerSystem) {
+    const group = bars.slice(i, i + barsPerSystem);
+    const rendered = group.map((bar) => {
+      const r = barTab(bar, strum);
+      const lines = [r.names, ...r.rows, r.directions];
+      const width = Math.max(...lines.map((line) => line.length));
+      return lines.map((line) => line.padEnd(width, ' '));
+    });
+    const lines: string[] = [];
+    for (let line = 0; line < 8; line++) {
+      lines.push(rendered.map((r) => r[line]).join('  ').trimEnd());
+    }
+    systems.push({
+      label: group.length > 1 ? `Bars ${i + 1}–${i + group.length}` : `Bar ${i + 1}`,
+      text: lines.join('\n'),
+      startBar: i,
+    });
+  }
+  return systems;
+}
+
 /**
  * The whole tab as plain text, for pasting anywhere.
  *

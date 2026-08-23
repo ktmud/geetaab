@@ -109,9 +109,40 @@ try {
   check('four-bar loop', demo.loop, ['G', 'D', 'Am', 'C']);
   check('chord palette', demo.palette, ['G', 'D', 'Am', 'C']);
 
+  console.log('\n1b. the whole-song tab and the printable sheet');
+  const sheet = await page.evaluate(() => ({
+    onscreen: document.querySelectorAll('.tab-sys').length,
+    systems: document.querySelectorAll('.print-sheet .print-sys').length,
+    diagrams: document.querySelectorAll('.print-sheet .diagram').length,
+    bars: document.querySelectorAll('.print-sheet .print-bar').length,
+  }));
+  checkThat('the tablature covers the whole song', sheet.onscreen >= 4, `${sheet.onscreen} systems on screen`);
+  checkThat(
+    'the print sheet carries diagrams, chart and tab',
+    sheet.systems >= 4 && sheet.diagrams >= 4 && sheet.bars >= 8,
+    `${sheet.systems} systems, ${sheet.diagrams} diagrams, ${sheet.bars} chart bars`,
+  );
+  await page.emulateMedia({ media: 'print' });
+  const printSwap = await page.evaluate(() => ({
+    sheet: getComputedStyle(document.querySelector('.print-sheet')).display !== 'none',
+    cards: getComputedStyle(document.querySelector('.card')).display === 'none',
+    topbar: getComputedStyle(document.querySelector('.topbar')).display === 'none',
+  }));
+  checkThat(
+    'print media swaps the dark screen for the sheet',
+    printSwap.sheet && printSwap.cards && printSwap.topbar,
+    JSON.stringify(printSwap),
+  );
+  await page.emulateMedia({ media: 'screen' });
+
   console.log('\n2. practice transport');
   await page.getByRole('button', { name: /Practise this/ }).click();
   await page.waitForTimeout(400);
+  const hintShown = await page.evaluate(() => Boolean(document.querySelector('.practice-hint')));
+  checkThat('the first visit explains the screen', hintShown);
+  await page.getByRole('button', { name: 'Got it' }).click();
+  const hintGone = await page.evaluate(() => document.querySelector('.practice-hint') === null);
+  checkThat('and the hint dismisses', hintGone);
   const laneBefore = await page.evaluate(() => document.querySelector('.lane-inner')?.style.transform);
   await page.getByRole('button', { name: 'Play' }).click();
   await page.waitForTimeout(900);
@@ -146,11 +177,26 @@ try {
   await page.getByRole('button', { name: 'Volume' }).click();
   await page.getByRole('button', { name: 'Back to the start' }).click();
   check('back to the start', await clock(), '0:00');
+  await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(400);
+  const countingViaKey = await page.evaluate(() => document.querySelector('.countin')?.textContent ?? null);
+  checkThat('space starts the count-in', countingViaKey !== null, `showed ${countingViaKey}`);
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(300);
+  checkThat('space again pauses', await page.evaluate(() => document.querySelector('.countin') === null));
 
   await page.getByRole('button', { name: 'Play' }).click();
   await page.waitForTimeout(6000);
   const laneAfter = await page.evaluate(() => document.querySelector('.lane-inner')?.style.transform);
   checkThat('the chord lane scrolls with the audio', laneBefore !== laneAfter, `${laneBefore} -> ${laneAfter}`);
+  const guide = await page.evaluate(() => ({
+    bar: document.querySelector('.strum-strip-bar')?.textContent.trim() ?? '',
+    lit: document.querySelectorAll('.strum-cell.now').length,
+    next: Boolean(document.querySelector('.practice-next')),
+  }));
+  checkThat('the strum guide follows the beat', /^Bar \d+ of \d+$/.test(guide.bar) && guide.lit === 1, guide.bar);
+  checkThat('the next chord is previewed', guide.next);
   await page.getByRole('slider', { name: 'Practice speed' }).fill('0.6');
   const speed = await page.evaluate(() => document.querySelector('.speed-value')?.textContent.trim());
   check('slow-down control', speed, '60%');
