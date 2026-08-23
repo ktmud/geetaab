@@ -494,8 +494,10 @@ export const dictionary = {
 
     // Home screen
     eyebrowGuitarTabs: '听歌扒谱',
-    h1PlayNearMic: '对着麦克风放首歌，',
-    h1GetTab: '拿一份真弹得下来的谱。',
+    // The owner's own line. It is not a translation of the English headline and
+    // is not meant to become one.
+    h1PlayNearMic: '随听随弹，',
+    h1GetTab: '跟唱跟学。',
     ledeParagraph: 'geetaab 会听出和弦、调性和速度，再把整首歌改写成你已经会按的那几个指法——变调夹夹几品也一并算好。接着横过屏幕，像唱卡拉 OK 那样跟着练，跟不上就调慢。',
     heroHears: '听到',
     heroWrites: '写下',
