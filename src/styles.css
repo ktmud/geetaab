@@ -2927,6 +2927,7 @@ input[type='range'] {
   }
 }
 
+
 /* ---------- the signal path ---------- */
 
 .hw-path {
@@ -3547,4 +3548,30 @@ input[type='range'] {
 .lang-switch button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* On a phone the diagrams are the scarce thing, not the decoration. The spine
+   and its dots cost 34px of every row and repeat what the dot strip at the top
+   of the page already says, so they give way and the drawings take the width.
+   The min-width that keeps a diagram legible on a desktop is what forced the
+   sideways scroll here; below it, shrinking beats scrolling. */
+@media (max-width: 620px) {
+  .hw-path {
+    padding-left: 0;
+  }
+
+  .hw-path::before,
+  .hw-path::after,
+  .hw-stage::before {
+    display: none;
+  }
+
+  .hw-fig {
+    padding: 12px 10px 10px;
+    overflow-x: hidden;
+  }
+
+  .hw-fig svg {
+    min-width: 0;
+  }
 }
