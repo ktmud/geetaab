@@ -7,7 +7,7 @@ import {
   type ChordQuality,
   type ChordSymbol,
 } from '../core/chordTypes';
-import type { KeyEstimate } from '../core/key';
+import { keyUsesFlats, type KeyEstimate } from '../core/key';
 import { easiestShape, type ChordShape } from './shapes';
 
 export interface CapoChoice {
@@ -26,6 +26,12 @@ function easeOf(shape: ChordShape | null): number {
   return 0.1;
 }
 
+export interface CapoOptions {
+  maxFret?: number;
+  /** Score the shapes that will actually be played, substitutions included. */
+  simplify?: boolean;
+}
+
 /**
  * Choose a capo position.
  *
@@ -33,12 +39,20 @@ function easeOf(shape: ChordShape | null): number {
  * shapes it moves the player onto are open ones. So the search scores each fret
  * by how much of the song's *playing time* lands on first-week shapes, then
  * prefers the lowest fret among near-equal options.
+ *
+ * The shapes it scores are the ones the tab will really print, substitutions
+ * and all. Scoring literal shapes instead undervalues any key whose awkward
+ * chord has an easy stand-in, which is how a song in Eb ends up recommending
+ * the capo that leaves a Bm in it rather than the one that turns the whole song
+ * into C, G, Am and Fmaj7.
  */
 export function chooseCapo(
   segments: ChordSegment[],
   key: KeyEstimate,
-  maxFret = 7,
+  opts: CapoOptions = {},
 ): CapoChoice {
+  const maxFret = opts.maxFret ?? 7;
+  const simplify = opts.simplify ?? true;
   const weights = new Map<string, { chord: ChordSymbol; duration: number }>();
   let total = 0;
   for (const seg of segments) {
@@ -60,7 +74,8 @@ export function chooseCapo(
     let ease = 0;
     let open = 0;
     for (const { chord, duration } of weights.values()) {
-      const shape = easiestShape(transposeChord(chord, -fret));
+      const playable = toPlayableChord(chord, { capo: fret, key, simplify });
+      const shape = playable?.shape ?? null;
       ease += easeOf(shape) * duration;
       if (shape?.difficulty === 1) open += duration;
     }
@@ -75,7 +90,7 @@ export function chooseCapo(
         fret,
         openRatio,
         score,
-        shapeKeyName: `${noteName(shapeTonic, key.useFlats)} ${key.mode}`,
+        shapeKeyName: `${noteName(shapeTonic, keyUsesFlats(shapeTonic, key.mode))} ${key.mode}`,
       };
     }
   }
@@ -99,9 +114,11 @@ export interface PlayableChord {
   /** What the player fingers, after the capo. */
   shapeChord: ChordSymbol;
   shape: ChordShape;
-  /** Set when the shape is a simplification of the detected chord. */
+  /** The detected chord, when the shape is a simplification of it. */
   substitutedFrom?: ChordSymbol;
+  /** Name of the chord in the song, spelled for the song's key. */
   label: string;
+  /** Name of the shape under the fingers, spelled for the key being read. */
   shapeLabel: string;
 }
 
@@ -129,6 +146,10 @@ export function toPlayableChord(chord: ChordSymbol, opts: SimplifyOptions): Play
   const maxDifficulty = opts.maxDifficulty ?? 2;
   const shapeChord = transposeChord(chord, -capo);
   const useFlats = key.useFlats;
+  // With a capo on, the player is reading in a different key from the one the
+  // room hears, and that key decides whether the shape is a Bb or an A#.
+  const shapeTonic = ((key.tonic - capo) % 12 + 12) % 12;
+  const shapeFlats = capo === 0 ? useFlats : keyUsesFlats(shapeTonic, key.mode);
 
   const direct = easiestShape(shapeChord);
   if (!simplify || (direct && direct.difficulty <= maxDifficulty)) {
@@ -138,7 +159,7 @@ export function toPlayableChord(chord: ChordSymbol, opts: SimplifyOptions): Play
         shapeChord,
         shape: direct,
         label: chordName(chord, useFlats),
-        shapeLabel: chordName(shapeChord, useFlats),
+        shapeLabel: chordName(shapeChord, shapeFlats),
       };
     }
   }
@@ -159,8 +180,8 @@ export function toPlayableChord(chord: ChordSymbol, opts: SimplifyOptions): Play
         shapeChord: candidate,
         shape,
         substitutedFrom: substituted ? chord : undefined,
-        label: chordName(substituted ? { root: chord.root, quality } : chord, useFlats),
-        shapeLabel: chordName(candidate, useFlats),
+        label: chordName(chord, useFlats),
+        shapeLabel: chordName(candidate, shapeFlats),
       };
     }
   }
@@ -172,7 +193,7 @@ export function toPlayableChord(chord: ChordSymbol, opts: SimplifyOptions): Play
     shapeChord,
     shape: fallback,
     label: chordName(chord, useFlats),
-    shapeLabel: chordName(shapeChord, useFlats),
+    shapeLabel: chordName(shapeChord, shapeFlats),
   };
 }
 

@@ -4,3 +4,10 @@ dist/
 *.local
 .vite/
 coverage/
+
+# local browser-driving scratch scripts
+.drive.mjs
+.capo.mjs
+.practice.mjs
+.zoom.mjs
+.makewav.ts

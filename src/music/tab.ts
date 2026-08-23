@@ -84,11 +84,11 @@ function beatPeriod(beats: number[]): number {
  */
 export function buildTab(analysis: AnalysisResult, opts: BuildTabOptions = {}): SongTab {
   const { key, beats, beatsPerBar, barPhase, tempo } = analysis;
-  const capoChoice = chooseCapo(analysis.segments, key);
-  const capo = opts.capo ?? capoChoice.fret;
   const simplify = opts.simplify ?? true;
+  const capoChoice = chooseCapo(analysis.segments, key, { simplify });
+  const capo = opts.capo ?? capoChoice.fret;
 
-  const events: TabEvent[] = analysis.segments.map((seg) => {
+  const allEvents: TabEvent[] = analysis.segments.map((seg) => {
     const chord = isNoChord(seg.chord) ? null : toPlayableChord(seg.chord, { capo, key, simplify });
     return {
       chord,
@@ -100,6 +100,9 @@ export function buildTab(analysis: AnalysisResult, opts: BuildTabOptions = {}): 
     };
   });
 
+  // Silence before the first chord and after the last is not part of the song;
+  // leaving it in adds empty bars the player would have to count through.
+  const events = trimSilentEdges(allEvents);
   const strum = opts.strum ?? suggestStrum(tempo, beatsPerBar);
   const bars = layOutBars(events, beats, beatsPerBar, barPhase);
   const palette = buildPalette(events);
@@ -120,6 +123,14 @@ export function buildTab(analysis: AnalysisResult, opts: BuildTabOptions = {}): 
     duration: analysis.duration,
     confidence: analysis.confidence,
   };
+}
+
+function trimSilentEdges(events: TabEvent[]): TabEvent[] {
+  let first = 0;
+  while (first < events.length && !events[first].chord) first++;
+  let last = events.length - 1;
+  while (last >= first && !events[last].chord) last--;
+  return first <= last ? events.slice(first, last + 1) : events;
 }
 
 function shiftedKeyName(key: KeyEstimate, capo: number): string {
@@ -193,10 +204,13 @@ export function findLoop(bars: TabBar[]): SongLoop | null {
   let best: SongLoop | null = null;
   for (const length of [4, 2, 8]) {
     if (signatures.length < length * 2) continue;
+
+    const firstSeen = new Map<string, number>();
     const counts = new Map<string, number>();
     for (let i = 0; i + length <= signatures.length; i++) {
       const key = signatures.slice(i, i + length).join(' | ');
       counts.set(key, (counts.get(key) ?? 0) + 1);
+      if (!firstSeen.has(key)) firstSeen.set(key, i);
     }
     let topKey = '';
     let topCount = 0;
@@ -207,12 +221,24 @@ export function findLoop(bars: TabBar[]): SongLoop | null {
       }
     }
     if (topCount < 2) continue;
-    const coverage = Math.min(1, (topCount * length) / signatures.length);
+
+    // Coverage is how much of the song this loop *predicts*, tiled from where it
+    // first appears. Counting overlapping occurrences instead would let an
+    // eight-bar loop outscore the four-bar loop it is simply made of.
+    const pattern = topKey.split(' | ');
+    const start = firstSeen.get(topKey) ?? 0;
+    let matches = 0;
+    for (let i = 0; i < signatures.length; i++) {
+      const expected = pattern[(((i - start) % length) + length) % length];
+      if (signatures[i] === expected) matches++;
+    }
+    const coverage = matches / signatures.length;
     // Prefer the shortest loop that explains the song; a four-bar answer beats
     // an eight-bar one that is just the same thing said twice.
-    const preference = coverage + (length === 4 ? 0.05 : 0);
-    if (!best || preference > best.coverage + (best.length === 4 ? 0.05 : 0)) {
-      best = { bars: topKey.split(' | '), length, coverage };
+    const score = coverage + (length === 4 ? 0.05 : 0);
+    const bestScore = best ? best.coverage + (best.length === 4 ? 0.05 : 0) : -1;
+    if (score > bestScore) {
+      best = { bars: pattern, length, coverage };
     }
   }
   return best && best.coverage >= 0.35 ? best : null;

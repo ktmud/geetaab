@@ -36,16 +36,36 @@ describe('chooseCapo', () => {
   });
 
   it('finds a capo that turns a flat key into open shapes', () => {
-    // Eb - Ab - Cm - Bb: four barre chords at the nut.
+    // Eb - Bb - Cm - Ab: four barre chords at the nut.
     const segments = segmentsOf([
       [3, 'maj'],
-      [8, 'maj'],
-      [0, 'min'],
       [10, 'maj'],
+      [0, 'min'],
+      [8, 'maj'],
     ]);
-    const capo = chooseCapo(segments, keyFor(segments));
-    expect(capo.fret).toBeGreaterThan(0);
-    expect(capo.openRatio).toBeGreaterThanOrEqual(0.75);
+    const key = keyFor(segments);
+    const capo = chooseCapo(segments, key);
+    // Capo 3 turns the whole song into C, G, Am and an Fmaj7. Capo 1 also gets
+    // three open shapes but leaves a Bm behind, so it must not win.
+    expect(capo.fret).toBe(3);
+    expect(capo.openRatio).toBe(1);
+    expect(capo.shapeKeyName).toBe('C major');
+    const shapes = segments.map(
+      (s) => toPlayableChord(s.chord, { capo: capo.fret, key })!.shapeLabel,
+    );
+    expect(shapes).toEqual(['C', 'G', 'Am', 'Fmaj7']);
+  });
+
+  it('scores literal shapes when simplification is turned off', () => {
+    const segments = segmentsOf([
+      [3, 'maj'],
+      [10, 'maj'],
+      [0, 'min'],
+      [8, 'maj'],
+    ]);
+    const simplified = chooseCapo(segments, keyFor(segments), { simplify: true });
+    const literal = chooseCapo(segments, keyFor(segments), { simplify: false });
+    expect(literal.fret).not.toBe(simplified.fret);
   });
 
   it('reports the shapes the player reads with the capo on', () => {
