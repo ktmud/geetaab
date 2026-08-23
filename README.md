@@ -101,6 +101,13 @@ npx vite-node scripts/regress.mjs --save-baseline              # record where yo
 npx vite-node scripts/regress.mjs                              # after a change
 ```
 
+Where a song has more than one published transcription, list it twice with
+different reference vocabularies. That measures what a single reference cannot:
+how much of a score belongs to the recording and how much to whoever wrote the
+sheet. On the one song here with two editions, agreement on root and major/minor
+moves by a point between them while the exact-symbol figure moves by twenty —
+the first is a property of the analysis, the second largely is not.
+
 The directory holds a `corpus.json` naming each song, its reference chord
 vocabulary, and any assertions to hold (that a rubato piece keeps coming back
 free-time, say); the format is documented at the top of the script. Alongside

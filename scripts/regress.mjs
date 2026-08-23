@@ -32,6 +32,16 @@
 
      ffmpeg -i song.m4a -ac 1 -ar 22050 -f f32le song.f32
 
+   Two entries may share one `file` with different `ref` vocabularies. That is
+   worth doing where a song has more than one published transcription, because
+   it measures something no single reference can: how much of a score belongs
+   to the recording and how much to whoever wrote the sheet. Measured on one
+   song with two editions, agreement on root and major/minor moved by 1 point
+   while the exact-symbol figure moved by 21 — so the first is a property of
+   the analysis and the second largely is not. The exact column drops whenever
+   a sheet spells one root two ways (Am and Am7, C and Cadd11), since there is
+   then no single right symbol to hit; read it as texture, not as a score.
+
    `--save-baseline` writes `baseline.json` beside the manifest. Later runs
    compare against it and exit non-zero if any song has gone backwards, so this
    can gate a change to src/core the way the unit tests gate everything else.
