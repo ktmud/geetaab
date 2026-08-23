@@ -1105,6 +1105,35 @@ try {
   const anchored = await page.evaluate(() => Math.round(window.scrollY));
   checkThat('and the explainer stepper still jumps within the page', anchored > 100, `at ${anchored}`);
 
+  console.log('\n7d. installable to the home screen');
+  // The only way an iPhone gives a web page the whole screen: Safari has no
+  // Fullscreen API for anything but a <video>, so standalone-from-the-home-
+  // screen is the route, and that needs a manifest the page actually links to.
+  const install = await page.evaluate(async () => {
+    const href = document.querySelector('link[rel="manifest"]')?.getAttribute('href') ?? null;
+    const manifest = href ? await fetch(href).then((r) => (r.ok ? r.json() : null)) : null;
+    const icons = manifest
+      ? await Promise.all(
+          manifest.icons.map((i) => fetch(i.src).then((r) => ({ src: i.src, ok: r.ok }))),
+        )
+      : [];
+    const apple = document.querySelector('link[rel="apple-touch-icon"]')?.getAttribute('href') ?? null;
+    return {
+      href,
+      display: manifest?.display ?? null,
+      // Relative on purpose: this build has to keep working from a sub-path.
+      relative: Boolean(manifest) && !manifest.start_url.startsWith('/') && !manifest.scope.startsWith('/'),
+      iconsOk: icons.length > 0 && icons.every((i) => i.ok),
+      appleOk: apple ? (await fetch(apple)).ok : false,
+      capable: Boolean(document.querySelector('meta[name="apple-mobile-web-app-capable"][content="yes"]')),
+    };
+  });
+  checkThat(
+    'the page offers a manifest that installs standalone, with icons that load',
+    install.display === 'standalone' && install.relative && install.iconsOk && install.appleOk && install.capable,
+    JSON.stringify(install),
+  );
+
   console.log('\n8. console');
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {
