@@ -7,6 +7,35 @@ Everything runs in the browser. No audio leaves the device, there is no server, 
 there is no model download — the chord recognition is a few hundred lines of signal
 processing that ship with the page.
 
+## 简介
+
+对着麦克风放一首歌,得到一张初学者真的弹得动的吉他谱,然后在横屏上像唱卡拉 OK 一样跟着练。
+
+所有计算都在浏览器里完成:录音不上传、没有服务器、不下载任何模型——和弦识别就是随页面一起
+加载的几百行信号处理代码。
+
+它会先等到真的听见音乐才开始录,把整段录音的频谱画成背景;然后算出速度、拍子、调性和每一拍
+的和弦。听不出和声的段落(前奏渐入、掌声、纯管弦乐)如实标成 N.C.,而不是硬猜一个最接近的
+和弦;遇到完全没有稳定节奏的曲子(散板、部分指弹曲),它会直说"这首是自由节奏",并直接从和声
+读出和弦的分界,而不是套一个假的小节线。
+
+接着它会为你的手改编:选一个能让尽量多和弦落在开放把位的变调夹位置,把仍然别扭的和弦换成
+老师会建议的替代指法(F 换成 Fmaj7,Bm 换成 Bm7)。复杂的歌最多给三档谱——简单版把七和弦、
+挂留音和快速经过和弦折叠掉,进阶版是默认读法,完整版保留每一个和弦色彩——而且只在三档确实
+不一样时才显示这个选项。
+
+界面支持中文和英文,首次打开时按浏览器语言自动选择,顶栏可随时切换并记住你的选择。
+
+用真实曲谱实测过七首歌(华语流行、民谣、Taylor Swift、电影配乐),按时长加权的
+"根音 + 大小三度"命中率平均 **94%**(区间 87%–99%)——也就是说,绝大多数时候它会把你的手
+放在正确的和弦上。已知的两类硬伤(小三和弦与挂二和弦只差半音、主音与属音的调性混淆)在
+「Honest limits」一节里如实写明,没有藏。
+
+```bash
+npm install
+npm run dev        # 打开 http://localhost:5173
+```
+
 ## What it does
 
 1. **Listens.** Record through the microphone, drop in an audio file, or try the
@@ -35,16 +64,21 @@ processing that ship with the page.
    order, and the full vocabulary filterable by quality, root and whether it needs
    a barre — every diagram playable aloud with the exact voicing it draws.
 
-## Bilingual interface
+## Two languages
 
-The app supports English and Simplified Chinese (中文). The initial language is determined by the browser's locale setting: if it starts with "zh", the UI opens in Chinese; otherwise in English. The language choice is remembered in localStorage and persists across sessions. A language toggle button in the top bar (on all non-practice screens) lets you switch between English and 中文 at any time.
+The interface reads in English or Simplified Chinese. It opens in whichever one the
+browser asks for and a switch in the top bar overrides that, remembered per visitor.
+Chord symbols, note names and tempo figures are notation rather than prose, so they
+stay put; key names are spelled the way each language writes them (G major / G 大调).
+A test holds the two dictionaries to the same key set, so a string cannot be added to
+one language and forgotten in the other.
 
 ## Running it
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 38 unit tests, no browser needed
+npm test           # 56 unit tests, no browser needed
 npm run build      # static bundle in dist/
 npm run smoke      # drives the built app in a real browser
 ```
@@ -141,7 +175,7 @@ has half-time and double-time buttons for when that guess is wrong.
 ## Layout
 
 ```
-scripts/      browser smoke test
+scripts/      browser smoke test, and the transcription eval tools
 src/core/     analysis: fft, dsp, chroma, chords, beats, key, analyze
 src/music/    arrangement: chord shapes, capo, strumming, tab model, text export
 src/audio/    microphone, file decode, WAV encoding, transport, metronome, synth
