@@ -1007,6 +1007,75 @@ try {
     tails.map((t) => `${t.label} ${t.below}px below`).join(', '),
   );
 
+  console.log('\n7c. every screen starts at the top of itself');
+  // The places people leave a screen from are the bottom of it: the footer's
+  // link into the explainer, the Practise button under the tab, the top bar
+  // after a page of chords. Each hop below scrolls to the bottom first.
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+  const bottom = async () => {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(200);
+    return page.evaluate(() => Math.round(window.scrollY));
+  };
+  const landings = [];
+  const hop = async (label, go, settle) => {
+    const left = await bottom();
+    await go();
+    await settle();
+    await page.waitForTimeout(300);
+    landings.push({ label, left, at: await page.evaluate(() => Math.round(window.scrollY)) });
+  };
+  // Wait on the screen's own container, not on words: several of these labels
+  // also exist in a stepper that is hidden at phone width, and a hidden match
+  // never becomes visible.
+  const seeScreen = (selector) => () =>
+    page.locator(selector).first().waitFor({ state: 'visible', timeout: 90000 });
+  await hop(
+    'home to the chord library',
+    () => page.getByRole('button', { name: 'Chords', exact: true }).click(),
+    seeScreen('.shell.library'),
+  );
+  await hop(
+    'the library back home',
+    () => page.getByRole('button', { name: 'Home', exact: true }).click(),
+    seeScreen('.shell.home'),
+  );
+  await hop(
+    'home into the explainer',
+    () => page.getByRole('button', { name: /^How chords are recogni[sz]ed$/ }).click(),
+    seeScreen('.shell.how-it-works'),
+  );
+  await hop(
+    'the explainer back home',
+    () => page.getByRole('button', { name: 'Back' }).first().click(),
+    seeScreen('.shell.home'),
+  );
+  await hop(
+    'home into a finished tab',
+    () => page.getByRole('button', { name: 'try the demo' }).click(),
+    seeScreen('.tab-header'),
+  );
+  await hop(
+    'the tab back home',
+    () => page.getByRole('button', { name: 'Back' }).first().click(),
+    seeScreen('.shell.home'),
+  );
+  checkThat(
+    'every hop lands at the top, and every one of them started at the bottom',
+    landings.every((l) => l.at === 0 && l.left > 100),
+    landings.map((l) => `${l.label}: left at ${l.left}, landed at ${l.at}`).join('; '),
+  );
+  // ...but a jump within one screen is not a change of screen, and must still
+  // land where it was aimed.
+  await page.goto(`${ORIGIN}/#/how`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(600);
+  await page.getByRole('button', { name: 'Key', exact: true }).click();
+  await page.waitForTimeout(900);
+  const anchored = await page.evaluate(() => Math.round(window.scrollY));
+  checkThat('and the explainer stepper still jumps within the page', anchored > 100, `at ${anchored}`);
+
   console.log('\n8. console');
   checkThat('no page or console errors', consoleErrors.length === 0, consoleErrors.join(' | '));
 } finally {

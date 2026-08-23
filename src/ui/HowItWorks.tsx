@@ -341,13 +341,6 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
   const [active, setActive] = useState(0);
   const [revealed, setRevealed] = useState<boolean[]>(() => new Array(STAGE_COUNT).fill(false));
 
-  // The link into this page lives in the footer, so the reader is usually at the
-  // bottom of the previous screen when they press it. Without this they would
-  // land somewhere in the middle of the explainer.
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
   // Which stage the reader is in. A tall dead band top and bottom means the
   // section crossing the middle of the viewport is the one that counts, which
   // is what a reader would say they are "in". The limits card is watched too,

@@ -348,6 +348,24 @@ export function App() {
     [runAnalysis],
   );
 
+  /**
+   * Every change of screen starts at the top of it.
+   *
+   * The document scrolls, not a per-screen box, so without this a new screen
+   * inherits wherever the last one was left — and the places people leave a
+   * screen from are the bottom of it: the footer's link into the explainer, the
+   * Practise button under the tab, the top bar after scrolling down a page of
+   * chords. Landing halfway into a page you have never seen reads as the app
+   * having lost its place.
+   *
+   * Keyed on the name alone: a screen that re-renders with new data (the tab
+   * rebuilding as the arrangement changes) is the same screen, and yanking the
+   * reader to the top of it would be its own bug.
+   */
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen.name]);
+
   const micSupported =
     typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
 
