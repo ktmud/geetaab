@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useT } from '../i18n';
-import { BackIcon, GitHubIcon } from './icons';
+import { BackIcon } from './icons';
 
 export interface HowItWorksProps {
   onBack: () => void;
@@ -1085,13 +1085,11 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
         </ul>
       </div>
 
+      {/* No GitHub link here: the page footer below carries the same one, and
+          the two sat one under the other. This closing came from a standalone
+          version of the page that had no footer of its own. */}
       <div className="hw-closing">
         <p>{t.hwClosing}</p>
-        <p>
-          <a href="https://github.com/ktmud/geetaab" target="_blank" rel="noreferrer">
-            <GitHubIcon size={14} /> {t.hwClosingLink}
-          </a>
-        </p>
       </div>
     </div>
   );

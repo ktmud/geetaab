@@ -471,7 +471,6 @@ export const dictionary = {
       ' (no add9, no diminished, no augmented) — a chord outside this vocabulary comes back as the closest thing inside it.',
     hwClosing:
       'So next time someone asks "how does a machine hear chords?", now you know: it starts by listening for music, runs the audio through Fourier and chroma and templates, smooths frame-by-frame flicker into sustained decisions, finds the beat and the key, and adapts the result for beginner hands. Simple is hard.',
-    hwClosingLink: 'geetaab is open source · view it on GitHub',
 
     // Format functions
     daysAgo: (days: number): string => {
@@ -917,7 +916,6 @@ export const dictionary = {
     hwLimitVocab: '（没有 add9，没有减和弦，没有增和弦）——词汇表之外的和弦，会用表里最接近的那个顶上。',
     hwClosing:
       '所以，下次有人问「机器是怎么听出和弦的」，你已经可以回答了：先听出有没有音乐，再让声音穿过傅里叶、色度和模板，把逐帧的抖动收成站得住的判断，找出拍子和调，最后改写成手上弹得顺的样子。把事情做简单，从来都不简单。',
-    hwClosingLink: 'geetaab 是开源的 · 在 GitHub 上查看',
 
     // Format functions
     daysAgo: (days: number): string => {
