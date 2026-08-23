@@ -2614,8 +2614,10 @@ input[type='range'] {
 }
 
 .home-footer {
-  margin-top: 52px;
-  padding-top: 20px;
+  /* The page footer follows immediately below with a rule of its own; 52px
+     here made one quiet line sit in the middle of two separate endings. */
+  margin-top: 30px;
+  padding-top: 16px;
   border-top: 1px solid var(--line-soft);
   font-size: 13px;
   color: var(--text-faint);
@@ -3595,4 +3597,11 @@ input[type='range'] {
   .hw-fig svg {
     min-width: 0;
   }
+}
+
+/* The 96px tail on .shell keeps the last card clear of the practice dock.
+   The home screen has no dock, and its own closing note plus the page footer
+   already give the page an ending. */
+.shell.home {
+  padding-bottom: 24px;
 }

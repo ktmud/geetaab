@@ -530,8 +530,11 @@ try {
     const r = document.querySelector('.feature').getBoundingClientRect();
     return { top: Math.round(r.y), left: Math.round(r.x), right: Math.round(r.right) };
   });
+  // A 40px band, not a single row: the field is 6% opacity and widely spaced,
+  // so one row can miss every string and report the field as absent for a
+  // layout shift that has nothing to do with what is being tested.
   const strip = async (x, width) =>
-    (await page.screenshot({ clip: { x, y: box.top + 40, width, height: 1 } })).toString('base64');
+    (await page.screenshot({ clip: { x, y: box.top + 40, width, height: 40 } })).toString('base64');
   const marginBefore = await strip(0, box.left - 10);
   const cardBefore = await strip(box.left + 15, box.right - box.left - 30);
   await page.evaluate(() => {
