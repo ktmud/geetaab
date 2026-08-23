@@ -2904,11 +2904,26 @@ input[type='range'] {
 }
 
 /* The figures were a tint over nothing, so the backdrop's diagonals ran
-   straight through every drawing. Tint over an opaque surface instead. */
+   straight through every drawing. Tint over a surface instead — opaque by
+   default, and frosted where the browser can blur what is behind it. */
 .how-it-works .hw-fig,
 .how-it-works .hw-limits {
   background-color: var(--surface);
   background-image: linear-gradient(var(--hw-raw-tint), var(--hw-raw-tint));
+}
+
+/* Letting a little of the string field through keeps the boxes part of the
+   page rather than panels laid on top of it — but only with a blur behind
+   them. Translucent over bare diagonals puts moving lines under the prose,
+   which is exactly the reading problem the opaque surface was added to fix, so
+   browsers without backdrop-filter keep the opaque one. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .how-it-works .hw-fig,
+  .how-it-works .hw-limits {
+    background-color: rgb(var(--surface-rgb) / 0.76);
+    -webkit-backdrop-filter: blur(9px) saturate(1.06);
+    backdrop-filter: blur(9px) saturate(1.06);
+  }
 }
 
 .how-it-works .hw-stage.decided .hw-fig {
@@ -3170,6 +3185,13 @@ input[type='range'] {
 
 .hw-fig {
   margin: 16px 0 0;
+  /* The box hugs its drawing rather than stretching to the column: a small
+     diagram centred in a full-width card reads as a mistake, and left-aligned
+     in one reads as an unfinished layout. 32px is this box's own horizontal
+     chrome — 14px of padding each side, plus the hairline and the 3px rule
+     down the left — and --fig-w is the drawing's natural width, published by
+     the Figure component from its viewBox. */
+  width: min(100%, calc(var(--fig-w, 100%) + 32px));
   padding: 14px 14px 12px;
   background: var(--hw-raw-tint);
   border: 1px solid var(--line-soft);
@@ -3186,8 +3208,13 @@ input[type='range'] {
   transform: none;
 }
 
+/* Only the tint and the rule down the side: the `background` shorthand would
+   also reset background-color, and being more specific than the rule that sets
+   the surface, it left every amber figure as a 5% tint over nothing — which is
+   why the backdrop's diagonals ran through those and not through the teal
+   ones. Set the layer, not the shorthand. */
 .hw-stage.decided .hw-fig {
-  background: var(--hw-decided-tint);
+  background-image: linear-gradient(var(--hw-decided-tint), var(--hw-decided-tint));
   border-left-color: var(--hw-decided);
 }
 
@@ -3202,7 +3229,6 @@ input[type='range'] {
   max-width: var(--fig-w, none);
   min-width: 440px;
   height: auto;
-  margin-inline: auto;
   color: var(--text);
   fill: currentColor;
   font-family: var(--font);

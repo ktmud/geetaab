@@ -834,6 +834,13 @@ try {
       legend,
       figWidth: Math.round(box?.width ?? 0),
       natural,
+      // Every figure's box against the drawing inside it and the column around
+      // it, so the hug can be checked on the narrow ones as well as the widest.
+      hug: [...document.querySelectorAll('.hw-fig')].map((card) => ({
+        card: Math.round(card.getBoundingClientRect().width),
+        svg: Math.round(card.querySelector('svg')?.getBoundingClientRect().width ?? 0),
+        column: Math.round(card.parentElement?.getBoundingClientRect().width ?? 0),
+      })),
     };
   });
   checkThat(
@@ -846,10 +853,48 @@ try {
     deeper.legend.length === 3,
     deeper.legend.join(' · '),
   );
+  const frost = await page.evaluate(() => {
+    const read = (el) => {
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      const alpha = Number(/rgba?\([^)]*?([\d.]+)\)/.exec(cs.backgroundColor)?.[1] ?? '1');
+      return {
+        alpha: cs.backgroundColor.startsWith('rgba') ? alpha : 1,
+        blurred: (cs.backdropFilter || cs.webkitBackdropFilter || 'none') !== 'none',
+      };
+    };
+    const figures = [...document.querySelectorAll('.hw-fig')];
+    const teal = figures.find((f) => !f.closest('.hw-stage.decided'));
+    const amber = figures.find((f) => f.closest('.hw-stage.decided'));
+    return { teal: read(teal), amber: read(amber) };
+  });
+  checkThat(
+    // The amber figures used to be a 5% tint over nothing, because a shorthand
+    // reset the surface out from under them, so the backdrop's diagonals ran
+    // through those and not through the teal ones.
+    'both colours of figure sit on the same frosted surface, not one on nothing',
+    frost.teal && frost.amber &&
+      Math.abs(frost.teal.alpha - frost.amber.alpha) < 0.02 &&
+      frost.teal.alpha > 0.5 && frost.teal.alpha < 1 &&
+      frost.teal.blurred && frost.amber.blurred,
+    JSON.stringify(frost),
+  );
   checkThat(
     'and a diagram is never drawn bigger than the size its type was set for',
     deeper.natural > 0 && deeper.figWidth <= deeper.natural + 1,
     `${deeper.figWidth}px drawn against ${deeper.natural} natural`,
+  );
+  const hugs = deeper.hug.filter((h) => h.svg > 0);
+  const narrower = hugs.filter((h) => h.card < h.column - 4);
+  checkThat(
+    // A small drawing centred in a full-width card reads as a mistake.
+    'the box around a diagram hugs it rather than stretching to the column',
+    hugs.length >= 6 &&
+      hugs.every((h) => h.card <= h.svg + 40) &&
+      narrower.length >= hugs.length - 2,
+    `${narrower.length} of ${hugs.length} narrower than their column; widest gap ${Math.max(
+      ...hugs.map((h) => h.card - h.svg),
+    )}px`,
   );
   checkThat(
     'the explainer draws nine stages, nine sized diagrams and their captions',
