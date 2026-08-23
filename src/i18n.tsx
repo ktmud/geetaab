@@ -215,6 +215,164 @@ export const dictionary = {
     recordingTooShort: 'That recording was too short to work with.',
     analysisFailed: 'The analysis failed.',
 
+    // How chords are recognized (the explainer page)
+    howChordsRecognized: 'How chords are recognized',
+    hwEyebrow: 'Inside the analysis',
+    hwTitle: 'How Chords Are Recognized',
+    hwLede:
+      'Turn a guitar recording into a chord chart you can actually play — what\'s the computer doing inside?',
+    hwOverview: 'Overview',
+    hwStageLabel: (n: number) => `Stage ${n}`,
+    hwStages89: 'Stages 8–9',
+    hwNodes: ['Listen', 'FFT', 'Chroma', 'Match', 'Smooth', 'Tempo', 'Key', 'Adapt', 'Chart'],
+    hwOverviewAria:
+      'Diagram: the nine-stage signal path from raw audio to a finished chord chart, teal for raw measurement turning amber at the point a chord is decided.',
+    hwOverviewCaption:
+      'The complete signal path from raw audio to final chord chart. Teal indicates raw measurement; copper indicates final decisions. From stage 5 onward, raw measurements become trustworthy answers.',
+
+    hwS1Title: 'Listen Before Recording',
+    hwS1P1:
+      'The microphone is always listening, but the app won\'t start recording unless it\'s confident real music is playing. Without this gate, every take would begin with three seconds of rustling as you pull your phone from your pocket.',
+    hwS1P2: 'Every fraction of a second, the app checks five things:',
+    hwS1Terms: ['Loudness', 'Tonality', 'Steadiness', 'Activity', 'Chord shape'],
+    hwS1Descs: [
+      ' — louder than room noise?',
+      ' — is energy concentrated on a few pitch classes, or smeared across all twelve? (Broadband noise fails this.)',
+      ' — does the harmony hold still for about a quarter-second? (A gliding voice fails this.)',
+      ' — does loudness breathe and change over time? (A steady electrical hum fails this.)',
+      ' — does it roughly match a chord template?',
+    ],
+    hwS1P3a:
+      'All five must clear at once, for several ticks in a row, before recording truly begins. This sounds simple, but it\'s genuinely tricky — a real voice-activity detector sounds like the obvious tool, except they\'re trained to ',
+    hwS1P3Em: 'reject',
+    hwS1P3b:
+      ' music (they\'re built for speech), so using one would backfire. Plus downloading any model would violate the app\'s core promise: "nothing but the page itself ever downloads." So this gate is pure signal processing, no machine learning.',
+    hwS1Cols: ['Loud', 'Tonal', 'Steady', 'Breathe', 'Chord'],
+    hwS1Rows: ['Music', 'Noise', 'Speech', 'Hum'],
+    hwS1Aria:
+      'Diagram: the five checks the music gate applies — level, tonality, steadiness, activity and chord match — all of which must pass at once before recording starts.',
+    hwS1Caption:
+      'The five checks compared. Only when all five pass (all copper circles) does the app trust that real music is playing.',
+
+    hwS2Title: 'FFT: Breaking Sound Into Frequencies',
+    hwS2P1:
+      'Any real sound is many pure tones layered together. An FFT takes a short slice of the waveform (roughly a tenth of a second) and re-expresses it as: how much energy is at each individual frequency? The output looks like a bar chart — tall spikes where strings are ringing, nearly zero everywhere else.',
+    hwS2Waveform: 'Waveform',
+    hwS2Spectrum: 'Spectrum',
+    hwS2Low: 'Low',
+    hwS2High: 'High',
+    hwS2RealString: 'Real string',
+    hwS2Harmonic: 'Harmonic',
+    hwS2Aria:
+      'Diagram: a waveform on the left transformed by FFT into a bar spectrum on the right, where a few tall bars mark the frequencies of strings actually ringing.',
+    hwS2Caption:
+      'A waveform (left) transforms into a frequency bar chart (right) via FFT. Each bar is one frequency\'s energy. Real notes spike; silence stays near zero.',
+
+    hwS3Title: 'Chroma: Folding Into 12 Pitch Classes',
+    hwS3P1a:
+      'For chords, a low E and a high E an octave up are "the same note" — a chord is a ',
+    hwS3P1Em: 'set',
+    hwS3P1b:
+      ' of note names, not exact pitches. So every spike from the FFT gets folded: all C\'s (at any octave) add energy into one C bucket; same for C#, D, up to B. The result is always exactly 12 numbers, regardless of how the guitar was voiced.',
+    hwS3P2:
+      'Before folding, the app measures how far the recording sits from "standard tuning" (A=440 Hz). Recordings made off a speaker, or a guitar tuned slightly flat, are often 20–40 cents off — enough that energy splits across two neighbouring buckets and every chord reads as ambiguous. The app automatically corrects for this tuning shift.',
+    hwS3LowC: 'Low C',
+    hwS3MidC: 'Mid C',
+    hwS3HighC: 'High C',
+    hwS3Chroma: 'Chroma',
+    hwS3Buckets: '12 pitch-class buckets. Energy from all octaves merges into one.',
+    hwS3Aria:
+      'Diagram: the same note name at several octaves, each folded by an arrow into a single one of twelve pitch-class buckets labelled C through B.',
+    hwS3Caption:
+      'All C\'s at any octave fold into one bucket. This 12-number chroma fingerprint is enough for chord recognition.',
+
+    hwS4Title: 'Template Matching: Finding the Best Fit',
+    hwS4P1:
+      'The app holds 84 template fingerprints — 12 roots × 7 chord qualities (maj, min, dom7, min7, maj7, sus4, sus2). Each template isn\'t just the chord\'s bare notes; it also includes each note\'s first several harmonics, because a plucked string\'s energy isn\'t only at its pitch, it rings with a whole ladder of overtones. A template that didn\'t expect those overtones would mistake them for extra notes that aren\'t there.',
+    hwS4P2:
+      'The 12-number fingerprint from stage 3 is now compared against all 84 templates. Each gets a similarity score — think of it as 84 small bar charts laid side by side, with the tallest bar being the best-matching chord at this instant.',
+    hwS4Measured: 'Measured',
+    hwS4BestMatch: 'best match',
+    hwS4Aria:
+      'Diagram: the measured twelve-number chroma fingerprint compared against candidate chord templates, with the closest match highlighted.',
+    hwS4Caption:
+      'The measured 12-number fingerprint (top) against 84 chord templates. The best-matching template (copper highlight) is the most likely chord at this moment.',
+
+    hwS5Title: 'Viterbi Smoothing: From Flicker to Flow',
+    hwS5P1:
+      'If the app chose the highest-scoring chord independently frame-by-frame, the answer would flicker — jumping several times a second, because decaying strum and normal noise wobble the scores moment to moment. But real players don\'t change chords eight times per second.',
+    hwS5P2a:
+      'So instead of picking each frame\'s winner independently, the app finds the single best ',
+    hwS5P2Em: 'path',
+    hwS5P2b:
+      ' through time that balances "matches what was heard" against "changing chords costs something" — like autocorrect for a sentence, keeping the same word unless the evidence is overwhelming. This turns frame-by-frame flicker into a clean, confident chart with one or two chord changes per bar.',
+    hwS5Raw: 'Raw',
+    hwS5RawSub: 'frame-by-frame',
+    hwS5Smoothed: 'Smoothed',
+    hwS5SmoothedSub: 'Viterbi',
+    hwS5Aria:
+      'Diagram: raw per-instant chord guesses flickering between several chords on the top row, and below on the same time axis the Viterbi-smoothed result holding one chord per bar.',
+    hwS5Caption:
+      'Raw frame-by-frame guesses (top) jump wildly. Viterbi (bottom) finds the best path through time, making chord changes meaningful and smooth.',
+
+    hwS6Title: 'Tempo and Free Time',
+    hwS6P1:
+      'The app separately tracks how loudness rises and falls over time (an "onset" curve) and looks for repeating gaps between peaks — that gap is the beat. But it also checks whether that repetition is actually reliable: some songs (tender ballads, fingerstyle arrangements) never lock into steady pulse, and forcing a grid onto them is just a confident lie. When rhythm is too weak to trust, the app says honestly "this song is free-time," stops using the beat grid, and reads chord boundaries straight from the harmony instead.',
+    hwS6Onset: 'Onset curve',
+    hwS6BeatInterval: 'beat interval',
+    hwS6Aria:
+      'Diagram: a loudness envelope with tick marks under its peaks, the even gap between adjacent ticks marking the beat.',
+    hwS6Caption:
+      'Loudness over time. Peaks in the curve mark beats. The distance between adjacent beats tells us the song\'s speed.',
+
+    hwS7Title: 'Key: Finding Home',
+    hwS7P1:
+      'Using the same 12-number idea (this time built up over the whole song, weighted by how long each chord rang), the app correlates against 24 template fingerprints — one per major and minor key — and picks the best match. Like humming a scale to yourself and noticing which one "feels like home."',
+    hwS7SongChroma: 'Song\'s chroma',
+    hwS7Candidates: 'Key candidates',
+    hwS7Best: 'best',
+    hwS7Aria:
+      'Diagram: the whole song\'s accumulated chroma fingerprint compared against several candidate key profiles, with the best-matching key highlighted.',
+    hwS7Caption:
+      'The song\'s accumulated chroma (top) correlated against key templates. The best match (copper) is the key.',
+
+    hwS89Title: 'Arranging for Beginner Hands',
+    hwS89P1: 'Finally, the raw chord sequence is adapted for a beginner\'s hands:',
+    hwS89Terms: ['Choose capo', 'Swap hard chords', 'Multiple levels'],
+    hwS89Descs: [
+      ' — pick a capo position that puts as many chords as possible on easy open shapes.',
+      ' — replace genuinely hard chords with the easy stand-ins a teacher would suggest. F becomes Fmaj7, Bm becomes Bm7.',
+      ' — for busy songs, offer up to three versions: easy (sevenths and suspensions folded away), standard (beginner reading), faithful (every extension kept). Only when they actually differ.',
+    ],
+    hwS89Final: 'Final output',
+    hwS89ChartNote: 'A chord chart a beginner can follow. Chord names at top, strumming direction below.',
+    hwS89Aria:
+      'Diagram: a short chord chart as the player finally receives it, chord names above simple strum marks.',
+    hwS89Caption: 'The final step\'s output: readable, beginner-friendly chord charts.',
+
+    hwLimitsTitle: 'Honest Limits',
+    hwLimitsIntro:
+      'This app has been tested against real, independently-published guitar tabs across many genres (Chinese pop ballads, a Taylor Swift song, a film score). It is good, not perfect. Worth knowing:',
+    hwLimitTerms: [
+      'Accuracy: 94% average',
+      'Genuine hard problems',
+      'Only 84 chord qualities modeled',
+    ],
+    hwLimitAccuracyLead:
+      ' Across seven real songs against published tabs, root-and-major/minor-family agreement averaged ',
+    hwLimitAccuracyTail:
+      ', ranging 87%–99%. The algorithm puts a beginner\'s hand on the right basic chord shape the overwhelming majority of the time.',
+    hwLimitHardIntro: ' (not bugs) were found and honestly disclosed:',
+    hwLimitHardItems: [
+      'A chord quality differing by one note one semitone away (like Em vs Esus2) is fundamentally the hardest pair to tell from a 12-number fingerprint, especially in fingerpicked passages where notes don\'t sound at once.',
+      'Telling a song\'s home key (I) from its dominant (V) — the two are harmonic cousins — is a known hard problem for this style of key detection, similar to the "is this 70 BPM or 140 BPM" tempo octave ambiguity that no signal analysis fully resolves.',
+    ],
+    hwLimitVocab:
+      ' (no add9, no diminished, no augmented) — a chord outside this vocabulary comes back as the closest thing inside it.',
+    hwClosing:
+      'So next time someone asks "how does the computer hear chords?", now you know: it starts by listening for music, runs the audio through Fourier and chroma and templates, smooths frame-by-frame flicker into sustained decisions, finds the beat and the key, and adapts the result for beginner hands. Simple is hard.',
+    hwClosingLink: 'geetaab is open source · view it on GitHub',
+
     // Format functions
     daysAgo: (days: number): string => {
       if (days <= 0) return 'today';
@@ -435,6 +593,147 @@ export const dictionary = {
     couldNotDecode: '该文件无法解码。请尝试 MP3、M4A、WAV 或 OGG。',
     recordingTooShort: '该录音太短。',
     analysisFailed: '分析失败。',
+
+    // How chords are recognized (the explainer page)
+    howChordsRecognized: '和弦是怎么听出来的',
+    hwEyebrow: '算法内部',
+    hwTitle: '和弦是怎么听出来的',
+    hwLede: '把一段吉他弹唱，变成一张可以照着弹的和弦谱——这中间电脑到底做了什么？',
+    hwOverview: '总览',
+    hwStageLabel: (n: number) => `第${n}阶段`,
+    hwStages89: '第8&9阶段',
+    hwNodes: ['音乐检测', 'FFT', '色度', '匹配', '平滑', '节拍', '调性', '改编', '成谱'],
+    hwOverviewAria:
+      '示意图：从原始音频到最终和弦谱的九个阶段信号路径，蓝绿色表示原始测量，在决定和弦的那一刻转为琥珀色。',
+    hwOverviewCaption:
+      '从原始音频到最终和弦谱的完整信号路径。蓝绿色表示原始测量，琥珀色表示最终决定。从第5阶段起，原始测量变成了可以相信的答案。',
+
+    hwS1Title: '先听懂再录',
+    hwS1P1:
+      '麦克风一直在听，但应用不会真的开始录音，除非它有把握真的在放音乐。为什么？因为没有这个关卡，每一次按“录”，前三秒都是“从口袋里掏出手机”的沙沙声。',
+    hwS1P2: '应用每隔几分之一秒就检查五件事：',
+    hwS1Terms: ['响度', '音高集中度', '稳定性', '活力', '和弦样子'],
+    hwS1Descs: [
+      '——超过房间噪音的底线吗？',
+      '——能量是聚集在少数几个音高，还是铺散在所有十二个音呢？（白噪音会铺散）',
+      '——和弦在大约四分之一秒的时间里保持住了吗？（变音会不断变化）',
+      '——响度随着时间真的呼吸变化吗？（工频噪音稳定刺耳，但永远不会呼吸）',
+      '——粗略地匹配什么和弦吗？',
+    ],
+    hwS1P3a:
+      '五个条件必须同时过关，而且要连续过关好几次，录音的指示灯才会变绿。这听起来简单，但其实很难——一个真正的语音活动检测器听起来是天然的工具，可惜它们是训练来',
+    hwS1P3Em: '拒绝',
+    hwS1P3b:
+      '音乐的（它们是为了识别语音而建的），用它会得到反效果。而且如果要下载任何模型，就违反了这个应用的承诺：“没有任何东西是从网上下载的”。所以这个关卡完全是信号分析，没有学习模型。',
+    hwS1Cols: ['响度', '集中', '稳定', '活力', '和弦'],
+    hwS1Rows: ['音乐', '噪音', '语音', '工频'],
+    hwS1Aria:
+      '示意图：音乐关卡应用的五项检查——响度、音高集中度、稳定性、活力和和弦匹配——五项必须同时通过，录音才会开始。',
+    hwS1Caption: '五个检查的直观对比。只有当所有五个条件都通过时（全是琥珀色的圆圈），才意味着真的有音乐在放。',
+
+    hwS2Title: '傅里叶变换：把声音拆成一根根音高',
+    hwS2P1:
+      '任何真实的声音都是许多纯音叠加在一起。傅里叶变换（FFT）把波形的一小片段（大约十分之一秒）重新表达成：在每一个单独的频率，有多少能量？输出看起来像一张条形图或者一根根竖起来的线——真正响的音高是高尖峰，其他地方几乎是零。',
+    hwS2Waveform: '波形',
+    hwS2Spectrum: '频率谱',
+    hwS2Low: '低频',
+    hwS2High: '高频',
+    hwS2RealString: '真实响弦',
+    hwS2Harmonic: '泛音',
+    hwS2Aria:
+      '示意图：左边的波形经傅里叶变换成为右边的条形频谱，少数几根高柱标出真正在响的弦的频率。',
+    hwS2Caption:
+      '波形（左）通过傅里叶变换变成频率条形图（右）。每一根柱子代表一个特定的频率有多少能量。真正有声音的地方会耸起来。',
+
+    hwS3Title: '色度图：把音高压成12格',
+    hwS3P1a: '对于和弦来说，一根弦的低E和高八度的E听起来是“同一个音”——和弦是一',
+    hwS3P1Em: '组',
+    hwS3P1b:
+      '音名，不是一组精确的音高。所以应用把FFT的所有尖峰都折叠起来：所有的C（无论什么八度）的能量加到一个“C”的桶里；C#、D、⋯⋯一直到B也各有一个桶。结果总是正好12个数字，无论吉他到底是怎么弹的。',
+    hwS3P2:
+      '折叠发生之前，应用还要测量这个录音离“标准音”（A=440Hz）有多远。手机喇叭录的，或者吉他调得略微偏低的歌曲，通常会偏20–40音分，足以让能量在相邻的两个桶之间分裂，导致每个和弦都读成模棱两可的。所以应用会自动补正这个偏移。',
+    hwS3LowC: '低C',
+    hwS3MidC: '中C',
+    hwS3HighC: '高C',
+    hwS3Chroma: '色度图',
+    hwS3Buckets: '12个音名桶，无论什么八度的能量都汇聚到一起',
+    hwS3Aria:
+      '示意图：同一个音名在几个不同八度上，各自由一支箭头折叠进十二个音名桶中的同一个，桶从C标到B。',
+    hwS3Caption:
+      '所有不同八度的C都折叠到一个单一的“C”桶里。这就是12个数字的色度指纹，它对于和弦识别来说已经足够了。',
+
+    hwS4Title: '模板比对：找最接近的标准答案',
+    hwS4P1:
+      '应用保存着84张“标准答案”——12个根音 × 7个和弦品质的每一种组合（大三和弦、小三和弦、属七、小七、大七、挂四、挂二）。每张模板不只是和弦的裸露音符，还包括每个音的头几个泛音（谐波），因为真正的拨弦的能量不只在基音频率，还会铃铃铛铛地响遍整个泛音阶。一张不预期那些泛音的模板会把它们误认作额外的音符。',
+    hwS4P2:
+      '第3阶段测得的12个数字，现在要和这84张模板逐个比对。每张都给出一个相似度分数——想象成84个小条形图排在一起，最高的那根柱子就是这一瞬间最符合的和弦。',
+    hwS4Measured: '测量值',
+    hwS4BestMatch: '最匹配',
+    hwS4Aria: '示意图：测得的十二个数字色度指纹与候选和弦模板逐个比对，最接近的那一张被高亮。',
+    hwS4Caption:
+      '测量的12个数字（上）与84张和弦模板的对比。最接近的模板（琥珀色高亮）就是这一时刻最可能的和弦。',
+
+    hwS5Title: '维特比平滑：把一格一格的猜测理顺成一条路',
+    hwS5P1:
+      '如果应用每一帧都单独选择评分最高的和弦，答案会闪烁——每秒好几次地跳来跳去，因为衰减的扫弦和正常的噪音会一时一时地摇晃这些数字。但真正的歌手不会每秒改八次和弦。',
+    hwS5P2a: '所以应用不是逐帧地挑最赢家，而是找一条最好的',
+    hwS5P2Em: '路径',
+    hwS5P2b:
+      '，平衡两件事：“这听起来符合实际”和“改变和弦要付代价”。这就像打字时的自动纠正，一个单词除非证据强得不容置疑，否则保持不动。这就把一格一格闪烁的猜测变成了干净的、有底气的、一小节一两个和弦变化的图表。',
+    hwS5Raw: '未平滑',
+    hwS5RawSub: '逐帧猜测',
+    hwS5Smoothed: '平滑后',
+    hwS5SmoothedSub: '维特比解码',
+    hwS5Aria:
+      '示意图：上排是逐帧的原始和弦猜测，在几个和弦之间乱跳；下排在同一条时间轴上，是维特比平滑后的结果，一小节稳住一个和弦。',
+    hwS5Caption:
+      '未平滑的原始猜测（上）每几毫秒就在不同和弦之间乱跳。维特比算法（下）找一条最好的路径，迫使和弦变化变得有意义且平稳。',
+
+    hwS6Title: '节拍与自由节奏',
+    hwS6P1:
+      '应用同时追踪响度随时间如何起伏（一个“能量突起”曲线），然后寻找峰值之间的重复间隔——那个间隔就是节拍。它还会检查这种重复是否真正可靠：有些歌曲（深情的民谣、某些指弹编排）从不锁定在稳定的拍子里，如果硬是把网格强加上去就只是个有信心的谎言。节奏性太弱的时候，应用诚实地说“这首歌是自由节奏”，不再用节拍网格，而是直接从和弦边界读调和变化。',
+    hwS6Onset: '能量包络',
+    hwS6BeatInterval: '节拍间隔',
+    hwS6Aria: '示意图：一条响度包络曲线，峰值下方是一排刻度，相邻刻度之间均匀的间隔就是一拍。',
+    hwS6Caption: '能量曲线显示响度如何随时间变化。曲线的峰值就是一个新的节拍。相邻节拍之间的距离告诉我们歌曲的速度。',
+
+    hwS7Title: '调性：找到歌曲的“家键”',
+    hwS7P1:
+      '使用同一个12数字的想法（这次从整首歌曲积累，按每个和弦的长度加权），应用针对24个模板指纹进行相关性分析——每个大调和小调各一个——并选择最匹配的一个。这就像一个人哼一个音阶来自己检查，并注意到哪一个“感觉像家”。',
+    hwS7SongChroma: '整首歌的色度积累',
+    hwS7Candidates: '候选调',
+    hwS7Best: '最匹配',
+    hwS7Aria: '示意图：整首歌积累出的色度指纹与几个候选调性模板对比，最匹配的那个调被高亮。',
+    hwS7Caption: '整首歌的色度指纹（上）与几个候选调性模板对比。最匹配的调（琥珀色高亮）就是这首歌的调性。',
+
+    hwS89Title: '改编成看得懂的谱子',
+    hwS89P1: '最后，原始的和弦序列要被改编给初学者的手：',
+    hwS89Terms: ['选择变调夹', '交换难弦', '多个难度'],
+    hwS89Descs: [
+      '——用变调夹把尽可能多的和弦放在容易的开放弦把位里。',
+      '——一个真正难的和弦可能被换成一个老师建议的简单替代品。比如 F 变成 Fmaj7，或 Bm 变成 Bm7。',
+      '——对于节奏多变的歌，应用提供最多三个版本：简单版（叠七、挂音、短经过和弦都折叠掉）／标准版（初学者读法）／忠实版（保留每一个扩展音）。只有当它们真的不同时才提供。',
+    ],
+    hwS89Final: '最终输出',
+    hwS89ChartNote: '一个初学者可以照着弹的和弦图。和弦名上面标注，下面是拨弦方向。',
+    hwS89Aria: '示意图：演奏者最后拿到的一小段和弦谱，和弦名在上，简单的扫弦记号在下。',
+    hwS89Caption: '最后一步的输出：可读的和弦谱，已经为初学者的手指调整过。',
+
+    hwLimitsTitle: '诚实的局限',
+    hwLimitsIntro:
+      '这个应用已经在许多流派的真实、独立出版的吉他制表进行了测试（中文流行民谣、泰勒·斯威夫特的歌、电影配乐）。它很好，但不完美。值得知道的几件事：',
+    hwLimitTerms: ['平均准确率：94%', '真正的难区别', '只有84个和弦质量被模型化'],
+    hwLimitAccuracyLead: ' 在七首真实歌曲对其公开发布的制表进行检验，根和主／小三和弦族的一致性平均为 ',
+    hwLimitAccuracyTail: '，范围是 87%–99%。这意味着算法大多数时间把初学者的手指放在正确的基本和弦把位上。',
+    hwLimitHardIntro: '（不是漏洞）被找到了两个，而且应用坦诚相对：',
+    hwLimitHardItems: [
+      '小三和弦（Em）vs 挂二和弦（Esus2）那样的质量，相邻一个音符相差一个半音的，是从12数字指纹来说最难的区分对——尤其是在指弹的乐段，音符不是全部同时发声。',
+      '一首歌的主调（I）和属调（V）的区别——两者是亲近的和声堂兄——是这种按音频的调性检测所公知的难题，有点像“这首歌是70 BPM还是140 BPM”的速度八度不确定性，信号分析永远不能完全解决。',
+    ],
+    hwLimitVocab: '（没有add9、没有减、没有增）——超出这个词汇表的和弦以最接近的表示内部回传。',
+    hwClosing:
+      '所以下次有人问“电脑怎么听出和弦的”，现在你知道了：从倾听音乐开始，一路通过傅里叶和色度和模板，直到平滑和节拍和调性，最后才能说出初学者能照着弹的东西。简单从来都不简单。',
+    hwClosingLink: 'geetaab 是开源的 · 在 GitHub 上查看',
 
     // Format functions
     daysAgo: (days: number): string => {
