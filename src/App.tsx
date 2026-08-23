@@ -61,6 +61,22 @@ export function App() {
   const sessionRef = useRef<Session | null>(null);
   sessionRef.current = session;
 
+  // Anything that sticks below the topbar needs its real height, which changes
+  // with the screen (the home wordmark is larger), the language and the loaded
+  // font. Measuring beats arithmetic that goes stale.
+  const topbarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const bar = topbarRef.current;
+    if (!bar) return;
+    const publish = (): void => {
+      document.documentElement.style.setProperty('--topbar-h', `${Math.round(bar.getBoundingClientRect().height)}px`);
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
+
   const refreshLibrary = useCallback(() => {
     listSongs()
       .then(setSongs)
@@ -309,7 +325,7 @@ export function App() {
           The practice screen already drops it the same way. */}
       {screen.name !== 'listening' ? <Backdrop /> : null}
       <div className="app">
-        <header className={`topbar${screen.name === 'home' ? ' topbar-home' : ''}`}>
+        <header ref={topbarRef} className={`topbar${screen.name === 'home' ? ' topbar-home' : ''}`}>
           <button
             className={`brand${screen.name === 'home' ? ' brand-lg' : ''}`}
             onClick={() => setScreen({ name: 'home' })}

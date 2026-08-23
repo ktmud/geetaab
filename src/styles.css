@@ -2835,8 +2835,10 @@ input[type='range'] {
 
 .hw-steps {
   position: sticky;
-  /* Under the sticky topbar: brand mark 30px plus its 12px padding either side. */
-  top: 55px;
+  /* Flush under the sticky topbar, whose height App measures and publishes:
+     computing it here went stale whenever the bar changed, and the strip then
+     slid a few pixels behind it, hiding its top edge. */
+  top: var(--topbar-h, 55px);
   z-index: 15;
   margin: 16px -18px 8px;
   padding: 5px 12px;
