@@ -985,6 +985,11 @@ input[type='range'] {
 .listen-spectro {
   position: fixed;
   inset: 0;
+  /* A canvas is a replaced element: with auto width/height, inset alone
+     resolves to its intrinsic 300×150 — and the painter then reads
+     clientWidth to size the backing store, freezing it there. */
+  width: 100%;
+  height: 100%;
   z-index: -1;
   pointer-events: none;
   opacity: 0;
