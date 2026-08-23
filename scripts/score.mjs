@@ -19,6 +19,12 @@
    read, and a recording can be a semitone off it — a pitch-shifted upload, a
    guitar tuned down, a capo. That is a constant, not a mistake: what matters is
    whether the changes land in the right places relative to each other.
+
+   --before/--after <seconds> restrict scoring to segments starting in that window.
+   A song that modulates partway through (a key-change final chorus) has no single
+   transposition that fits start to end; score each stretch against the matching
+   slice of the reference sheet rather than letting the shorter one register as
+   noise under whichever shift wins the longer one.
 */
 import { readFile } from 'node:fs/promises';
 import { analyzeAudio } from '../src/core/analyze.ts';
@@ -78,10 +84,16 @@ function pitchClass(name) {
 
 const reference = refArg.split(',').map((s) => s.trim()).filter(Boolean).map(parseSymbol);
 const wantTranspose = valueOf('--transpose');
+const windowStart = Number(valueOf('--after') ?? -Infinity);
+const windowEnd = Number(valueOf('--before') ?? Infinity);
 
 const buf = await readFile(path);
 const samples = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
-const res = analyzeAudio(samples, sampleRate);
+const fullRes = analyzeAudio(samples, sampleRate);
+const res = {
+  ...fullRes,
+  segments: fullRes.segments.filter((seg) => seg.start >= windowStart && seg.start < windowEnd),
+};
 
 const familyOf = (q) => (q === 'min' || q === 'min7' ? 'min' : 'maj');
 
@@ -152,7 +164,11 @@ if (wantTranspose) {
 const total = played + nc || 1;
 const pct = (x, base = played || 1) => `${(Math.max(0, x / base) * 100).toFixed(1)}%`;
 
-console.log(`${path}  ${(samples.length / sampleRate).toFixed(0)}s`);
+const windowNote =
+  Number.isFinite(windowStart) || Number.isFinite(windowEnd)
+    ? `  [scoring ${Number.isFinite(windowStart) ? windowStart : 0}s–${Number.isFinite(windowEnd) ? windowEnd : '∞'}s only]`
+    : '';
+console.log(`${path}  ${(samples.length / sampleRate).toFixed(0)}s${windowNote}`);
 console.log(
   `heard: ${res.key.name}, ${res.tempo.toFixed(1)} BPM, ${res.beatsPerBar}/4, ` +
     `confidence ${res.confidence.toFixed(3)}${res.freeTime ? ', free time' : ''}`,
@@ -173,11 +189,12 @@ if (misses.size) {
   }
 }
 
-// What the player is actually handed.
+// What the player is actually handed — the whole song, regardless of any
+// --before/--after window narrowing the scoring above.
 const levels = {
-  easy: buildTab({ ...res, segments: reduceSegments(res.segments, res.beatsPerBar) }, { simplify: true }),
-  standard: buildTab(res, { simplify: true }),
-  faithful: buildTab(res, { simplify: false }),
+  easy: buildTab({ ...fullRes, segments: reduceSegments(fullRes.segments, fullRes.beatsPerBar) }, { simplify: true }),
+  standard: buildTab(fullRes, { simplify: true }),
+  faithful: buildTab(fullRes, { simplify: false }),
 };
 console.log(`\noffered levels: ${levelsWorthOffering(levels).join(', ')}`);
 for (const [name, tab] of Object.entries(levels)) {
