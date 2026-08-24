@@ -4039,27 +4039,131 @@ html[lang^='zh'] .how-it-works em {
   min-height: 0;
 }
 
-/* Short phones spend their height on the chord instead of on the two things
-   that repeat something already on screen. The degree line tells you something
-   once per song; the next-chord strip says in words what the lane one row down
-   is already showing in space, and it costs seventy pixels — nearly half of
-   what is left for the diagram at this height. */
-@media (orientation: portrait) and (max-height: 700px) {
-  .practice.portrait .practice-now-sub,
-  .practice.portrait .practice-next {
-    display: none;
-  }
+/* The lookahead is a strip, not a panel: tall enough for a name over a chord
+   box and no taller, because the leftover height belongs to the chord in hand
+   above it. */
+.practice.portrait .practice-lane {
+  height: clamp(150px, 23vh, 208px);
 }
 
-/* The lookahead is a strip, not a panel. Leftover height belongs to the chord
-   above it — stretching these blocks taller says nothing, because nothing in
-   them is read vertically. */
-.practice.portrait .practice-lane {
-  height: clamp(92px, 17vh, 150px);
+/* Blocks tall enough for a name over a chord box. What is coming is worth a
+   shape rather than a word — a name only helps someone who already knows the
+   chord, which is the opposite of who this screen is for. */
+.practice.portrait .lane-block {
+  top: 7%;
+  height: 78%;
+  gap: 3px;
+  padding: 4px 6px;
+}
+
+/* The name gives way to make room for the box under it; the two together say
+   more than either does at twice the size. */
+.practice.portrait .lane-block-name {
+  font-size: clamp(15px, 2.4vh, 22px);
+}
+
+/* The next-chord strip named what the lane now draws two fingers further down
+   the same screen. One of them had to go, and the strip was the one that could
+   only ever show a single chord ahead. */
+.practice.portrait .practice-next {
+  display: none;
 }
 
 .practice.portrait .strum-strip {
   overflow-x: auto;
+}
+
+/* The transport is what a thumb reaches for, and upright it has the bottom of
+   the screen to itself rather than sharing a short one — so the rows get room
+   to breathe instead of the tight stack sideways needs in order to fit at all. */
+.practice.portrait {
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+.practice.portrait .practice-dock {
+  gap: 15px;
+  padding-top: 6px;
+}
+
+/* Two rows, deliberately: the transport, then the readouts. Sideways this row
+   wraps wherever it happens to run out of width, which upright on a narrow
+   phone left the tempo chip alone on a third line, hanging off the left. */
+.practice.portrait .dock-row {
+  gap: 12px;
+  justify-content: center;
+}
+
+/* A full-width, zero-height item is a line break in a wrapping flex row. */
+.practice.portrait .spacer {
+  flex: 0 0 100%;
+  height: 0;
+}
+
+/* So the readouts share the second line rather than starting a third. */
+.practice.portrait .speed-control {
+  min-width: 0;
+  padding: 6px 10px;
+}
+
+.practice.portrait .speed-control input {
+  width: clamp(58px, 22vw, 92px);
+}
+
+/* 360 points wide is the commonest Android screen there is, and at that width
+   the word SPEED is the difference between two rows and three. The gauge beside
+   the slider says the same thing, and the percentage beside it says it again. */
+@media (orientation: portrait) and (max-width: 400px) {
+  .practice.portrait .speed-control .ctl-label {
+    display: none;
+  }
+
+  .practice.portrait .dock-row {
+    gap: 9px;
+  }
+}
+
+/* Narrower still, and the six transport buttons stop fitting on one line
+   themselves — which costs a third row, and the third row comes out of the
+   chord. They give up four points each instead. */
+@media (orientation: portrait) and (max-width: 345px) {
+  .practice.portrait .transport-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .practice.portrait .transport-btn.primary {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+/* Short phones spend their height on the chord in hand. The degree line says
+   something once a song; the lane's chord boxes say what the name beside them
+   already says, and both are paid for out of the one drawing that is worth the
+   room. Written after the rules above rather than before, because a media query
+   carries no weight of its own — only its position. */
+@media (orientation: portrait) and (max-height: 700px) {
+  .practice.portrait .practice-now-sub {
+    display: none;
+  }
+
+  .practice.portrait .practice-lane {
+    height: clamp(104px, 17vh, 140px);
+  }
+
+  .practice.portrait .lane-block {
+    top: 12%;
+    height: 66%;
+  }
+
+  .practice.portrait {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .practice.portrait .practice-dock {
+    gap: 10px;
+    padding-top: 2px;
+  }
 }
 
 /* The transport is the thing a thumb reaches for, so it keeps its size while

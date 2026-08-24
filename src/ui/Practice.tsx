@@ -114,7 +114,10 @@ export function Practice({
   const [countIn, setCountIn] = useState<number | null>(null);
   const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(null);
   const [portrait, setPortrait] = useState(false);
+  /** Upright and tall enough for the lane to draw shapes as well as names. */
+  const [roomy, setRoomy] = useState(false);
   const [laneWidth, setLaneWidth] = useState(800);
+  const [laneHeight, setLaneHeight] = useState(200);
   const [position, setPosition] = useState(0);
   /** Position previewed under the finger while the seek bar is being dragged. */
   const [scrub, setScrub] = useState<number | null>(null);
@@ -177,19 +180,34 @@ export function Practice({
   const duration = tab.duration;
 
   useEffect(() => {
+    // Two questions, because the upright layout answers them separately: which
+    // way up the screen is, and whether it is tall enough to spend height on
+    // the lookahead as well as on the chord in hand.
     const media = matchMedia('(orientation: portrait)');
-    const update = (): void => setPortrait(media.matches);
+    const roomy = matchMedia('(orientation: portrait) and (min-height: 701px)');
+    const update = (): void => {
+      setPortrait(media.matches);
+      setRoomy(roomy.matches);
+    };
     update();
     media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
+    roomy.addEventListener('change', update);
+    return () => {
+      media.removeEventListener('change', update);
+      roomy.removeEventListener('change', update);
+    };
   }, []);
 
   useEffect(() => {
     const element = laneRef.current;
     if (!element) return;
-    const observer = new ResizeObserver(() => setLaneWidth(element.clientWidth));
+    const measure = (): void => {
+      setLaneWidth(element.clientWidth);
+      setLaneHeight(element.clientHeight);
+    };
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
-    setLaneWidth(element.clientWidth);
+    measure();
     return () => observer.disconnect();
   }, []);
 
@@ -503,6 +521,25 @@ export function Practice({
   // Which strings the thumb takes depends on the chord being played, so the
   // strip is resolved against whatever is under the playhead right now.
   const activeShape = active?.chord?.shape ?? tab.palette[0]?.shape ?? null;
+
+  /**
+   * Which lane blocks get a chord box drawn in them, and how big.
+   *
+   * Only upright: sideways the lane runs beside a full-size diagram of the
+   * chord in hand, and a row of small copies of it beside that is noise. Only
+   * the blocks on screen, and only the ones wide enough to hold a legible box —
+   * a chord that lasts one beat is a sliver, and a box squeezed into it reads
+   * as a smudge where the name still reads as a name.
+   */
+  // Sized off the lane's height, which is what actually bounds it: a block is
+  // as tall as the lane and as wide as the chord is long, so width would make
+  // the same chord a different size in every song.
+  const laneShapeWidth = Math.round(Math.min(92, Math.max(44, (laneHeight * 0.62) / 1.18)));
+  const shapeIn = (index: number, startTime: number, endTime: number): boolean =>
+    roomy &&
+    index >= activeIndex - 1 &&
+    index <= activeIndex + 4 &&
+    (endTime - startTime) * pxPerSecond >= laneShapeWidth + 14;
   const barStartTime = beats[Math.max(0, Math.min(beats.length - 1, beatIndex - barBeat))] ?? 0;
   const eighth = Math.max(
     0,
@@ -604,7 +641,21 @@ export function Practice({
                 }}
               >
                 <span className="lane-block-name">{event.chord?.shapeLabel ?? 'N.C.'}</span>
-                {event.numeral ? <span className="lane-block-numeral">{event.numeral}</span> : null}
+                {/* The shape, not just the name, for the handful of blocks
+                    actually on screen. A name is only useful to someone who
+                    already knows the chord, which is the opposite of who this
+                    screen is for — and drawing every block's box instead of the
+                    visible ones would put thousands of nodes in the lane of a
+                    long song for the sake of five. */}
+                {shapeIn(index, event.startTime, event.endTime) && event.chord ? (
+                  <ChordDiagram
+                    shape={event.chord.shape}
+                    width={laneShapeWidth}
+                    showFingers={false}
+                  />
+                ) : event.numeral ? (
+                  <span className="lane-block-numeral">{event.numeral}</span>
+                ) : null}
               </div>
             ))}
           </div>

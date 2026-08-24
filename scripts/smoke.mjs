@@ -607,8 +607,65 @@ try {
   );
   checkThat(
     'and the lane is a strip under it, not the room the chord should have had',
-    upright.lane !== null && upright.lane.h <= 160 && upright.lane.h < upright.diagram.h,
+    upright.lane !== null && upright.lane.h <= 220 && upright.lane.h < upright.diagram.h,
     `lane ${upright.lane?.h}px against a ${upright.diagram?.h}px diagram`,
+  );
+  // What is coming is worth a shape rather than a word, for the blocks on
+  // screen — and only those, or a long song puts thousands of nodes in a lane
+  // that shows five of them.
+  const lane = await page.evaluate(() => {
+    const blocks = [...document.querySelectorAll('.lane-block')];
+    const drawn = blocks.filter((b) => b.querySelector('.diagram'));
+    const box = drawn[0]?.querySelector('.diagram')?.getBoundingClientRect();
+    return {
+      blocks: blocks.length,
+      drawn: drawn.length,
+      width: box ? Math.round(box.width) : 0,
+      inside: drawn.every((b) => {
+        const outer = b.getBoundingClientRect();
+        const inner = b.querySelector('.diagram').getBoundingClientRect();
+        return inner.bottom <= outer.bottom + 1 && inner.right <= outer.right + 1;
+      }),
+    };
+  });
+  checkThat(
+    'the lane draws the shape of what is coming, for the blocks on screen only',
+    lane.drawn > 0 && lane.drawn <= 6 && lane.drawn < lane.blocks && lane.width >= 44 && lane.inside,
+    `${lane.drawn} of ${lane.blocks} blocks, ${lane.width}px wide`,
+  );
+  // The transport wraps onto a second line; a third one comes out of the chord
+  // above it, and on the commonest Android width it used to.
+  const dockRows = async () =>
+    page.evaluate(() => {
+      const row = document.querySelector('.dock-row');
+      if (!row) return null;
+      // Cluster on the centre, not the top: the play button is bigger than the
+      // ones beside it, so a row does not share a top edge.
+      const centres = [...row.children]
+        .filter((c) => c.getBoundingClientRect().height > 0)
+        .map((c) => {
+          const r = c.getBoundingClientRect();
+          return r.top + r.height / 2;
+        })
+        .sort((a, b) => a - b);
+      let rows = 0;
+      let last = -Infinity;
+      for (const y of centres) {
+        if (y - last > 24) rows++;
+        last = y;
+      }
+      return rows;
+    });
+  const widths = [];
+  for (const width of [430, 393, 375, 360, 320]) {
+    await page.setViewportSize({ width, height: 780 });
+    await page.waitForTimeout(250);
+    widths.push(`${width}:${await dockRows()}`);
+  }
+  checkThat(
+    'and it stays two rows on every phone width, down to the narrowest',
+    widths.every((w) => w.endsWith(':2')),
+    widths.join(' '),
   );
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.waitForTimeout(400);
