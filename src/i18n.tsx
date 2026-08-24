@@ -202,6 +202,15 @@ export const dictionary = {
     chordLibrary: 'Chord library',
     everyChordStart: 'Every chord, and where to start',
     tapChordHear: 'Tap any chord to hear exactly the notes its diagram shows. Dots are fingers, numbers say which one.',
+    playItLikeASong: 'Play it like a song',
+    benchBlurb:
+      'A chord box says where the fingers go. Turn this on and every chord on the page is played with a capo, a strumming pattern and a tempo instead — which is the part you actually have to get used to.',
+    benchOn: 'On',
+    benchOff: 'Off',
+    tempoLabel: 'Tempo',
+    bpmValue: (bpm: number) => `${bpm} BPM`,
+    capoSoundsUp: (fret: number, sounding: string) =>
+      `With the capo on fret ${fret}, a C shape sounds ${sounding} — the shapes stay the ones you know.`,
     howToReadBox: 'How to read a chord box',
     cMajorExample: 'C major, as an example',
     legendDescriptions: [
@@ -735,6 +744,15 @@ export const dictionary = {
     chordLibrary: '和弦库',
     everyChordStart: '所有和弦，以及先学哪几个',
     tapChordHear: '点一下任意和弦，就能听到图上画的那几个音。圆点是手指，数字是第几根手指。',
+    playItLikeASong: '按歌里的样子弹',
+    benchBlurb:
+      '和弦图告诉你手指按在哪。打开这个，页面上每个和弦就改成带变调夹、按节奏型、按速度弹给你听——真正要练顺的是这部分。',
+    benchOn: '开',
+    benchOff: '关',
+    tempoLabel: '速度',
+    bpmValue: (bpm: number) => `${bpm} BPM`,
+    capoSoundsUp: (fret: number, sounding: string) =>
+      `变调夹夹第 ${fret} 品时，C 的指法实际发声是 ${sounding}——手上按的还是你会的那几个。`,
     howToReadBox: '怎么看和弦图',
     cMajorExample: '以 C 和弦为例',
     legendDescriptions: [

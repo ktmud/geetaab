@@ -4238,3 +4238,102 @@ html[lang^='zh'] .how-it-works em {
     white-space: nowrap;
   }
 }
+
+/* ---- the chord bench ---------------------------------------------------- */
+
+/* Sits between how to read a chord box and the boxes themselves, because it
+   changes what all of them sound like. Quiet when off: someone here to look up
+   a shape should not have to step past a control panel to reach it. */
+.bench-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.bench-head h2 {
+  margin: 0;
+}
+
+.bench-blurb {
+  margin: 6px 0 0;
+  font-size: 13px;
+  max-width: 52ch;
+}
+
+/* A switch rather than a button: it has a state, and the state is what every
+   chord below it will do. */
+.bench-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.bench-switch input {
+  appearance: none;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  position: relative;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.bench-switch input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: transform 140ms ease, background 140ms ease;
+}
+
+.bench-switch input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.bench-switch input:checked::after {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+.bench-switch input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.bench .controls-grid {
+  margin-top: 14px;
+}
+
+.bench-tempo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bench-tempo input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.bench-bpm {
+  flex: none;
+  font-size: 13px;
+  color: var(--text-dim);
+  min-width: 7ch;
+  text-align: right;
+}

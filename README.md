@@ -85,6 +85,13 @@ npm run dev        # 打开 http://localhost:5173
    orientation to landscape and show anyone it could not a screen asking them to
    turn the phone over; that is gone, because overriding how someone is holding
    their phone is a poor price for a lane that is merely wider.
+   The chord library is the same idea without a song: how to read a box, the
+   eight shapes worth learning first, and the whole vocabulary underneath. It
+   also has a bench — a capo, a right-hand pattern and a tempo — and every
+   chord box on the page plays through it, so the difference between knowing a
+   shape and being able to use it can be heard without recording anything. Off
+   by default, because someone looking a shape up should get the shape.
+
    The right-hand patterns include fingerpicking as well as strumming. A picking
    pattern names the string and the finger for every pluck, and the thumb's string
    is worked out from the chord shape rather than printed once — the fifth string

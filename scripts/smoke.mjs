@@ -213,6 +213,73 @@ try {
     grids.join(' '),
   );
 
+  // The bench: a capo, a strum and a tempo that every chord box plays through.
+  // Checked by what reaches the speakers, because a control that changes a
+  // select and nothing else is the failure worth catching.
+  await page.goto(`${ORIGIN}#/chords`, { waitUntil: 'networkidle' });
+  await page.evaluate(() => {
+    window.__played = [];
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    const orig = Ctor.prototype.createBufferSource;
+    Ctor.prototype.createBufferSource = function (...a) {
+      const node = orig.apply(this, a);
+      const start = node.start.bind(node);
+      node.start = (...s) => {
+        if (node.buffer) window.__played.push(+node.buffer.duration.toFixed(2));
+        return start(...s);
+      };
+      return node;
+    };
+  });
+  const tapC = async () => {
+    await page.getByRole('button', { name: 'Play C', exact: true }).first().click();
+    await page.waitForTimeout(320);
+    return page.evaluate(() => window.__played.at(-1) ?? null);
+  };
+  const bare = await tapC();
+  await page.locator('.bench-switch input').check();
+  await page.waitForTimeout(200);
+  const patterned = await tapC();
+  checkThat(
+    'the bench turns a chord box from one strum into a bar of playing',
+    bare !== null && patterned !== null && patterned > bare + 1,
+    `${bare}s bare, ${patterned}s through the bench`,
+  );
+  await page.evaluate(() => {
+    const el = document.querySelector('#bench-bpm');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '40');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(200);
+  const slower = await tapC();
+  checkThat(
+    'and the tempo really is the tempo — the same bar takes longer',
+    slower > patterned + 1,
+    `${patterned}s at 84 BPM, ${slower}s at 40`,
+  );
+  await page.selectOption('#bench-capo', '5');
+  await page.waitForTimeout(250);
+  const capoed = await page.evaluate(() => ({
+    sub: document.querySelector('.palette .diagram-sub')?.textContent?.trim() ?? null,
+    note: document.querySelector('.bench .settings-note')?.textContent ?? '',
+  }));
+  checkThat(
+    'a capo renames what every shape sounds, without renaming the shape',
+    // The first starter is Em; five frets up it sounds Am.
+    capoed.sub === 'sounds as Am' && capoed.note.includes('fret 5'),
+    JSON.stringify(capoed),
+  );
+  await page.locator('.bench-switch input').uncheck();
+  await page.waitForTimeout(200);
+  checkThat(
+    'and switching it off gives the plain chord box back',
+    await page.evaluate(
+      () =>
+        document.querySelector('#bench-capo') === null &&
+        document.querySelector('.palette .diagram-sub')?.textContent?.trim() !== 'sounds as Am',
+    ),
+  );
+
   console.log('\n1. demo track through the worker');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'try the demo' }).click();

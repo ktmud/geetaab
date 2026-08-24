@@ -1,6 +1,8 @@
 import { normalizePeak } from '../core/dsp';
 import { QUALITY_INTERVALS, type ChordQuality } from '../core/chordTypes';
-import { STANDARD_TUNING } from '../music/shapes';
+import { STANDARD_TUNING, type ChordShape } from '../music/shapes';
+import type { StrumPattern } from '../music/arrange';
+import { pluckStringOf } from '../music/pick';
 
 export interface SynthChord {
   root: number; // pitch class, 0 = C
@@ -203,6 +205,90 @@ export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; s
     const at = Math.floor(voice++ * 0.032 * sampleRate);
     addPluck(out, at, STANDARD_TUNING[string] + fret, 0.3, sampleRate, 2.1, rand);
   });
+  return normalizePeak(out, 0.85);
+}
+
+/**
+ * One bar of a chord played the way a right-hand pattern says to play it.
+ *
+ * `renderShapeStrum` above is a single sweep, which is what a chord box wants
+ * to sound like when you tap it to check you have the shape. This is what the
+ * same shape sounds like in a song: the strum or the picking pattern, at a
+ * tempo, with a capo on. Those three are the difference between knowing a
+ * shape and being able to use it, and until now the only place to hear them
+ * was to record a song and go to the practice screen.
+ *
+ * The capo raises every fretted and open string equally, which is exactly what
+ * the bar of metal does — so C shape at capo 3 comes out sounding D#, and the
+ * page can say so.
+ */
+export interface ShapePatternOptions {
+  sampleRate?: number;
+  seed?: number;
+  /** Beats per minute of the pattern's own beat. */
+  bpm?: number;
+  /** Semitones the capo adds to every string. */
+  capo?: number;
+  /** How many times round the bar. */
+  bars?: number;
+}
+
+export function renderShapePattern(
+  frets: number[],
+  pattern: StrumPattern,
+  opts: ShapePatternOptions = {},
+): Float32Array {
+  const sampleRate = opts.sampleRate ?? 44100;
+  const bpm = Math.max(30, Math.min(240, opts.bpm ?? 90));
+  const capo = Math.max(0, opts.capo ?? 0);
+  const bars = Math.max(1, opts.bars ?? 1);
+  const rand = mulberry32(opts.seed ?? 20);
+  const beat = 60 / bpm;
+  const barSeconds = pattern.beatsPerBar * beat;
+  // A tail past the last bar, because the final chord should ring rather than
+  // be cut off at the bar line.
+  const out = new Float32Array(Math.ceil((barSeconds * bars + 2.2) * sampleRate));
+
+  // Which strings are sounding, low to high, and at what pitch.
+  const sounding: { string: number; midi: number }[] = [];
+  frets.forEach((fret, string) => {
+    if (fret >= 0) sounding.push({ string, midi: STANDARD_TUNING[string] + fret + capo });
+  });
+
+  for (let bar = 0; bar < bars; bar++) {
+    for (const step of pattern.steps) {
+      const at = bar * barSeconds + step.beat * beat;
+      const amp = step.accent ? 0.34 : 0.26;
+      if (step.pluck) {
+        // One string, named by the shape rather than fixed: the thumb follows
+        // the chord's own bass, which is the whole point of the notation.
+        const display = pluckStringOf(step.pluck, { frets } as ChordShape);
+        const index = 6 - display;
+        const voice = sounding.find((v) => v.string === index);
+        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.1, rand);
+        continue;
+      }
+      // A sweep, not a block: the strings are struck in order across about
+      // 25 ms, and an upstroke starts at the treble end.
+      const order = step.direction === 'U' ? [...sounding].reverse() : sounding;
+      const spread = (step.direction === 'U' ? 0.018 : 0.025) / Math.max(1, order.length - 1);
+      order.forEach((voice, i) => {
+        // An upstroke on a guitar catches the top strings and little else.
+        const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
+        if (!reach) return;
+        const decay = step.mute ? 0.18 : 2.1;
+        addPluck(
+          out,
+          Math.floor((at + i * spread) * sampleRate),
+          voice.midi,
+          amp * (step.mute ? 0.7 : 1),
+          sampleRate,
+          decay,
+          rand,
+        );
+      });
+    }
+  }
   return normalizePeak(out, 0.85);
 }
 
