@@ -236,7 +236,9 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
       case 'deviceLost':
         return t.deviceLost;
       case 'processing':
-        return t.processedInput;
+        // Cancellation is the one worth leading with: the others make the tab
+        // rougher, this one means the song never reaches the microphone.
+        return trouble.verdict.echoCancellation ? t.micCancelsOwnOutput : t.processedInput;
       case 'gap':
         // The hole travels with the take; the interruption that caused it has
         // already said its piece on screen.

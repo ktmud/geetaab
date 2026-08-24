@@ -97,6 +97,11 @@ export const dictionary = {
       `Back. The ${seconds}s that were missed are marked as a gap, not pretended away.`,
     takeStalled: 'No audio is arriving. Stopping and starting again usually fixes it.',
     deviceLost: 'The microphone was disconnected. Stop here and the take is still yours.',
+    /** Shown instead of processedInput when it is specifically cancellation that
+     * is on, because that one has a consequence a player has to know before
+     * spending a verse on a take: the device's own output is subtracted. */
+    micCancelsOwnOutput:
+      'This browser cancels its own output from the microphone, so music played on this device will not be captured. Play the song on something else.',
     processedInput: 'This browser is processing the microphone for speech, which removes some of the music. The tab will be rougher than it could be. A native app, or opening the audio file directly, avoids it.',
 
     // TabView screen
@@ -630,6 +635,8 @@ export const dictionary = {
     takeResumed: (seconds: number) => `回来了。中断的 ${seconds} 秒标成了断口，不会当作没发生。`,
     takeStalled: '没有音频进来了。停下来重新开始通常就好。',
     deviceLost: '麦克风断开了。现在停下，已经录到的还是你的。',
+    micCancelsOwnOutput:
+      '这个浏览器会把自己的输出从麦克风里消掉，所以本机播放的音乐根本采不到。请用另一台设备放歌。',
     processedInput: '这个浏览器在按语音处理麦克风，会削掉音乐里的一部分。谱子会比本来该有的粗糙一些。用原生 app，或者直接打开音频文件，就没有这个问题。',
 
     // TabView screen
