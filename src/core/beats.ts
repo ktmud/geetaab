@@ -244,8 +244,22 @@ export function estimateBarPhase(
     votes[((b % beatsPerBar) + beatsPerBar) % beatsPerBar] += 1;
   }
   if (beatEnergy) {
-    const scale = 0.15 / (beatCount || 1);
-    for (let b = 0; b < beatCount; b++) votes[b % beatsPerBar] += beatEnergy[b] * scale;
+    // A tie-break worth 0.15 of a vote in total, which is what dividing by the
+    // beat count was reaching for and did not achieve: `beatEnergy` holds raw
+    // magnitude sums, so `energy / beatCount` is the *mean* energy — measured
+    // between 75 and 400 on real recordings. The term was therefore worth
+    // fifteen votes or more against a change count of about thirteen, which is
+    // not a tie-break but the loudest downbeat outvoting the chord changes. It
+    // also scaled with recording level, so it moved when nothing about the
+    // playing had. Dividing by the mean as well makes the term sum to 0.15
+    // across all phases, and makes it scale-free.
+    let total = 0;
+    for (let b = 0; b < beatCount; b++) total += beatEnergy[b];
+    const mean = total / (beatCount || 1);
+    if (mean > 1e-9) {
+      const scale = 0.15 / (beatCount * mean);
+      for (let b = 0; b < beatCount; b++) votes[b % beatsPerBar] += beatEnergy[b] * scale;
+    }
   }
   let best = 0;
   for (let p = 1; p < beatsPerBar; p++) if (votes[p] > votes[best]) best = p;

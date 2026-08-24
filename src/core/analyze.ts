@@ -24,7 +24,7 @@ import {
   padBeatGrid,
   trackBeats,
 } from './beats';
-import { medianOf, resample } from './dsp';
+import { medianOf, normalizePeak, resample } from './dsp';
 import { estimateKey, type KeyEstimate } from './key';
 
 /**
@@ -50,11 +50,18 @@ import { estimateKey, type KeyEstimate } from './key';
  * file does, so a minor that changes the description is not finished until
  * that page says the new thing.
  *
- * Reset to 1.0.0 for the first release. The counter it replaces ran 1..6 and
+ * Reset to 1.0.0 for the first release.
+ *
+ * History:
+ *   1.1.0  levelled the signal before the onset envelope, and made the
+ *          bar-phase energy tie-break the 0.15 votes it was written to be —
+ *          the same recording at a different distance from the speaker could
+ *          otherwise come back with a different tempo, and on one GuitarSet
+ *          file a different key. The counter it replaces ran 1..6 and
  * is not comparable to it, so every song stored under one of those numbers is
  * treated as stale — which is what it is.
  */
-export const ANALYSIS_VERSION = '1.0.0';
+export const ANALYSIS_VERSION = '1.1.0';
 
 /**
  * Whether a stored analysis should be worked out again from its audio.
@@ -122,7 +129,20 @@ export function analyzeAudio(
   const duration = samples.length / sampleRate;
 
   report('resampling', 0.05);
-  const mono22 = resample(samples, sampleRate, ONSET_SAMPLE_RATE);
+  // Levelled before anything measures it, because one stage downstream is not
+  // scale-free and the rest of the pipeline is. `onsetEnvelope` compresses
+  // magnitudes with log1p(40x) before taking the flux, and log1p is not linear:
+  // log1p(40 * 0.35m) is not 0.35 * log1p(40m), so the same performance recorded
+  // quieter yields a differently *shaped* onset curve, not merely a smaller one.
+  // Normalising the envelope afterwards cannot undo a change of shape.
+  //
+  // That mattered here in a way it would not in a studio tool. The recorder asks
+  // for automatic gain control to be switched off, on purpose — so the level is
+  // set by how far the phone is from the speaker. Measured on the corpus, the
+  // same audio at 0.35x moved the tempo on two of nineteen files; on GuitarSet
+  // it moved eight of thirty-six, one of them flipping both the key and the
+  // free-time verdict. A tab that depends on how close you stood is a bug.
+  const mono22 = normalizePeak(resample(samples, sampleRate, ONSET_SAMPLE_RATE));
   const mono11 = resample(mono22, ONSET_SAMPLE_RATE, CHROMA_SAMPLE_RATE);
 
   report('finding the beat', 0.25);

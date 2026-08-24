@@ -928,9 +928,9 @@
    "useFlats": false,
    "name": "G major"
   },
-  "tuning": -0.045796933826542874,
-  "confidence": 0.2731427543855331,
-  "rhythmicity": 0.7778880332386915,
+  "tuning": -0.04579693410981173,
+  "confidence": 0.2731427525774248,
+  "rhythmicity": 0.7784410685472739,
   "freeTime": false,
   "beatCount": 34,
   "beats": {
@@ -1016,7 +1016,7 @@
     "end": 2.48453514739229,
     "startBeat": 0,
     "endBeat": 4,
-    "confidence": 0.23431817442178726
+    "confidence": 0.23431816324591637
    },
    {
     "name": "D",
@@ -1024,7 +1024,7 @@
     "end": 4.992290249433107,
     "startBeat": 4,
     "endBeat": 8,
-    "confidence": 0.27421867474913597
+    "confidence": 0.2742186672985554
    },
    {
     "name": "Am",
@@ -1032,7 +1032,7 @@
     "end": 7.476825396825397,
     "startBeat": 8,
     "endBeat": 12,
-    "confidence": 0.21519024670124054
+    "confidence": 0.21519023925065994
    },
    {
     "name": "C",
@@ -1040,7 +1040,7 @@
     "end": 9.984580498866213,
     "startBeat": 12,
     "endBeat": 16,
-    "confidence": 0.2748880982398987
+    "confidence": 0.2748881094157696
    },
    {
     "name": "G",
@@ -1048,7 +1048,7 @@
     "end": 12.49233560090703,
     "startBeat": 16,
     "endBeat": 20,
-    "confidence": 0.24272450059652328
+    "confidence": 0.242724496871233
    },
    {
     "name": "D",
@@ -1056,7 +1056,7 @@
     "end": 14.97687074829932,
     "startBeat": 20,
     "endBeat": 24,
-    "confidence": 0.25047387182712555
+    "confidence": 0.25047388672828674
    },
    {
     "name": "Am",
@@ -1064,7 +1064,7 @@
     "end": 17.484625850340137,
     "startBeat": 24,
     "endBeat": 28,
-    "confidence": 0.20922654122114182
+    "confidence": 0.20922653377056122
    },
    {
     "name": "C",
@@ -1072,7 +1072,7 @@
     "end": 19.99238095238095,
     "startBeat": 28,
     "endBeat": 32,
-    "confidence": 0.3012816347181797
+    "confidence": 0.3012816309928894
    },
    {
     "name": "N.C.",
@@ -1233,7 +1233,7 @@
     "length": 4,
     "coverage": 1
    },
-   "confidence": 0.2731427543855331
+   "confidence": 0.2731427525774248
   },
   "standard": {
    "capo": 0,
@@ -1354,7 +1354,7 @@
     "length": 4,
     "coverage": 1
    },
-   "confidence": 0.2731427543855331
+   "confidence": 0.2731427525774248
   },
   "faithful": {
    "capo": 0,
@@ -1475,7 +1475,7 @@
     "length": 4,
     "coverage": 1
    },
-   "confidence": 0.2731427543855331
+   "confidence": 0.2731427525774248
   }
  },
  "shapes": {
