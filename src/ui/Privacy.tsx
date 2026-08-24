@@ -1,25 +1,6 @@
-import { useT } from '../i18n';
+import { useLanguage, useT } from '../i18n';
+import { POLICY_DATE, PRIVACY_IOS, type PolicySection } from '../content/privacyIos';
 import { BackIcon } from './icons';
-
-/**
- * When this policy last changed.
- *
- * A store listing wants a date, and a date that updates itself is a lie: it
- * would say the policy changed on a day nobody looked at it. Move it by hand,
- * in the same commit that changes what the page says.
- */
-const POLICY_DATE = '2026-08-24';
-
-/**
- * The i18n table is `as const`, so each section infers its own literal shape
- * and a section without bullets has no `points` at all. Naming the shape here
- * is what lets one loop render both kinds.
- */
-interface PrivacySection {
-  title: string;
-  body: readonly string[];
-  points?: readonly string[];
-}
 
 export interface PrivacyProps {
   onBack: () => void;
@@ -43,8 +24,12 @@ export interface PrivacyProps {
  */
 export function Privacy({ onBack, platform = 'web' }: PrivacyProps) {
   const t = useT();
+  const [lang] = useLanguage();
   const ios = platform === 'ios';
-  const sections = ios ? t.privacyIosSections : t.privacySections;
+  // The app's policy is a document with its own home, shared with the static
+  // file a store crawler reads; the site's is interface text like the rest.
+  const policy = PRIVACY_IOS[lang];
+  const sections: readonly PolicySection[] = ios ? policy.sections : t.privacySections;
   return (
     <div className="shell privacy">
       <div className="btn-row" style={{ marginBottom: 14 }}>
@@ -53,16 +38,14 @@ export function Privacy({ onBack, platform = 'web' }: PrivacyProps) {
         </button>
       </div>
 
-      <div className="eyebrow">{ios ? t.privacyIosEyebrow : t.privacyEyebrow}</div>
-      <h1 style={{ fontSize: 'clamp(24px, 4.5vw, 36px)' }}>
-        {ios ? t.privacyIosTitle : t.privacyTitle}
-      </h1>
+      <div className="eyebrow">{ios ? policy.eyebrow : t.privacyEyebrow}</div>
+      <h1 style={{ fontSize: 'clamp(24px, 4.5vw, 36px)' }}>{ios ? policy.title : t.privacyTitle}</h1>
       <p className="lede" style={{ marginBottom: 20 }}>
-        {ios ? t.privacyIosLede : t.privacyLede}
+        {ios ? policy.lede : t.privacyLede}
       </p>
-      {ios ? <p className="faint privacy-dated">{t.privacyIosDated(POLICY_DATE)}</p> : null}
+      {ios ? <p className="faint privacy-dated">{policy.dated(POLICY_DATE)}</p> : null}
 
-      {(sections as readonly PrivacySection[]).map((section) => (
+      {sections.map((section) => (
         <div className="card" key={section.title}>
           <h2>{section.title}</h2>
           {section.body.map((paragraph, i) => (
@@ -79,7 +62,7 @@ export function Privacy({ onBack, platform = 'web' }: PrivacyProps) {
       ))}
 
       <div className="hw-closing">
-        <p>{ios ? t.privacyIosClosing : t.privacyClosing}</p>
+        <p>{ios ? policy.closing : t.privacyClosing}</p>
       </div>
     </div>
   );

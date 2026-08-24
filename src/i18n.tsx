@@ -93,68 +93,7 @@ export const dictionary = {
     privacyClosing:
       'If any of this stops being true, it stops being true in the open: the code is public, and this page is part of the change.',
 
-    // The native app. A separate document because it is a separate program:
-    // different permissions, a different place the files live, and one thing
-    // the web build cannot do at all.
-    privacyIosEyebrow: 'Privacy · Geetaab for iPhone and iPad',
-    privacyIosTitle: 'Nothing you record leaves your device',
-    privacyIosLede:
-      'Geetaab for iPhone and iPad works out guitar chords from a recording. It does that on the device, with no account, no sign-in, and no server behind it. This page is the policy for the app; the website has its own, because they are different programs.',
-    privacyIosDated: (date: string) => `Last changed ${date}. Applies to Geetaab for iPhone and iPad.`,
-    privacyIosSections: [
-      {
-        title: 'The app collects nothing',
-        body: [
-          'It has no networking code in it at all. It never uploads a recording, never calls an API, never sends a crash report or an analytics event, and has no advertising or tracking libraries of any kind. There is no account to create and nothing to sign in to, so there is no profile of you anywhere for it to add to.',
-          'Apple gives developers aggregate figures — how many devices installed an app, how often it crashed — collected by the App Store rather than by the app, only from people who opted in to sharing with developers, and never identifying anyone. That is the only thing the developer ever sees, and the app plays no part in it.',
-        ],
-      },
-      {
-        title: 'The microphone',
-        body: [
-          'The app asks for the microphone when you start a recording, and iOS decides whether to grant it. The audio is analysed on the device, by code that ships inside the app. It is not streamed anywhere, and nothing listens outside a take you started.',
-          'Recording keeps running while the app is in the background, because holding a phone near a speaker means switching to a music app to press play. It stops when you stop it.',
-        ],
-      },
-      {
-        title: 'Audio files and your music',
-        body: [
-          'You can open an audio file instead of recording one. The file is read on the device and analysed the same way. Reading a track that lives in your music library is what the media-library permission is for; tracks from an Apple Music subscription are copy-protected and cannot be read at all, by this app or any other.',
-        ],
-      },
-      {
-        title: 'Lyrics, if you ask for them',
-        body: [
-          'The app can line up lyrics with the recording using Apple\'s speech recognition. It forces the on-device engine and will not fall back: if your device cannot recognise that language locally, the app refuses and asks you to tap the lines out by hand, rather than sending a recording of your room to a server for it.',
-        ],
-      },
-      {
-        title: 'What is stored, and where',
-        body: [
-          'Songs you keep are written to the app\'s own folder on the device. They hold the title, the chords and key and tempo, your arrangement choices, any lyrics you added, and the recording itself.',
-        ],
-        points: [
-          'The files are protected by iOS file encryption, unreadable until the device has been unlocked once after a restart.',
-          'They are excluded from iCloud and iTunes backups, so a copy of your recordings is not made anywhere else.',
-          'Deleting a song deletes its folder, recording included.',
-          'Deleting the app deletes everything it kept, at once.',
-        ],
-      },
-      {
-        title: 'Children, and music you did not write',
-        body: [
-          'The app is not directed at children and collects nothing from anyone, of any age. A tab it produces is a machine transcription of what it heard, and what you do with that — or with a recording of someone else\'s song — is between you and whoever holds the rights.',
-        ],
-      },
-      {
-        title: 'Questions',
-        body: [
-          'The engine inside the app is a port of the open-source one at github.com/ktmud/geetaab, so the part of it that does the listening can be read. For anything about this policy, raise an issue there.',
-        ],
-      },
-    ],
-    privacyIosClosing:
-      'If any of this stops being true, the app has changed, and this page changes with it.',
+
 
     // Listening screen
     waitingForSong: 'Waiting for the song',
@@ -784,65 +723,7 @@ export const dictionary = {
     privacyClosing:
       '如果哪一条不再成立，它会在明面上不再成立：代码是公开的，而这个页面就是那次改动的一部分。',
 
-    privacyIosEyebrow: '隐私 · Geetaab for iPhone and iPad',
-    privacyIosTitle: '你录的东西不会离开你的设备',
-    privacyIosLede:
-      'Geetaab for iPhone and iPad 从录音里扒出吉他和弦。这件事在设备上完成：没有账号，不用登录，背后也没有服务器。这一页是这个 app 的隐私政策；网站有它自己的一份，因为它们是两个不同的程序。',
-    privacyIosDated: (date: string) => `最后修改于 ${date}。适用于 Geetaab for iPhone and iPad。`,
-    privacyIosSections: [
-      {
-        title: 'app 不收集任何东西',
-        body: [
-          '它里面根本没有联网代码。不上传录音，不调任何接口，不发崩溃报告，不发埋点，也没有任何广告或追踪 SDK。没有账号可注册，没有地方可登录，因此也不存在什么地方有一份关于你的档案等着被补充。',
-          'Apple 会给开发者一些汇总数字——多少台设备装过、崩溃了多少次——那是 App Store 收集的，不是 app 收集的，只来自选择了与开发者共享的用户，而且不指向任何具体的人。开发者能看到的只有这些，app 在其中不起任何作用。',
-        ],
-      },
-      {
-        title: '麦克风',
-        body: [
-          '你开始录音时 app 才申请麦克风，给不给由 iOS 决定。声音在设备上分析，用的是随 app 一起装进去的代码。它不会被推流到任何地方，你没有开始录的时候也没有任何东西在听。',
-          'app 切到后台时录音会继续，因为把手机举到音箱前，本来就意味着要切到音乐 app 去按播放。你停它才停。',
-        ],
-      },
-      {
-        title: '音频文件和你的音乐',
-        body: [
-          '你也可以不录，直接打开一个音频文件。文件在设备上读取，用同样的方式分析。读取存在音乐库里的曲目，正是媒体库权限的用途；而 Apple Music 订阅里的曲目带版权保护，任何 app 都读不了，这个也一样。',
-        ],
-      },
-      {
-        title: '歌词——如果你要的话',
-        body: [
-          'app 可以用 Apple 的语音识别把歌词和录音对上时间。它强制走本机识别，而且不会退而求其次：如果你的设备没法在本地识别那门语言，app 会直接拒绝，请你手动点出每句的时间点，而不是为此把你房间里的录音传到服务器上。',
-        ],
-      },
-      {
-        title: '存了什么，存在哪',
-        body: [
-          '你留下的曲子写在 app 自己的目录里。里面有标题，和弦、调性和速度，你的改编选择，你加的歌词，以及录音本身。',
-        ],
-        points: [
-          '这些文件受 iOS 文件加密保护：设备重启后没解锁过一次，就读不出来。',
-          '它们被排除在 iCloud 和 iTunes 备份之外，所以你的录音不会在别处再存一份。',
-          '删掉一首曲子，就删掉它的整个目录，录音一起没。',
-          '删掉 app，它留下的东西一次全部消失。',
-        ],
-      },
-      {
-        title: '儿童，以及不是你写的歌',
-        body: [
-          '本 app 不面向儿童，也不从任何年龄的任何人那里收集任何信息。它产出的谱是机器对听到的东西的转写；你怎么用这份谱，或者怎么用一段别人作品的录音，是你和权利人之间的事。',
-        ],
-      },
-      {
-        title: '有疑问',
-        body: [
-          'app 里的引擎是 github.com/ktmud/geetaab 那个开源版本的移植，所以真正在「听」的那部分代码是可以读的。关于这份政策的任何问题，去那里提 issue。',
-        ],
-      },
-    ],
-    privacyIosClosing:
-      '如果哪一条不再成立，那就是 app 变了，而这一页会跟着变。',
+
 
     // Listening screen
     waitingForSong: '等歌开始',

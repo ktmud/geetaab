@@ -1739,6 +1739,41 @@ try {
     JSON.stringify(native),
   );
 
+  // And the same policy as a file, for anything that fetches a URL without
+  // running the JavaScript in it: a store's review tooling, a crawler, a text
+  // browser, a reader with scripting off. A hash route hands all of those an
+  // empty shell, and a privacy policy is the page that most has to survive it.
+  const stripped = await browser.newContext({ javaScriptEnabled: false });
+  const noScript = await stripped.newPage();
+  const offOrigin = [];
+  noScript.on('request', (request) => {
+    if (new URL(request.url()).origin !== new URL(ORIGIN).origin) offOrigin.push(request.url());
+  });
+  const served = await noScript.goto(new URL('privacy-ios.html', ORIGIN).href, { waitUntil: 'networkidle' });
+  const staticPage = await noScript.evaluate(() => {
+    const text = document.body.innerText;
+    return {
+      title: document.title,
+      sections: document.querySelectorAll('h2').length,
+      english: text.includes('Nothing you record leaves your device'),
+      chinese: text.includes('你录的东西不会离开你的设备'),
+      dated: /Last changed \d{4}-\d{2}-\d{2}/.test(text),
+      scripts: document.querySelectorAll('script').length,
+    };
+  });
+  await stripped.close();
+  checkThat(
+    'the App Store policy is also a file that reads with no JavaScript at all',
+    served?.status() === 200 &&
+      staticPage.english &&
+      staticPage.chinese &&
+      staticPage.dated &&
+      staticPage.sections >= 12 &&
+      staticPage.scripts === 0 &&
+      offOrigin.length === 0,
+    JSON.stringify({ status: served?.status(), ...staticPage, offOrigin: offOrigin.length }),
+  );
+
   console.log('\n7cd. one mark, and a logotype that is not the chord face');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
   await page.waitForTimeout(300);

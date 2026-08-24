@@ -5,9 +5,15 @@ then practise it karaoke-style, either way up you hold the phone.
 
 Everything runs in the browser. No audio leaves the device, there is no server, and
 there is no model download — the chord recognition is a few hundred lines of signal
-processing that ship with the page. `#/privacy` says so in full; `#/privacy-ios` is
-the same document for the native app, addressable and deliberately unlinked, because
-the App Store listing points at it and it is about a different program.
+processing that ship with the page. `#/privacy` says so in full.
+
+The native app's policy is a different document about a different program, and it
+lives in two places from one source: a screen at `#/privacy-ios`, addressable and
+deliberately unlinked, and `privacy-ios.html`, a static file with no scripts and
+nothing loaded from anywhere. The store listing points at the file, because a hash
+route hands an empty shell to anything that fetches a URL without running the
+JavaScript in it. `npm run privacy` writes the file, `npm run privacy:check` fails
+if what is committed has gone stale, and the build runs the first of those.
 
 ## 简介
 
