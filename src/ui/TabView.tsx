@@ -7,10 +7,11 @@ import type { ArrangedSong, TabOptions } from './tabOptions';
 import { songTabText } from '../music/tabText';
 import { engraveSystems } from '../music/tabEngrave';
 import { enterImmersive } from './immersive';
-import { TabStaff } from './TabStaff';
+import { LazyTabStaff } from './TabStaff';
 import { shapeNoteText, useT, useLanguage, translateKeyName } from '../i18n';
 import { ChordCard } from './ChordDiagram';
 import { PrintSheet } from './PrintSheet';
+import { usePrintMount } from './printing';
 import { BackIcon, CheckIcon, PlayIcon, PrintIcon } from './icons';
 
 export interface TabViewProps {
@@ -43,6 +44,7 @@ export function TabView({
   const t = useT();
   const [lang] = useLanguage();
   const [copied, setCopied] = useState(false);
+  const { printing, print } = usePrintMount();
   const [tabScope, setTabScope] = useState<'song' | 'loop'>('song');
   const [editingTitle, setEditingTitle] = useState(false);
 
@@ -309,13 +311,13 @@ export function TabView({
                   : t.systemBar(system.startBar + 1);
               return (
                 <div className="tab-sys" key={system.startBar}>
-                  <TabStaff system={system} label={label} />
+                  <LazyTabStaff system={system} label={label} />
                 </div>
               );
             })}
           </div>
           <div className="btn-row" style={{ marginTop: 12 }}>
-            <button className="btn" onClick={() => window.print()}>
+            <button className="btn tab-actions-print" onClick={print}>
               <PrintIcon size={16} /> {t.printTab}
             </button>
             <button className="btn" onClick={copyText}>
@@ -325,7 +327,8 @@ export function TabView({
         </div>
       ) : null}
 
-      <PrintSheet tab={tab} title={title} />
+      {/* Built only when something is about to print it; see printing.ts. */}
+      {printing ? <PrintSheet tab={tab} title={title} /> : null}
 
       <div className={`sticky-cta${tucked ? ' tucked' : ''}`}>
         <button

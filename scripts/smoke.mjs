@@ -192,17 +192,37 @@ try {
   check('chord palette', demo.palette, ['G', 'D', 'Am', 'C']);
 
   console.log('\n1b. the whole-song tab and the printable sheet');
-  const sheet = await page.evaluate(() => ({
-    onscreen: document.querySelectorAll('.tab-sys').length,
-    systems: document.querySelectorAll('.print-sheet .print-sys').length,
-    diagrams: document.querySelectorAll('.print-sheet .diagram').length,
-    bars: document.querySelectorAll('.print-sheet .print-bar').length,
+  // Neither copy of the tablature is built before something needs it: the
+  // staves on screen arrive as they come into view, and the printable sheet is
+  // not in the document until something is about to print it. On a five-minute
+  // song those two together were thirty-five thousand DOM nodes in the commit
+  // that first shows the tab.
+  const heightAtTop = await page.evaluate(() => document.documentElement.scrollHeight);
+  const beforeLooking = await page.evaluate(() => ({
+    slots: document.querySelectorAll('.tab-sys').length,
+    sheet: document.querySelectorAll('.print-sheet').length,
   }));
-  checkThat('the tablature covers the whole song', sheet.onscreen >= 4, `${sheet.onscreen} systems on screen`);
   checkThat(
-    'the print sheet carries diagrams, chart and tab',
-    sheet.systems >= 4 && sheet.diagrams >= 4 && sheet.bars >= 8,
-    `${sheet.systems} systems, ${sheet.diagrams} diagrams, ${sheet.bars} chart bars`,
+    'the tablature covers the whole song',
+    beforeLooking.slots >= 4,
+    `${beforeLooking.slots} systems on screen`,
+  );
+  checkThat(
+    'and the sheet nobody has asked to print is not in the page at all',
+    beforeLooking.sheet === 0,
+    `${beforeLooking.sheet} sheets in the document`,
+  );
+  await page.evaluate(() => document.querySelector('.tab-sys')?.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(500);
+  const heightAtTab = await page.evaluate(() => document.documentElement.scrollHeight);
+  checkThat(
+    'a staff arriving into view reserves its space first, so the page never jumps',
+    heightAtTop === heightAtTab,
+    `${heightAtTop}px before, ${heightAtTab}px after`,
+  );
+  checkThat(
+    'and looking at them is what draws them',
+    (await page.evaluate(() => document.querySelectorAll('.tab-sys .tab-staff').length)) > 0,
   );
   // The tab is engraved, not typed: six drawn string lines with the numbers
   // sitting on them. The plain-text version still exists behind Copy, which is
@@ -221,7 +241,6 @@ try {
       dots: svg.querySelectorAll('.tab-box-dot').length,
       label,
       bars: svg.querySelectorAll('.tab-staff-barline').length,
-      printStaves: document.querySelectorAll('.print-sheet .print-sys .tab-staff').length,
       leftoverPre: document.querySelectorAll('.tab-sys pre, .print-sheet pre').length,
     };
   });
@@ -237,22 +256,58 @@ try {
     `${staff?.names.join(' ')} · ${staff?.boxes} boxes, ${staff?.dots} dots`,
   );
   checkThat(
-    'a line holds more than a couple of bars, and the sheet draws the same staff',
-    staff?.bars >= 3 && staff.printStaves >= 2 && Boolean(staff.label),
-    `${staff?.bars} bar lines · ${staff?.printStaves} printed · "${staff?.label}"`,
+    'a line holds more than a couple of bars',
+    staff?.bars >= 3 && Boolean(staff.label),
+    `${staff?.bars} bar lines · "${staff?.label}"`,
   );
+  // Safari has not always fired beforeprint, so the sheet also watches the
+  // print media query; this is that path, and the one Playwright can drive.
   await page.emulateMedia({ media: 'print' });
-  const printSwap = await page.evaluate(() => ({
-    sheet: getComputedStyle(document.querySelector('.print-sheet')).display !== 'none',
+  await page.waitForTimeout(300);
+  const sheet = await page.evaluate(() => ({
+    systems: document.querySelectorAll('.print-sheet .print-sys').length,
+    diagrams: document.querySelectorAll('.print-sheet .diagram').length,
+    bars: document.querySelectorAll('.print-sheet .print-bar').length,
+    staves: document.querySelectorAll('.print-sheet .print-sys .tab-staff').length,
+    shown: getComputedStyle(document.querySelector('.print-sheet')).display !== 'none',
     cards: getComputedStyle(document.querySelector('.card')).display === 'none',
     topbar: getComputedStyle(document.querySelector('.topbar')).display === 'none',
   }));
   checkThat(
-    'print media swaps the dark screen for the sheet',
-    printSwap.sheet && printSwap.cards && printSwap.topbar,
-    JSON.stringify(printSwap),
+    'printing builds the sheet, with diagrams, chart and every bar of tab',
+    sheet.systems >= 4 && sheet.diagrams >= 4 && sheet.bars >= 8 && sheet.staves >= 2,
+    `${sheet.systems} systems, ${sheet.diagrams} diagrams, ${sheet.bars} chart bars, ${sheet.staves} staves`,
+  );
+  checkThat(
+    'and print media swaps the dark screen for it',
+    sheet.shown && sheet.cards && sheet.topbar,
+    JSON.stringify({ shown: sheet.shown, cards: sheet.cards, topbar: sheet.topbar }),
   );
   await page.emulateMedia({ media: 'screen' });
+  await page.waitForTimeout(300);
+  checkThat(
+    'the sheet leaves again once the printing is over',
+    await page.evaluate(() => document.querySelector('.print-sheet') === null),
+  );
+  // The Print button has to have the sheet in the document before it calls
+  // print(), not in a render that print() would never wait for.
+  const buttonPath = await page.evaluate(async () => {
+    const original = window.print;
+    let sheetAtCall = null;
+    window.print = () => {
+      sheetAtCall = document.querySelectorAll('.print-sheet .print-sys').length;
+    };
+    document.querySelector('.tab-actions-print')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    window.print = original;
+    return sheetAtCall;
+  });
+  checkThat(
+    'and the Print button has it there before it asks to print',
+    buttonPath !== null && buttonPath >= 4,
+    `${buttonPath} systems in the document when print() was called`,
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
 
   console.log('\n1bb. the Practise button gets out of the way at the foot of the page');
   await page.setViewportSize({ width: 430, height: 932 });
@@ -574,6 +629,18 @@ try {
   await page.getByText('Chords you need').waitFor({ timeout: 90000 });
   await (await page.locator('select').all())[1].selectOption({ label: 'The eight-note pattern' });
   await page.waitForTimeout(250);
+  // Drawn on approach, so walk the page rather than asking from the top.
+  await page.evaluate(async () => {
+    const step = Math.round(window.innerHeight * 0.8);
+    for (let y = 0; y <= document.documentElement.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => setTimeout(r, 40));
+    }
+    // Back to the top: at the foot of the page the Practise button is tucked
+    // away, and the checks below press it.
+    window.scrollTo(0, 0);
+  });
+  await page.waitForTimeout(400);
   // The point of deriving the pattern rather than printing string numbers: the
   // bass moves with the chord. G is rooted on the sixth string, D on the fourth.
   const picked = await page.evaluate(() => {

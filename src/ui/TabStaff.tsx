@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { METRICS, stringY, type EngravedSystem } from '../music/tabEngrave';
 import type { ChordShape } from '../music/shapes';
 
@@ -136,19 +137,16 @@ function ChordBox({ shape, x, top }: { shape: ChordShape; x: number; top: number
  */
 const SCREEN_SCALE = 1.7;
 
-export function TabStaff({
-  system,
-  label,
-  className,
-  scale = SCREEN_SCALE,
-}: {
+export interface TabStaffProps {
   system: EngravedSystem;
   /** Read out to a screen reader, which cannot make anything of the drawing. */
   label: string;
   className?: string;
   /** Pixels per staff unit; paper can carry finer type than a screen. */
   scale?: number;
-}) {
+}
+
+export function TabStaff({ system, label, className, scale = SCREEN_SCALE }: TabStaffProps) {
   const { stringGap, staffHeight, headHeight, footHeight, clefWidth, nameHeight } = METRICS;
   const top = headHeight;
   const height = headHeight + staffHeight + footHeight;
@@ -278,5 +276,64 @@ export function TabStaff({
         </g>
       ))}
     </svg>
+  );
+}
+
+/**
+ * One system, drawn once it is nearly on screen.
+ *
+ * A five-minute song engraves to thirty-one systems and seventeen thousand SVG
+ * nodes, all of them built in the commit that first shows the tab — about a
+ * second of frozen page on a phone, for thirty systems nobody is looking at
+ * yet. A phone shows two at a time.
+ *
+ * The placeholder is not a guess: the staff is an SVG with a viewBox and a
+ * capped width, so its height is its width over its own ratio, and giving the
+ * box the same ratio and the same cap reserves exactly the space the drawing
+ * will take. Nothing moves when it arrives, which is what makes this safe to do
+ * under a reader's thumb rather than only at the foot of the page.
+ *
+ * Once drawn it stays drawn. Scrolling back through a song you are learning is
+ * normal, and rebuilding a system every time it crosses the edge of the screen
+ * would cost more than it saves.
+ */
+export function LazyTabStaff(props: TabStaffProps) {
+  const [drawn, setDrawn] = useState(false);
+  const slot = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (drawn) return;
+    const element = slot.current;
+    // No observer (or no element yet): draw it rather than leave a gap.
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setDrawn(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setDrawn(true);
+      },
+      // A screen ahead, so a system is ready before it is needed rather than
+      // arriving into view.
+      { rootMargin: '900px 0px' },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [drawn]);
+
+  if (drawn) return <TabStaff {...props} />;
+
+  const { headHeight, staffHeight, footHeight } = METRICS;
+  const height = headHeight + staffHeight + footHeight;
+  const scale = props.scale ?? SCREEN_SCALE;
+  return (
+    <div
+      ref={slot}
+      aria-hidden="true"
+      style={{
+        maxWidth: `${Math.round(props.system.width * scale)}px`,
+        aspectRatio: `${props.system.width} / ${height}`,
+      }}
+    />
   );
 }
