@@ -76,7 +76,15 @@
    a sheet spells one root two ways (Am and Am7, C and Cadd11), since there is
    then no single right symbol to hit; read it as texture, not as a score.
 
-   `--save-baseline` writes `baseline.json` beside the manifest. Later runs
+   `--separate` and `--separate-adaptive` analyse the accompaniment from a REPET
+   separation rather than the mixture, which is the experiment written up at the
+   top of src/core/separation.ts. Short version: it lifts the position-blind
+   vocabulary number and costs eight to seventeen points of order F1, because
+   the separator's model is a median across repeats and a chord change is what
+   fails to repeat. Kept so the result can be re-derived rather than believed.
+
+   `--only <id>[,<id>]` runs one song or a few. `--save-baseline` writes
+   `baseline.json` beside the manifest. Later runs
    compare against it and exit non-zero if any song has gone backwards, so this
    can gate a change to src/core the way the unit tests gate everything else.
 */
@@ -84,6 +92,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeAudio } from '../src/core/analyze.ts';
+import { separateRepet } from '../src/core/separation.ts';
 import { isNoChord } from '../src/core/chordTypes.ts';
 import { keyRelation } from '../src/core/key.ts';
 import {
@@ -103,6 +112,17 @@ const flag = (name) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
 };
+const separateFirst = args.includes('--separate') || args.includes('--separate-adaptive');
+// Not `windowed`: that name is already a list of segments inside the loop
+// below, and shadowing it put this one in that block's temporal dead zone —
+// every separation threw a ReferenceError, was caught as a refusal, and the
+// arm silently reported the baseline back.
+const adaptive = args.includes('--separate-adaptive');
+// How many loops go into one separation window. Enough repeats for a median,
+// few enough that the model follows the song rather than averaging it.
+const windowLoops = Number(flag('--window-loops') ?? 6);
+/** Run one song, or a few, instead of the lot. */
+const only = (flag('--only') ?? '').split(',').filter(Boolean);
 const corpusDir = flag('--corpus') ?? process.env.GEETAAB_CORPUS;
 const saveBaseline = args.includes('--save-baseline');
 /** How far a song may slip before the run fails. */
@@ -184,6 +204,7 @@ function shape(res, segments) {
 const results = {};
 const rows = [];
 for (const song of manifest.songs ?? []) {
+  if (only.length && !only.includes(song.id)) continue;
   const path = join(corpusDir, song.file);
   if (!existsSync(path)) {
     console.error(`  missing ${song.file} — skipped`);
@@ -192,7 +213,55 @@ for (const song of manifest.songs ?? []) {
   const buf = await readFile(path);
   const samples = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
   const started = Date.now();
-  const res = analyzeAudio(samples, song.sampleRate ?? 22050);
+  // `--separate` runs REPET first and analyses the accompaniment rather than
+  // the mixture, to answer whether pulling the voice out helps the chords. The
+  // period comes from a first pass's own tempo and loop, since REPET's one
+  // fragile step is finding a period and this pipeline already reports one.
+  let input = samples;
+  let separated = null;
+  if (separateFirst) {
+    const first = analyzeAudio(samples, song.sampleRate ?? 22050);
+    const bar = (60 / first.tempo) * (first.beatsPerBar || 4);
+    const hint = first.loop?.length ? bar * first.loop.length : bar * 4;
+    const rate = song.sampleRate ?? 22050;
+    try {
+      if (adaptive) {
+        // Adaptive REPET, roughly: plain REPET models the accompaniment as one
+        // pattern for the whole song, so a chord that differs between the verse
+        // and the chorus is not in the median at that phase and gets stripped
+        // out with the voice. Separating a window at a time lets the model
+        // follow the song instead of averaging over it.
+        const span = Math.max(rate, Math.round(windowLoops * hint * rate));
+        const out = new Float32Array(samples.length);
+        let done = 0;
+        let repeats = 0;
+        let chunks = 0;
+        for (let at = 0; at < samples.length; at += span) {
+          const slice = samples.subarray(at, Math.min(samples.length, at + span));
+          try {
+            const split = separateRepet(slice, rate, { periodHint: hint });
+            out.set(split.accompaniment, at);
+            repeats += split.repetitions;
+            done += slice.length;
+          } catch {
+            // A window too short to fold keeps the mixture, which is the
+            // honest fallback: no separation is better than a bad one.
+            out.set(slice, at);
+          }
+          chunks++;
+        }
+        input = out;
+        separated = { windows: chunks, covered: +(done / samples.length).toFixed(2), repeats: Math.round(repeats / Math.max(1, chunks)) };
+      } else {
+        const split = separateRepet(samples, rate, { periodHint: hint });
+        input = split.accompaniment;
+        separated = { period: +split.periodSeconds.toFixed(2), repeats: split.repetitions };
+      }
+    } catch (error) {
+      separated = { refused: error?.kind ?? String(error?.message ?? error) };
+    }
+  }
+  const res = analyzeAudio(input, song.sampleRate ?? 22050);
   const seconds = (Date.now() - started) / 1000;
 
   const windowed = res.segments.filter(
@@ -242,6 +311,13 @@ for (const song of manifest.songs ?? []) {
       row.exact = +((voc.hitQuality / (voc.played || 1)) * 100).toFixed(1);
       row.shift = rec.shift;
     }
+  }
+
+  if (separated) {
+    row.separated = separated;
+    // Printed as it goes: a separation arm that silently refused every window
+    // looks exactly like a baseline run, and that is a easy hour to lose.
+    console.log(`  ${song.id}: ${JSON.stringify(separated)}`);
   }
 
   if (song.sheet) {

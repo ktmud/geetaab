@@ -356,6 +356,14 @@ empty rather than computed from spacing the extractor invented.
 **Time-aligned** chords support the strictest number, chord symbol recall on a
 10 ms grid.
 
+Those grades earn their keep. Separating the voice out with REPET before reading
+the chords — `src/core/separation.ts`, ported from the native app — lifts the
+vocabulary score from 96.2 to 98.3 and drops order F1 from 78.2 to 61.6, because
+the separator models the accompaniment as a median across repeats and a chord
+change is exactly what fails to repeat. Judged on the position-blind number alone
+it would have looked like an improvement worth shipping. It is not in the chord
+pipeline; the module says why, with the table.
+
 The engine carries a `major.minor.patch` version of its own, separate from the
 app's. **Major** means the result's shape changed, so a stored analysis cannot
 be read as it stands and a port has to move in the same commit. **Minor** means
