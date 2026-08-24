@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -138,6 +139,40 @@ export function Practice({
     return pxPerBeat / beatSeconds;
   }, [laneWidth, beatSeconds]);
 
+  /**
+   * The scale the lane is currently drawn at, readable from inside a frame.
+   *
+   * The chord blocks are laid out by React at `startTime * pxPerSecond`, while
+   * the lane is slid under the playhead by an animation frame writing a
+   * transform straight to the DOM. Both have to use the same scale or the line
+   * lands on the wrong chord — and they stop agreeing the moment the lane
+   * changes width, because the frame was holding whatever the scale was when
+   * its effect last ran. A phone does that in the middle of playing: rotating
+   * it, or its address bar collapsing, resizes the lane under a running loop.
+   * Reading through a ref means the frame always uses the scale the blocks were
+   * actually drawn with.
+   */
+  const scaleRef = useRef({ laneWidth, pxPerSecond });
+  scaleRef.current = { laneWidth, pxPerSecond };
+
+  /**
+   * Move the lane in the same commit that moves the blocks.
+   *
+   * React lays the blocks out at the new scale as soon as it renders, but the
+   * lane's own offset is written by an animation frame, which does not run
+   * until after. For that one frame the blocks have moved and the lane has not,
+   * and the line sits over the wrong chord — briefly, but a screenshot is one
+   * frame. Writing it here, before the browser paints, means there is no frame
+   * where the two disagree.
+   */
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    const transport = transportRef.current;
+    if (!inner) return;
+    const time = transport?.currentTime ?? 0;
+    inner.style.transform = `translate3d(${laneWidth * PLAYHEAD_FRACTION - time * pxPerSecond}px, 0, 0)`;
+  }, [laneWidth, pxPerSecond]);
+
   const events = tab.events;
   const duration = tab.duration;
 
@@ -225,7 +260,8 @@ export function Practice({
       }
 
       if (innerRef.current) {
-        const offset = laneWidth * PLAYHEAD_FRACTION - time * pxPerSecond;
+        const scale = scaleRef.current;
+        const offset = scale.laneWidth * PLAYHEAD_FRACTION - time * scale.pxPerSecond;
         innerRef.current.style.transform = `translate3d(${offset}px, 0, 0)`;
       }
 
@@ -259,7 +295,9 @@ export function Practice({
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [beats, findEventIndex, laneWidth, loopRange, playing, pxPerSecond]);
+    // Not keyed on the lane's size: the frame reads that through scaleRef, so a
+    // resize no longer restarts the loop — it just draws at the new scale.
+  }, [beats, findEventIndex, loopRange, playing]);
 
   const start = async (): Promise<void> => {
     const transport = transportRef.current;
@@ -598,7 +636,13 @@ export function Practice({
           <div
             className="lane-playhead"
             ref={playheadRef}
-            style={{ left: `${PLAYHEAD_FRACTION * 100}%` }}
+            // Pixels from the same laneWidth the transform uses, not a
+            // percentage of the element. A percentage moves the instant CSS
+            // relays the lane out — on a rotation, or a phone's address bar
+            // collapsing — while the transform is still using the width the
+            // last render measured, and for those frames the line sits over a
+            // chord that is not the one playing.
+            style={{ left: laneWidth * PLAYHEAD_FRACTION }}
           />
           {countIn !== null ? <div className="countin">{countIn}</div> : null}
           {hintOpen && countIn === null ? (

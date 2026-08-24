@@ -421,6 +421,52 @@ try {
   check('slow-down control', speed, '60%');
   await page.getByRole('button', { name: /Exit/ }).click();
 
+  console.log('\n2bb. the playhead keeps naming the chord it is standing on');
+  // A phone resizes in the middle of playing — a rotation, or the address bar
+  // collapsing. The blocks are laid out by React from the lane's width; the
+  // lane is slid under the line by an animation frame. If those two ever use
+  // different widths, the line sits over one chord while another is lit.
+  const alignment = async () =>
+    page.evaluate(() => {
+      const head = document.querySelector('.lane-playhead')?.getBoundingClientRect();
+      if (!head) return null;
+      const x = head.left + head.width / 2;
+      const blocks = [...document.querySelectorAll('.lane-block')].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { name: el.querySelector('.lane-block-name')?.textContent ?? '', l: r.left, r: r.right,
+                 active: el.classList.contains('active') };
+      });
+      const under = blocks.find((b) => b.l <= x && x < b.r);
+      // No block under the line means the line is in the seam between two of
+      // them, which is not a disagreement about anything.
+      return { under: under?.name ?? null, lit: blocks.find((b) => b.active)?.name ?? null };
+    });
+  // Playback is already running from the checks above; only start it if it is not.
+  if (await page.getByRole('button', { name: 'Play' }).count()) {
+    await page.getByRole('button', { name: 'Play' }).click();
+    for (let i = 0; i < 30; i++) {
+      if ((await clock()) !== '0:00') break;
+      await page.waitForTimeout(300);
+    }
+  }
+  const misaligned = [];
+  for (const [w, h] of [[1280, 720], [1180, 720], [1280, 680], [1024, 720], [1280, 720]]) {
+    await page.setViewportSize({ width: w, height: h });
+    for (let k = 0; k < 3; k++) {
+      const seen = await alignment();
+      if (seen && seen.under && seen.under !== seen.lit) misaligned.push(`${w}x${h}: ${seen.under} under, ${seen.lit} lit`);
+      await page.waitForTimeout(120);
+    }
+  }
+  checkThat(
+    'resizing mid-playback never leaves the line over one chord and the light on another',
+    misaligned.length === 0,
+    misaligned.length ? misaligned.join('; ') : 'aligned through every resize',
+  );
+  if (await page.getByRole('button', { name: 'Pause' }).count()) {
+    await page.getByRole('button', { name: 'Pause' }).click();
+  }
+
   console.log('\n2c. fingerpicking tells you which string the thumb takes');
   await page.getByText('Chords you need').waitFor({ timeout: 90000 });
   await (await page.locator('select').all())[1].selectOption({ label: 'The eight-note pattern' });
