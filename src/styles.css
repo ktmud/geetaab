@@ -4337,3 +4337,83 @@ html[lang^='zh'] .how-it-works em {
   min-width: 7ch;
   text-align: right;
 }
+
+/* ---- the circle of fifths ---------------------------------------------- */
+
+/* Not one of the numbered stages, so it does not take the stage colours. It
+   takes the brass the app uses for an answer it has committed to, because that
+   is what all four of these decisions are. */
+.hw-circle-ring {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+/* The five open shapes, drawn as one band rather than five marks: that they
+   are adjacent is the claim the diagram exists to make. */
+.hw-circle-arc {
+  stroke: var(--hw-hands);
+  stroke-width: 34;
+  stroke-linecap: round;
+  opacity: 0.17;
+}
+
+.hw-circle-key {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--text-dim);
+}
+
+.hw-circle-key.is-open {
+  fill: var(--hw-hands);
+  font-size: 16.5px;
+}
+
+.hw-circle-minor {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--text-faint);
+}
+
+/* Where the spelling flips. Dashed, because nothing in the music changes here
+   — only how it is written down. */
+.hw-circle-split {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.hw-circle-step {
+  stroke: var(--hw-decided);
+  stroke-width: 2;
+}
+
+.hw-circle-headfill {
+  fill: var(--hw-decided);
+}
+
+.hw-circle-caption,
+.hw-circle-side {
+  font-size: 11.5px;
+  fill: var(--text-faint);
+}
+
+.hw-circle-step-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--hw-decided);
+}
+
+.hw-circle-side {
+  font-family: var(--mono);
+}
+
+.hw-circle-list {
+  margin-top: 4px;
+}
+
+.hw-circle-note {
+  font-size: 13px;
+  margin-bottom: 0;
+}

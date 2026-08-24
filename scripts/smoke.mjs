@@ -1393,6 +1393,13 @@ try {
       drawn: boxes.filter((b) => b.width > 0 && b.height > 0).length,
       labelled: figures.filter((svg) => (svg.getAttribute('aria-label') || '').length > 20).length,
       captions: document.querySelectorAll('.how-it-works figure figcaption').length,
+      // The circle of fifths is not a stage — it is the shape four of the
+      // stages are standing on — so it sits outside the numbered run and the
+      // stepper does not list it.
+      circle: document.querySelectorAll('.hw-circle-card figure svg').length,
+      circleUses: document.querySelectorAll('.hw-circle-card .hw-circle-list li').length,
+      openArc: document.querySelectorAll('.hw-circle-card .hw-circle-key.is-open').length,
+      circleKeys: document.querySelectorAll('.hw-circle-card .hw-circle-key').length,
     };
   });
   const deeper = await page.evaluate(() => {
@@ -1473,13 +1480,20 @@ try {
     )}px`,
   );
   checkThat(
-    'the explainer draws nine stages, nine sized diagrams and their captions',
+    'the explainer draws nine stages, and one more diagram that is not one',
     explainer.stages === 9 &&
-      explainer.figures === 9 &&
-      explainer.drawn === 9 &&
-      explainer.labelled === 9 &&
-      explainer.captions === 9,
+      explainer.steps === 9 &&
+      explainer.figures === 10 &&
+      explainer.drawn === 10 &&
+      explainer.labelled === 10 &&
+      explainer.captions === 10 &&
+      explainer.circle === 1,
     JSON.stringify(explainer),
+  );
+  checkThat(
+    'the circle names twelve keys and marks the five open shapes as one arc',
+    explainer.circleKeys === 12 && explainer.openArc === 5 && explainer.circleUses === 4,
+    `${explainer.circleKeys} keys, ${explainer.openArc} open, ${explainer.circleUses} uses`,
   );
   await page.getByRole('button', { name: 'Key', exact: true }).click();
   await page.waitForTimeout(700);

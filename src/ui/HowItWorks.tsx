@@ -335,11 +335,124 @@ function RawBars({ bars }: { bars: Bar[] }) {
   );
 }
 
+/**
+ * The circle of fifths, and the four places it is already load-bearing.
+ *
+ * Not a stage of its own — it never appears in the code by name, and there is
+ * no module called anything like it. It is the shape underneath four separate
+ * decisions, and drawing it once is cheaper than explaining each of them from
+ * first principles four times.
+ *
+ * The one fact the drawing has to carry is that the guitar's open shapes are a
+ * contiguous arc rather than a scattering. Everything else on the page follows
+ * from that: it is why a capo is worth putting on, and which way round it goes.
+ */
+function CircleFigure({ t, revealed }: { t: ReturnType<typeof useT>; revealed: boolean }) {
+  // Clockwise by fifths from C at the top. The names are the ones the app
+  // itself would print for each key, which is the third use drawn here.
+  const KEYS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
+  const MINORS = ['a', 'e', 'b', 'f#', 'c#', 'g#', 'd#', 'bb', 'f', 'c', 'g', 'd'];
+  // The five whose open shapes a beginner has in their hands, and they sit
+  // next to each other. That adjacency is the whole reason a capo works.
+  const OPEN = new Set(['C', 'G', 'D', 'A', 'E']);
+  const cx = 220;
+  const cy = 190;
+  const outer = 136;
+  const inner = 96;
+  const ring = 116;
+  const at = (i: number, r: number): [number, number] => {
+    const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+  };
+  const p = (x: number, y: number): string => `${x.toFixed(1)} ${y.toFixed(1)}`;
+  const arcPath = (from: number, to: number, r: number, sweep: 0 | 1): string => {
+    const [x0, y0] = at(from, r);
+    const [x1, y1] = at(to, r);
+    return `M ${p(x0, y0)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 ${sweep} ${p(x1, y1)}`;
+  };
+
+  // Where the spelling flips: between the last sharp key and the first flat
+  // one. Its outer end is where the two labels hang.
+  const [splitInX, splitInY] = at(6.5, inner - 6);
+  const [splitOutX, splitOutY] = at(6.5, outer + 16);
+
+  return (
+    <Figure
+      index={STAGE_COUNT}
+      aria={t.hwCircleAria}
+      caption={t.hwCircleCaption}
+      viewBox="0 0 440 376"
+      revealed={revealed}
+    >
+      <defs>
+        <marker id="hw-circle-head" markerWidth="7" markerHeight="7" refX="5.6" refY="3" orient="auto">
+          <path d="M0 0 L6 3 L0 6 z" className="hw-circle-headfill" />
+        </marker>
+      </defs>
+
+      {/* One band behind five points rather than five marks: that they are
+          adjacent is the claim. */}
+      <path d={arcPath(-0.45, 4.45, ring, 1)} className="hw-circle-arc" fill="none" />
+      <circle cx={cx} cy={cy} r={outer} className="hw-circle-ring" fill="none" />
+      <circle cx={cx} cy={cy} r={inner} className="hw-circle-ring" fill="none" />
+
+      <path d={`M ${p(splitInX, splitInY)} L ${p(splitOutX, splitOutY)}`} className="hw-circle-split" />
+      <text x={splitOutX - 8} y={splitOutY + 22} textAnchor="end" className="hw-circle-side">
+        {t.hwCircleFlats}
+      </text>
+      <text x={splitOutX + 8} y={splitOutY + 22} className="hw-circle-side">
+        {t.hwCircleSharps}
+      </text>
+
+      {KEYS.map((name, i) => {
+        const [x, y] = at(i, ring);
+        const [mx, my] = at(i, inner - 22);
+        const open = OPEN.has(name);
+        return (
+          <g key={name}>
+            <text x={x} y={y + 5} textAnchor="middle" className={`hw-circle-key${open ? ' is-open' : ''}`}>
+              {name}
+            </text>
+            <text x={mx} y={my + 4} textAnchor="middle" className="hw-circle-minor">
+              {MINORS[i]}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* One step anticlockwise is a dominant falling to its tonic: the cadence
+          the key referee counts. Drawn between G and C, where it is read. */}
+      <path
+        d={arcPath(0.84, 0.16, outer + 16, 0)}
+        className="hw-circle-step"
+        fill="none"
+        markerEnd="url(#hw-circle-head)"
+      />
+      {(() => {
+        const [lx, ly] = at(0.5, outer + 40);
+        return (
+          <text x={lx} y={ly} textAnchor="middle" className="hw-circle-step-label">
+            {t.hwCircleStep}
+          </text>
+        );
+      })()}
+
+      <text x={cx} y={cy - 4} textAnchor="middle" className="hw-circle-caption">
+        {t.hwCircleInner[0]}
+      </text>
+      <text x={cx} y={cy + 14} textAnchor="middle" className="hw-circle-caption">
+        {t.hwCircleInner[1]}
+      </text>
+    </Figure>
+  );
+}
+
 export function HowItWorks({ onBack }: HowItWorksProps) {
   const t = useT();
   const rootRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
-  const [revealed, setRevealed] = useState<boolean[]>(() => new Array(STAGE_COUNT).fill(false));
+  // One longer than the stages: the circle figure below them reveals the same way.
+  const [revealed, setRevealed] = useState<boolean[]>(() => new Array(STAGE_COUNT + 1).fill(false));
 
   // Which stage the reader is in. A tall dead band top and bottom means the
   // section crossing the middle of the viewport is the one that counts, which
@@ -373,7 +486,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
     if (!root) return;
     const figures = Array.from(root.querySelectorAll<HTMLElement>('.hw-fig'));
     if (typeof IntersectionObserver === 'undefined') {
-      setRevealed(new Array(STAGE_COUNT).fill(true));
+      setRevealed(new Array(STAGE_COUNT + 1).fill(true));
       return;
     }
     const observer = new IntersectionObserver(
@@ -1118,6 +1231,23 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             </text>
           </Figure>
         </Stage>
+      </div>
+
+      {/* Not a stage: a shape that four of the stages above are already
+          standing on, drawn once instead of explained four times. */}
+      <div className="card hw-circle-card">
+        <h2>{t.hwCircleTitle}</h2>
+        <p>{t.hwCircleIntro}</p>
+        <CircleFigure t={t} revealed={revealed[STAGE_COUNT] ?? false} />
+        <ol className="hw-list hw-circle-list">
+          {t.hwCircleUses.map((use, i) => (
+            <li key={i}>
+              <strong>{use.where}</strong>
+              {use.what}
+            </li>
+          ))}
+        </ol>
+        <p className="faint hw-circle-note">{t.hwCircleNote}</p>
       </div>
 
       <div className="card hw-limits" data-stage={STAGE_COUNT}>

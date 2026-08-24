@@ -368,6 +368,37 @@ export const dictionary = {
     hwOverview: 'Overview',
     hwStageLabel: (n: number) => `Stage ${n}`,
     hwStages89: 'Stages 8–9',
+    hwCircleTitle: 'One shape, under four decisions',
+    hwCircleIntro:
+      'The circle of fifths never appears in this code by name. There is no module called anything like it, and no stage above is "the circle of fifths stage". It is the shape four separate decisions are already standing on, and it is worth drawing once rather than explaining from scratch four times.',
+    hwCircleAria:
+      'Diagram: the circle of fifths. Twelve major keys around a ring, C at the top, each a fifth clockwise of the last; their relative minors on an inner ring. The five keys whose open chord shapes a beginner already knows — C, G, D, A and E — sit next to each other on one arc, which is highlighted. A line marks where the spelling flips from sharps to flats, and an arrow shows one step anticlockwise, which is a dominant resolving to its tonic.',
+    hwCircleCaption:
+      'Twelve major keys on the outer ring, each a fifth clockwise of the last, with its relative minor inside it. Neighbours here are neighbours in sound: two keys side by side differ by one note, and two chords side by side share two of their three. The five open shapes a beginner has in their hands are not scattered around this ring — they are one unbroken arc of it, which is the entire reason a capo is worth owning.',
+    hwCircleInner: ['neighbours share', 'two notes of three'],
+    hwCircleStep: 'V → I',
+    hwCircleSharps: 'sharps →',
+    hwCircleFlats: '← flats',
+    hwCircleUses: [
+      {
+        where: 'Deciding which chords are neighbours. ',
+        what: 'The decoder charges for every chord change, so a flicker cannot become a chord — but it discounts the charge in proportion to how many notes the two chords share. Two of three is one step around this ring; none is the far side. Nothing computes an angle: counting shared notes gets there on its own.',
+      },
+      {
+        where: 'Refereeing the key. ',
+        what: 'Correlating a song against the twelve key profiles separates a key from its own dominant weakly — they share six of seven notes. So the estimate is refereed by cadences: how often a chord one step clockwise falls to the chord it is beside, which is a V resolving to its I. That single step is what breaks the tie.',
+      },
+      {
+        where: 'Spelling the answer. ',
+        what: 'A key gets sharps or flats depending on which side of the ring it sits, and the app writes A♯ or B♭ from that alone. The two are the same pitch; only one of them is what a player expects to read.',
+      },
+      {
+        where: 'Choosing the capo. ',
+        what: 'The five open shapes are one arc. So the capo question is only ever "how far round do I have to move this song to land on that arc, and is it worth the move" — which is what the arranger scores, fret by fret, against how hard the shapes come out.',
+      },
+    ],
+    hwCircleNote:
+      'And once more outside the app: when its key estimates are marked against annotations, a miss by one step either way is scored apart from a miss to the far side, because those are the two mistakes a key estimator actually makes.',
     hwNodes: ['Listen', 'FFT', 'Chroma', 'Match', 'Smooth', 'Tempo', 'Key', 'Adapt', 'Chart'],
     hwLegend: ['Measuring', 'Deciding', 'Rewriting for your hands'],
     hwOverviewAria:
@@ -895,6 +926,37 @@ export const dictionary = {
     hwOverview: '总览',
     hwStageLabel: (n: number) => `第 ${n} 阶段`,
     hwStages89: '第 8、9 阶段',
+    hwCircleTitle: '同一个图形，撑着四个决定',
+    hwCircleIntro:
+      '五度圈在这份代码里从没出现过名字。没有哪个模块叫这个，上面也没有哪个阶段是「五度圈阶段」。它是四个各不相干的决定共同站着的那个图形——画一次，比分别从头讲四遍划算。',
+    hwCircleAria:
+      '示意图：五度圈。十二个大调排成一圈，C 在正上方，顺时针每走一步升高五度；内圈是各自的关系小调。初学者已经会按的五个开放和弦调——C、G、D、A、E——彼此相邻，连成高亮的一段弧。一条线标出记号从升号翻成降号的位置，一个箭头表示逆时针走一步，也就是属和弦解决到主和弦。',
+    hwCircleCaption:
+      '外圈是十二个大调，顺时针每走一步升高五度；内圈是各自的关系小调。圈上的邻居就是听感上的邻居：相邻两个调只差一个音，相邻两个和弦共用三个音里的两个。初学者手上那五个开放指法不是散落在圈上的——它们是连续的一整段弧，这就是变调夹值得买的全部理由。',
+    hwCircleInner: ['相邻两个和弦', '三个音里共用两个'],
+    hwCircleStep: 'V → I',
+    hwCircleSharps: '升号 →',
+    hwCircleFlats: '← 降号',
+    hwCircleUses: [
+      {
+        where: '判断哪些和弦算邻居。',
+        what: '解码器给每一次换和弦都记一笔账，好让逐帧的抖动变不成和弦；但两个和弦共用的音越多，这笔账打的折就越狠。共用三分之二，就是圈上相邻一步；一个都不共用，就是圈的对面。代码里没有算任何角度——数共用音自己就走到了这里。',
+      },
+      {
+        where: '给调性做裁判。',
+        what: '拿十二条调性模板去套一首歌，很难把一个调和它自己的属调分开——两者七个音里有六个是一样的。所以估计结果要交给终止式来裁判：顺时针走一步的那个和弦，落到它旁边那个和弦，出现了多少次——那就是 V 到 I。就是这一步打破了平局。',
+      },
+      {
+        where: '决定怎么写。',
+        what: '一个调用升号还是降号，取决于它落在圈的哪一侧，A♯ 还是 B♭ 就是这么定下来的。两者音高完全一样，但只有一个是弹的人预期读到的那个。',
+      },
+      {
+        where: '选变调夹。',
+        what: '五个开放指法连成一段弧。所以变调夹的问题从头到尾只有一个：这首歌要挪多远才落到那段弧上，挪过去值不值。改编器就是逐品去算这件事——拿挪过去之后指法有多好按来算。',
+      },
+    ],
+    hwCircleNote:
+      '还有一处在 app 之外：拿它估的调性去对标注打分时，差一步（不论哪个方向）和差到圈的对面是分开算的——因为这正是调性估计真正会犯的两种错。',
     hwNodes: ['检测', 'FFT', '色度', '匹配', '平滑', '节拍', '调性', '改编', '成谱'],
     hwLegend: ['测量', '判断', '改写成你弹得下来的样子'],
     hwOverviewAria:
