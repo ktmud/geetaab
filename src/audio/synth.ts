@@ -77,6 +77,10 @@ export interface PluckVoice {
       pluck at 1/p nulls every pth harmonic, which is the difference between a
       string and filtered noise. 0 leaves the excitation broadband. */
   pluckPos?: number;
+  /** Corner of the one-pole the excitation noise is seeded through, in Hz:
+      how bright the attack itself is, where `cutoff` only sets how fast that
+      brightness then dies. Only honoured alongside `cutoff`. */
+  seedCutoff?: number;
 }
 
 function addPluck(
@@ -104,7 +108,8 @@ function addPluck(
   // for the same reason the loop filter's does: `0.65` is a corner of 1.5 kHz
   // at 22 kHz and of 3 kHz at 44 kHz, so the seed itself came out brighter on
   // a device with a faster clock. Legacy callers keep the coefficient.
-  const seedPole = voice.cutoff != null ? Math.exp((-2 * Math.PI * 1512) / sampleRate) : 0.65;
+  const seedPole =
+    voice.cutoff != null ? Math.exp((-2 * Math.PI * (voice.seedCutoff ?? 1512)) / sampleRate) : 0.65;
   let lp = 0;
   for (let i = 0; i < n; i++) {
     lp = seedPole * lp + (1 - seedPole) * (rand() * 2 - 1);
@@ -237,45 +242,71 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
 }
 
 /**
- * The voice the chord library plays, measured against a real guitar.
+ * The voice the chord library plays, tuned to a chosen recording of the real
+ * thing.
  *
- * GuitarSet is 180 close-miked acoustic recordings, so it answers what a real
- * one looks like rather than what a plucked-string model sounds like on its
- * own. Two differences showed up and both are here. A real guitar keeps its
- * upper partials: over the two seconds after a strum its spectral centroid
- * settles around 1400 Hz, while a plain two-point loop filter had ours down at
- * 510 Hz and sounding like a rubber band. And a real one is loudest between
- * 120 and 240 Hz with a dip above it, where ours peaked at 480-960 — the
- * difference is the box, which `body` below stands in for.
+ * The reference is an unprocessed A/B of a Martin D-28 and a Gibson J-45 —
+ * one player, one room, one Zoom H8N (youtube.com/watch?v=QnYqnOW4la8).
+ * Measured over seven octave bands the two guitars differ from each other by
+ * only 1.0 dB; everything else about the sound is shared, so the target is
+ * their mean, chord by chord. The recording's chords were segmented by this
+ * repo's own analyzer, each segment credited to its guitar by the body colour
+ * in the storyboard frames (natural top: D-28, sunburst: J-45), and the voice
+ * fitted to the seven chords the video and the library both play:
+ * E G C D Am Em F.
  */
-const ACOUSTIC: PluckVoice = { cutoff: 11000, pluckPos: 0.13 };
+const ACOUSTIC: PluckVoice = { cutoff: 3200, pluckPos: 0.12, seedCutoff: 1120 };
 
 /*
-   Calibrated against GuitarSet at 44.1 kHz, which is where it is heard — a
-   browser's AudioContext runs at 44.1 or 48 kHz and never at the 22 kHz the
-   analysis works in, and this model does not sound the same at both. Mean
-   absolute error over seven octave bands, one strum of E major against the
-   longest sustained E major in 00_SS1-68-E_comp:
+   Fitted at 44.1 kHz, which is where it is heard — a browser's AudioContext
+   runs at 44.1 or 48 kHz and never at the 22 kHz the analysis works in. The
+   error is the band MAE against the video's segments of the same chord,
+   averaged over the seven chords, with the synth side averaged over five
+   excitation seeds: one strum is one draw of the loop's noise, worth 3-4 dB
+   of per-band luck (the barre F draws badly at seed 20), and the video side
+   is already an average of dozens of real strums.
 
-     before          7.68 dB
-     after           1.17 dB at 44.1 kHz, 1.33 at 48
+     voice as fitted to GuitarSet    5.14 dB against this recording
+     refitted                        1.15 dB
 
-   `pluckPos` is a sharp optimum — 0.08 and 0.18 both cost about 2 dB — which
-   is what you would expect of a parameter that is doing real physical work
-   rather than fitting noise: it is roughly where a pick meets the string. */
+   Both corners came down a long way (loop 11 kHz -> 3.2, seed 1.5 -> 1.1):
+   this recording is far darker than GuitarSet's close mics, in the attack
+   itself and not only in how fast the top dies. `pluckPos` barely moved,
+   0.13 -> 0.12 — where the pick meets the string survived the change of
+   reference, which is what a parameter doing physical work should do. */
 
 /**
- * The soundboard: two resonances it adds, and a scoop it takes away.
+ * The strum's impact on the box, independent of the chord.
  *
- * A guitar body has dozens of coupled modes, but measured against GuitarSet in
- * octave bands the whole difference is three numbers. Referenced to 120-240 Hz,
- * where a real acoustic peaks, a bare string model came out +9.3 dB at 240-480,
- * +13.4 at 480-960 and +6.4 at 960-1920, while the bottom octave and everything
- * above 4 kHz were already within half a decibel. So the box is not adding
- * bass here — it is taking out a broad scoop through the low mids, deepest
- * around 700 Hz, which is what makes a guitar sound like a box with a hole in
- * it rather than like a rubber band. The two added resonances put the air and
- * top-plate modes back under it.
+ * In the reference, chords with no string below 130 Hz still carry real
+ * energy at 60-120 Hz — the video's C sits 6 dB under its 120-240 peak where
+ * this model's strings alone put it 13 under. Strings cannot make that: it is
+ * the pick ploughing through and the heel of the hand, ringing the air mode
+ * whatever the left hand holds. One damped sine at that mode covers it,
+ * scaled by how many strings the sweep actually strikes.
+ */
+const THUMP = { amp: 0.014, freq: 99, tau: 0.062 };
+
+function addThump(out: Float32Array, at: number, sampleRate: number, amp: number): void {
+  const len = Math.min(out.length - at, Math.floor(THUMP.tau * 6 * sampleRate));
+  for (let i = 0; i < len; i++) {
+    const t = i / sampleRate;
+    out[at + i] += amp * Math.exp(-t / THUMP.tau) * Math.sin(2 * Math.PI * THUMP.freq * t);
+  }
+}
+
+/**
+ * The soundboard: two resonances it adds, and what it takes away.
+ *
+ * A guitar body has dozens of coupled modes, but in octave bands a few
+ * numbers carry the whole difference, and which numbers depends on the
+ * reference. Against GuitarSet the box was mostly a deep 760 Hz scoop; under
+ * the video reference, with the string model itself now much darker, that
+ * scoop came apart. What is left is gentler and higher: a dip at 360, a broad
+ * one through 1-1.5 kHz — the presence region this recording simply does not
+ * have — and 8 dB of shelf off the top two octaves. The two low resonances
+ * still put the air and top-plate modes under everything, a little softer
+ * than before because the strum's thump now supplies part of that bottom.
  */
 function body(x: Float32Array, sampleRate: number): Float32Array {
   const out = Float32Array.from(x);
@@ -326,12 +357,11 @@ function body(x: Float32Array, sampleRate: number): Float32Array {
       out[i] = yn;
     }
   };
-  resonate(104, 2.4, 2.6);
-  resonate(198, 3.0, 1.5);
-  peak(360, 1.1, -4);
-  peak(760, 1.0, -13);
-  peak(1500, 1.2, -2);
-  shelf(2200, -6);
+  resonate(104, 2.4, 1.9);
+  resonate(198, 3.0, 1.6);
+  peak(360, 1.1, -6);
+  peak(1170, 1.15, -8.9);
+  shelf(2460, -8);
   return out;
 }
 
@@ -347,8 +377,9 @@ export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; s
     const at = Math.floor(voice * 0.019 * sampleRate);
     const middle = 1 - Math.abs(voice - 2.5) / 3.5;
     voice++;
-    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.24 + 0.12 * middle, sampleRate, 2.6, rand, ACOUSTIC);
+    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.24 + 0.12 * middle, sampleRate, 2.9, rand, ACOUSTIC);
   });
+  addThump(out, 0, sampleRate, THUMP.amp * (voice / 6));
   return normalizePeak(body(out, sampleRate), 0.85);
 }
 
@@ -409,18 +440,21 @@ export function renderShapePattern(
         const display = pluckStringOf(step.pluck, { frets } as ChordShape);
         const index = 6 - display;
         const voice = sounding.find((v) => v.string === index);
-        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.1, rand, ACOUSTIC);
+        // A fingertip pulling one string barely moves the top: no thump here.
+        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.3, rand, ACOUSTIC);
         continue;
       }
       // A sweep, not a block: the strings are struck in order across about
       // 25 ms, and an upstroke starts at the treble end.
       const order = step.direction === 'U' ? [...sounding].reverse() : sounding;
       const spread = (step.direction === 'U' ? 0.018 : 0.025) / Math.max(1, order.length - 1);
+      let struck = 0;
       order.forEach((voice, i) => {
         // An upstroke on a guitar catches the top strings and little else.
         const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
         if (!reach) return;
-        const decay = step.mute ? 0.18 : 2.1;
+        struck++;
+        const decay = step.mute ? 0.18 : 2.3;
         addPluck(
           out,
           Math.floor((at + i * spread) * sampleRate),
@@ -432,6 +466,7 @@ export function renderShapePattern(
           ACOUSTIC,
         );
       });
+      addThump(out, Math.floor(at * sampleRate), sampleRate, THUMP.amp * (amp / 0.3) * (struck / 6));
     }
   }
   return normalizePeak(body(out, sampleRate), 0.88);
