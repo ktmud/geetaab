@@ -46,6 +46,10 @@ import { estimateKey, type KeyEstimate } from './key';
  *   patch  nothing observable changed: a refactor, a comment, a speed-up.
  *          Nothing is recomputed, and no fixture moves.
  *
+ * The explainer at /how is part of this contract too: it describes what this
+ * file does, so a minor that changes the description is not finished until
+ * that page says the new thing.
+ *
  * Reset to 1.0.0 for the first release. The counter it replaces ran 1..6 and
  * is not comparable to it, so every song stored under one of those numbers is
  * treated as stale — which is what it is.

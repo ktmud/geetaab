@@ -970,6 +970,8 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
             <em>{t.hwS5P2Em}</em>
             {t.hwS5P2b}
           </p>
+          <p>{t.hwS5P3}</p>
+          <p>{t.hwS5P4}</p>
           <Figure
             index={5}
             revealed={revealed[5]}
@@ -1127,6 +1129,7 @@ export function HowItWorks({ onBack }: HowItWorksProps) {
           current={active === 7}
         >
           <p>{t.hwS7P1}</p>
+          <p>{t.hwS7P2}</p>
           <Figure
             index={7}
             revealed={revealed[7]}

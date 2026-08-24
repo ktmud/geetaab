@@ -1495,6 +1495,25 @@ try {
     explainer.circleKeys === 12 && explainer.openArc === 5 && explainer.circleUses === 4,
     `${explainer.circleKeys} keys, ${explainer.openArc} open, ${explainer.circleUses} uses`,
   );
+  // The page describes what src/core does, so it can go stale without anything
+  // failing. These are the two claims a version 6 of the engine changed and
+  // the page did not: the decoder's discount for related chords, and the key
+  // being refereed rather than decided by correlation alone.
+  const current = await page.evaluate(() => {
+    const text = document.querySelector('.how-it-works')?.textContent ?? '';
+    return {
+      discount: /share two of their three|in proportion/.test(text),
+      referee: /opens and ends on|refereed|breaks the tie|broken by evidence/.test(text),
+      bassPass: /slash chord/.test(text),
+      // And the claim that was already true stays true.
+      templates: text.includes('84 template'),
+    };
+  });
+  checkThat(
+    'and the page still describes the engine that is actually running',
+    current.discount && current.referee && current.bassPass && current.templates,
+    JSON.stringify(current),
+  );
   await page.getByRole('button', { name: 'Key', exact: true }).click();
   await page.waitForTimeout(700);
   const stepped = await page.evaluate(() => ({

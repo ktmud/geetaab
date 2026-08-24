@@ -480,6 +480,10 @@ export const dictionary = {
     hwS5P2Em: 'path',
     hwS5P2b:
       ' through time that balances "matches what was heard" against "changing chords costs something" — like autocorrect for a sentence, keeping the same word unless the evidence is overwhelming. This turns frame-by-frame flicker into a clean, confident chart with one or two chord changes per bar.',
+    hwS5P3:
+      'The charge is not the same for every change, though. Two chords that share notes are cheap to move between, and the discount is in proportion: C and Am share two of their three notes, so hearing one where the other is really playing costs the path very little, while C and F# share none and the path will not go there without real evidence. This is the circle of fifths doing its work without ever being named — see below.',
+    hwS5P4:
+      'One more pass runs after the path is chosen, on the bass alone. The decoder works from the whole spectrum, which cannot tell G from G with a B underneath it; a separate look at the low end can, so a chord whose bass is clearly a note other than its root is written as a slash chord. It is deliberately shy: on the reference sheets it recovers about a quarter of the printed inversions, because a wrong guess here spoils a chord that was already right.',
     hwS5Raw: 'Raw',
     hwS5RawSub: 'frame-by-frame',
     hwS5Smoothed: 'Smoothed',
@@ -502,6 +506,8 @@ export const dictionary = {
     hwS7Title: 'Key: Finding Home',
     hwS7P1:
       'Using the same 12-number idea (this time built up over the whole song, weighted by how long each chord rang), the app correlates against 24 template fingerprints — one per major and minor key — and picks the best match. Like humming a scale to yourself and noticing which one "feels like home."',
+    hwS7P2:
+      'Correlation alone is not enough to finish on, though. A song leaning on its dominant scores nearly as well a fifth up, and a major key and its relative minor share every note in the scale — so the profiles put those pairs within a whisker of each other. The tie is broken by evidence the fingerprint cannot see: which chord the song opens and ends on, how much of the track the candidate tonic chord actually occupies, and how often a V falls to its I. The number reported as confidence stays the raw correlation, so it says how clear the fingerprint was rather than how sure the referee is.',
     hwS7SongChroma: 'Song\'s chroma',
     hwS7Candidates: 'Key candidates',
     hwS7Best: 'best',
@@ -1033,6 +1039,10 @@ export const dictionary = {
     hwS5P2Em: '路径',
     hwS5P2b:
       '，同时权衡两件事：这条路径有多贴合听到的声音，以及换和弦本身要付出的代价。就像打字时的自动纠错——证据不够压倒性，就先按住不改。逐帧的抖动因此收成一张干净、笃定的谱子，每小节只有一两次变化。',
+    hwS5P3:
+      '不过这笔账不是每次都一样贵。两个和弦共用的音越多，来回走就越便宜，而且折扣是按比例给的：C 和 Am 三个音里共用两个，所以在其中一个真正响着的时候听成另一个，路径几乎不用付代价；而 C 和 F# 一个音都不共用，没有真凭实据路径就不会往那边走。这就是五度圈在起作用——只是它从没被叫过名字，往下看。',
+    hwS5P4:
+      '路径定下来之后还有一道单跑低音的处理。解码器看的是整个频谱，分不出 G 和「底下垫了个 B 的 G」；单独盯着低频那一段就能分得出来，于是低音明显不是根音的和弦会写成斜杠和弦。这一步故意做得保守：对照曲谱，印出来的转位它只认回四分之一左右——因为在这里瞎猜，会把本来已经对了的和弦弄坏。',
     hwS5Raw: '未平滑',
     hwS5RawSub: '逐帧猜测',
     hwS5Smoothed: '平滑后',
@@ -1053,6 +1063,8 @@ export const dictionary = {
     hwS7Title: '调性：找到这首歌的家',
     hwS7P1:
       '还是那十二个数，这次是整首歌累积起来的，按每个和弦响了多久加权。应用拿它去和 24 张模板指纹做相关——大调小调各 12 个——挑出最贴合的一张。就像自己哼一遍音阶，听哪一个「像回到家」。',
+    hwS7P2:
+      '不过光靠相关性还收不了尾。一首歌如果偏重属和弦，往上五度那个调的分数几乎一样高；而大调和它的关系小调，音阶里的音是完全一样的——模板把这两对拉得极近。打破平局要靠指纹看不见的证据：这首歌从哪个和弦开始、在哪个和弦结束，候选主和弦到底占了全曲多少时间，以及 V 落到 I 出现了多少次。报出来的置信度仍然是原始的相关性——它说的是这枚指纹有多清楚，而不是裁判有多确定。',
     hwS7SongChroma: '全曲色度',
     hwS7Candidates: '候选调',
     hwS7Best: '最像',
