@@ -516,6 +516,59 @@ try {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.evaluate(() => window.scrollTo(0, 0));
 
+  console.log('\n1be. a tempo the analysis could not settle offers the readings it weighed');
+  // Half and double time put every chord in the same place, so which one a
+  // player counts is a fact about the player. Five of twelve corpus songs with
+  // a known tempo come back at exactly double it, which is what this is for.
+  const tempoField = () =>
+    page.evaluate(() => {
+      const field = [...document.querySelectorAll('.field')].find((f) =>
+        f.querySelector('.segmented button')?.textContent?.includes('BPM'),
+      );
+      if (!field) return { offered: false };
+      const buttons = [...field.querySelectorAll('.segmented button')];
+      return {
+        offered: true,
+        options: buttons.map((b) => Number(b.textContent.replace(/[^\d.]/g, ''))),
+        picked: buttons.findIndex((b) => b.getAttribute('aria-pressed') === 'true'),
+        hint: (field.querySelector('.field-hint')?.textContent ?? '').length > 20,
+        chip: [...document.querySelectorAll('.chip')].map((c) => c.textContent.trim()).find((t) => t.includes('BPM')),
+      };
+    });
+  const tempo = await tempoField();
+  if (tempo.offered) {
+    checkThat(
+      'the readings are slowest first, at most three, with exactly one preselected',
+      tempo.options.length >= 2 &&
+        tempo.options.length <= 3 &&
+        tempo.options.every((b, i) => i === 0 || b > tempo.options[i - 1]) &&
+        tempo.picked >= 0 &&
+        tempo.hint,
+      JSON.stringify(tempo.options) + ` picked #${tempo.picked}`,
+    );
+    // Picking another one has to re-read the whole song, not just move a button.
+    const other = await page.evaluate(() => {
+      const field = [...document.querySelectorAll('.field')].find((f) =>
+        f.querySelector('.segmented button')?.textContent?.includes('BPM'),
+      );
+      const btn = [...field.querySelectorAll('.segmented button')].find(
+        (b) => b.getAttribute('aria-pressed') !== 'true',
+      );
+      const label = btn.textContent.trim();
+      btn.click();
+      return label;
+    });
+    await page.waitForTimeout(6000);
+    const after = await tempoField();
+    checkThat(
+      'and choosing one re-reads the song at it, headline included',
+      after.picked !== tempo.picked && after.chip === other,
+      `${tempo.chip} -> ${after.chip} (asked for ${other})`,
+    );
+  } else {
+    checkThat('the demo is unambiguous, so no choice is invented', true, 'no picker offered');
+  }
+
   console.log('\n1c. dropping an audio file onto the home screen');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
   const droppedWav = await readFile(await writeFixture(dir));

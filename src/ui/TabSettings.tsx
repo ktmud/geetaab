@@ -103,22 +103,45 @@ export function TabSettings({
         {onRetempo ? (
           <div className="field">
             <label>{t.tempoReading}</label>
-            <div className="btn-row">
-              <button
-                className="btn"
-                disabled={busy || analysis.tempo / 2 < 40}
-                onClick={() => onRetempo(analysis.tempo / 2)}
-              >
-                {t.halfTime}
-              </button>
-              <button
-                className="btn"
-                disabled={busy || analysis.tempo * 2 > 260}
-                onClick={() => onRetempo(analysis.tempo * 2)}
-              >
-                {t.doubleTime}
-              </button>
-            </div>
+            {analysis.tempoChoices.length > 1 ? (
+              <>
+                {/* The readings the analysis could not choose between, slowest
+                    first, with the one it used already selected. Half and
+                    double time put every chord in the same place — which of
+                    them a player counts is a fact about the player, so it is
+                    theirs to say rather than ours to guess. */}
+                <div className="segmented" role="group" aria-label={t.tempoReading}>
+                  {analysis.tempoChoices.map((choice) => (
+                    <button
+                      key={choice.bpm}
+                      aria-pressed={choice.picked}
+                      disabled={busy}
+                      onClick={() => onRetempo(choice.bpm)}
+                    >
+                      {t.bpmValue(Math.round(choice.bpm))}
+                    </button>
+                  ))}
+                </div>
+                <span className="field-hint">{t.tempoAmbiguous}</span>
+              </>
+            ) : (
+              <div className="btn-row">
+                <button
+                  className="btn"
+                  disabled={busy || analysis.tempo / 2 < 40}
+                  onClick={() => onRetempo(analysis.tempo / 2)}
+                >
+                  {t.halfTime}
+                </button>
+                <button
+                  className="btn"
+                  disabled={busy || analysis.tempo * 2 > 260}
+                  onClick={() => onRetempo(analysis.tempo * 2)}
+                >
+                  {t.doubleTime}
+                </button>
+              </div>
+            )}
           </div>
         ) : null}
       </div>

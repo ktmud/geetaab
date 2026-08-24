@@ -249,6 +249,7 @@ export const dictionary = {
     benchOn: 'On',
     benchOff: 'Off',
     tempoLabel: 'Tempo',
+    tempoAmbiguous: 'More than one count fits this recording. They put the chords in the same places — pick the one you would tap your foot to.',
     bpmValue: (bpm: number) => `${bpm} BPM`,
     capoSoundsUp: (fret: number, sounding: string) =>
       `With the capo on fret ${fret}, a C shape sounds ${sounding} — the shapes stay the ones you know.`,
@@ -869,6 +870,7 @@ export const dictionary = {
     benchOn: '开',
     benchOff: '关',
     tempoLabel: '速度',
+    tempoAmbiguous: '这段录音不止一种数法说得通。它们把和弦放在同样的位置上——选你会跟着打拍子的那个。',
     bpmValue: (bpm: number) => `${bpm} BPM`,
     capoSoundsUp: (fret: number, sounding: string) =>
       `变调夹夹第 ${fret} 品时，C 的指法实际发声是 ${sounding}——手上按的还是你会的那几个。`,

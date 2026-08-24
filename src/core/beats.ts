@@ -64,11 +64,48 @@ export function onsetEnvelope(
   return { values: smoothed, fps: sampleRate / hopSize };
 }
 
+export interface TempoCandidate {
+  bpm: number;
+  /** Score as a fraction of the winner's, so the winner is always 1. */
+  confidence: number;
+}
+
 export interface TempoEstimate {
   bpm: number;
   strength: number;
   /** Runner-up, usually the half- or double-time reading. */
   alternate: number;
+  /**
+   * The readings worth offering a reader, best first, winner included.
+   *
+   * Tempo is the shakiest number this pipeline reports — on the sheet corpus
+   * five of twelve songs with a known tempo come back at exactly double it —
+   * and the reason is usually not that the estimate is bad but that the
+   * question has more than one defensible answer. A ballad strummed in eighths
+   * is 70 BPM to the person playing it and 140 to the autocorrelation, and both
+   * readings put a chord in the same place. Where the runners-up score close to
+   * the winner, saying so and letting the reader pick beats guessing for them.
+   */
+  candidates: TempoCandidate[];
+}
+
+/**
+ * Read between the lag grid's teeth.
+ *
+ * The grid quantises tempo to whole envelope frames, which is over 1% at pop
+ * tempi, so a parabola through a peak and its neighbours locates it better than
+ * the sample it landed on.
+ */
+function refineLag(byLag: number[], index: number, minLag: number): number {
+  let lag = minLag + index;
+  if (index > 0 && index < byLag.length - 1) {
+    const left = byLag[index - 1];
+    const centre = byLag[index];
+    const right = byLag[index + 1];
+    const denom = left - 2 * centre + right;
+    if (denom < 0) lag += Math.max(-0.5, Math.min(0.5, (0.5 * (left - right)) / denom));
+  }
+  return lag;
 }
 
 /**
@@ -97,7 +134,9 @@ export function estimateTempo(onset: OnsetEnvelope, minBpm = 50, maxBpm = 210): 
   const n = values.length;
   const minLag = Math.max(2, Math.floor((60 / maxBpm) * fps));
   const maxLag = Math.min(n - 1, Math.ceil((60 / minBpm) * fps));
-  if (maxLag <= minLag) return { bpm: 120, strength: 0, alternate: 120 };
+  if (maxLag <= minLag) {
+    return { bpm: 120, strength: 0, alternate: 120, candidates: [{ bpm: 120, confidence: 1 }] };
+  }
 
   let mean = 0;
   for (let i = 0; i < n; i++) mean += values[i];
@@ -105,6 +144,13 @@ export function estimateTempo(onset: OnsetEnvelope, minBpm = 50, maxBpm = 210): 
 
   const scores: { bpm: number; score: number }[] = [];
   const byLag: number[] = [];
+  // The unweighted autocorrelation is kept alongside, because the two answer
+  // different questions. `byLag` decides which reading to use, prior included.
+  // `rawByLag` says how well each reading explains the onsets on its own, and
+  // that is what makes a rival a rival: at 65 BPM the prior alone is 0.34, so
+  // ranking rivals by the weighted score would hide every half-time reading —
+  // which is the one thing this list exists to offer.
+  const rawByLag: number[] = [];
   for (let lag = minLag; lag <= maxLag; lag++) {
     let sum = 0;
     for (let i = lag; i < n; i++) sum += (values[i] - mean) * (values[i - lag] - mean);
@@ -113,23 +159,40 @@ export function estimateTempo(onset: OnsetEnvelope, minBpm = 50, maxBpm = 210): 
     const prior = Math.exp(-0.5 * Math.pow(Math.log2(bpm / TEMPO_PRIOR_CENTRE) / TEMPO_PRIOR_WIDTH, 2));
     scores.push({ bpm, score: sum * prior });
     byLag.push(sum * prior);
+    rawByLag.push(sum);
   }
   let bestIdx = 0;
   for (let i = 1; i < byLag.length; i++) if (byLag[i] > byLag[bestIdx]) bestIdx = i;
-  // The lag grid quantises tempo to whole envelope frames — over 1% at pop
-  // tempi. A parabola through the peak and its neighbours reads between them.
-  let lag = minLag + bestIdx;
-  if (bestIdx > 0 && bestIdx < byLag.length - 1) {
-    const left = byLag[bestIdx - 1];
-    const centre = byLag[bestIdx];
-    const right = byLag[bestIdx + 1];
-    const denom = left - 2 * centre + right;
-    if (denom < 0) lag += Math.max(-0.5, Math.min(0.5, (0.5 * (left - right)) / denom));
+  const best = { bpm: (60 * fps) / refineLag(byLag, bestIdx, minLag), score: byLag[bestIdx] };
+
+  // Every local maximum, refined, then thinned: two peaks a hair apart are one
+  // answer read twice, and offering both would be offering a choice that is not
+  // one. Five per cent is comfortably wider than the grid's own quantisation
+  // and comfortably narrower than the half- and double-time readings that are
+  // the whole point of the list.
+  // Peaks of the raw curve, refined against it, then thinned: two peaks a hair
+  // apart are one answer read twice. Five per cent is comfortably wider than
+  // the lag grid's own quantisation and comfortably narrower than the half- and
+  // double-time readings that are the point of the list.
+  const rawBest = Math.max(...rawByLag);
+  const peaks: TempoCandidate[] = [];
+  for (let i = 1; i < rawByLag.length - 1; i++) {
+    if (rawByLag[i] <= rawByLag[i - 1] || rawByLag[i] < rawByLag[i + 1]) continue;
+    if (rawByLag[i] <= 0) continue;
+    const bpm = (60 * fps) / refineLag(rawByLag, i, minLag);
+    if (peaks.some((p) => Math.abs(Math.log2(p.bpm / bpm)) < 0.07)) continue;
+    peaks.push({ bpm, confidence: rawBest > 0 ? rawByLag[i] / rawBest : 0 });
   }
-  const best = { bpm: (60 * fps) / lag, score: byLag[bestIdx] };
+  peaks.sort((a, b) => b.confidence - a.confidence);
+  // The reading actually chosen always appears, at the tempo the weighted scan
+  // refined it to, whatever the raw curve made of it.
+  const chosen = peaks.findIndex((p) => Math.abs(Math.log2(p.bpm / best.bpm)) < 0.07);
+  if (chosen >= 0) peaks[chosen] = { bpm: best.bpm, confidence: peaks[chosen].confidence };
+  else peaks.unshift({ bpm: best.bpm, confidence: 1 });
+
   scores.sort((a, b) => b.score - a.score);
   const alternate = scores.find((s) => Math.abs(Math.log2(s.bpm / best.bpm)) > 0.4)?.bpm ?? best.bpm;
-  return { bpm: best.bpm, strength: best.score, alternate };
+  return { bpm: best.bpm, strength: best.score, alternate, candidates: peaks.slice(0, 5) };
 }
 
 /**

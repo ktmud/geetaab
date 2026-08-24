@@ -23,6 +23,7 @@ import {
   onsetEnvelope,
   padBeatGrid,
   trackBeats,
+  type TempoCandidate,
 } from './beats';
 import { medianOf, normalizePeak, resample } from './dsp';
 import { estimateKey, type KeyEstimate } from './key';
@@ -53,6 +54,10 @@ import { estimateKey, type KeyEstimate } from './key';
  * Reset to 1.0.0 for the first release.
  *
  * History:
+ *   1.2.0  the tempo estimate keeps its runners-up, so a recording with more
+ *          than one defensible count can offer them instead of the app
+ *          guessing. The chosen tempo is unchanged; the result carries a list
+ *          beside it.
  *   1.1.0  levelled the signal before the onset envelope, and made the
  *          bar-phase energy tie-break the 0.15 votes it was written to be —
  *          the same recording at a different distance from the speaker could
@@ -61,7 +66,7 @@ import { estimateKey, type KeyEstimate } from './key';
  * is not comparable to it, so every song stored under one of those numbers is
  * treated as stale — which is what it is.
  */
-export const ANALYSIS_VERSION = '1.1.0';
+export const ANALYSIS_VERSION = '1.2.0';
 
 /**
  * Whether a stored analysis should be worked out again from its audio.
@@ -95,6 +100,21 @@ export interface AnalysisResult {
   rhythmicity: number;
   /** True when the piece plays freely and the beat grid is only approximate. */
   freeTime: boolean;
+  /**
+   * Readings of the tempo worth offering, slowest first, when more than one is
+   * defensible. Empty when the answer is not in doubt.
+   *
+   * `tempo` above is always the reading the analysis actually used, and it is
+   * always one of these when the list is non-empty.
+   */
+  tempoChoices: TempoChoice[];
+}
+
+export interface TempoChoice {
+  bpm: number;
+  /** Score as a fraction of the winner's. Exactly one entry has `picked`. */
+  confidence: number;
+  picked: boolean;
 }
 
 export interface AnalyzeOptions {
@@ -229,7 +249,78 @@ export function analyzeAudio(
     confidence,
     rhythmicity,
     freeTime,
+    tempoChoices: tempoChoicesFrom(tempoEstimate.candidates, tempo, freeTime),
   };
+}
+
+/**
+ * How close a rival's raw score must be to the best to count as a rival on the
+ * evidence alone.
+ */
+const TEMPO_RIVAL = 0.82;
+
+/**
+ * And how much support a *metrical* relative needs — half time, double time, or
+ * the two-against-three readings a swung or compound feel produces.
+ *
+ * Lower on purpose, because these do not need to win an argument to be worth
+ * offering. A peak at exactly half the chosen tempo puts every chord in the
+ * same place; it is the same music counted differently, and which counting is
+ * right is a question about the player rather than about the recording. The
+ * prior settles it by assuming pop tempi, and the prior is exactly what a
+ * reader looking at this list is entitled to overrule.
+ */
+const TEMPO_RELATIVE_SUPPORT = 0.45;
+
+/**
+ * Half or double, within a hair — and deliberately not the two-against-three
+ * readings.
+ *
+ * Halving or doubling recounts the same music: every chord stays where it was,
+ * and only the number of beats you count over it changes. Two-against-three
+ * re-bars it, which is a different claim about the piece and needs to win the
+ * argument on the evidence rather than be offered for free. Measured, admitting
+ * them added a third option to eight songs at scores of 0.49 to 0.68 — noise
+ * in the list, none of it ever the right answer.
+ */
+function isMetricalRelative(bpm: number, of: number): boolean {
+  const ratio = bpm / of;
+  return [0.5, 2].some((r) => Math.abs(Math.log2(ratio / r)) < 0.06);
+}
+
+function tempoChoicesFrom(
+  candidates: TempoCandidate[],
+  used: number,
+  freeTime: boolean,
+): TempoChoice[] {
+  if (freeTime || candidates.length === 0) return [];
+  const near = (a: number, b: number): boolean => Math.abs(Math.log2(a / b)) < 0.07;
+
+  const kept = candidates.filter(
+    (c) =>
+      near(c.bpm, used) ||
+      c.confidence >= TEMPO_RIVAL ||
+      (isMetricalRelative(c.bpm, used) && c.confidence >= TEMPO_RELATIVE_SUPPORT),
+  );
+  // Only the chosen reading survived: the tempo is not in doubt, and offering a
+  // list of one would invent a decision rather than report one.
+  if (kept.length < 2) return [];
+
+  const out: TempoChoice[] = kept
+    .slice(0, 3)
+    .map((c) => ({
+      bpm: Math.round(c.bpm * 10) / 10,
+      confidence: c.confidence,
+      picked: near(c.bpm, used),
+    }));
+  // The tempo actually used can be moved after the estimate — by the halving
+  // rule, or by the tracker's own median — so if it drifted clear of every
+  // candidate it is added rather than lost.
+  if (!out.some((c) => c.picked)) {
+    out.push({ bpm: Math.round(used * 10) / 10, confidence: 1, picked: true });
+  }
+  out.sort((a, b) => a.bpm - b.bpm);
+  return out;
 }
 
 /** Below this the onsets share no common period worth calling a tempo. */
