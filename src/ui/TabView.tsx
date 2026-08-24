@@ -12,6 +12,7 @@ import { shapeNoteText, useT, useLanguage, translateKeyName } from '../i18n';
 import { ChordCard } from './ChordDiagram';
 import { PrintSheet } from './PrintSheet';
 import { usePrintMount } from './printing';
+import { useScrollAnchor } from './scrollAnchor';
 import { BackIcon, CheckIcon, PlayIcon, PrintIcon } from './icons';
 
 export interface TabViewProps {
@@ -45,6 +46,9 @@ export function TabView({
   const [lang] = useLanguage();
   const [copied, setCopied] = useState(false);
   const { printing, print } = usePrintMount();
+  // The chord boxes are above these controls and the level switch changes how
+  // many there are, so the control has to be pinned while that happens.
+  const settingsAnchor = useScrollAnchor<HTMLDivElement>();
   const [tabScope, setTabScope] = useState<'song' | 'loop'>('song');
   const [editingTitle, setEditingTitle] = useState(false);
 
@@ -239,13 +243,16 @@ export function TabView({
         ) : null}
       </div>
 
-      <div className="card">
+      <div className="card" ref={settingsAnchor.ref}>
         <h2>{t.makeItFitHands}</h2>
         <TabSettings
           analysis={analysis}
           song={song}
           options={options}
-          onOptionsChange={onOptionsChange}
+          onOptionsChange={(next) => {
+            settingsAnchor.hold();
+            onOptionsChange(next);
+          }}
           onRetempo={onRetempo}
           busy={busy}
         />

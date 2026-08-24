@@ -412,6 +412,43 @@ try {
   );
   await page.evaluate(() => window.scrollTo(0, 0));
 
+  console.log('\n1bc. changing the arrangement does not move it out from under you');
+  // The chord boxes sit above these controls, and a capo puts a sounds-as line
+  // in every one of them — so the row the thumb is on grows taller and the
+  // control slides. Chrome corrects for that by itself; WebKit has never
+  // shipped scroll anchoring, so this turns Chrome's off and checks our own.
+  await page.addStyleTag({ content: '*, html, body { overflow-anchor: none !important; }' });
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.evaluate(() => document.querySelector('#capo')?.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(300);
+  const controlAt = () =>
+    page.evaluate(() => {
+      const el = document.querySelector('#capo');
+      const palette = document.querySelector('.palette');
+      return {
+        top: Math.round(el.getBoundingClientRect().top),
+        palette: Math.round(palette.getBoundingClientRect().height),
+      };
+    });
+  const moves = [];
+  let held = await controlAt();
+  let grew = 0;
+  for (const fret of ['3', '0', '5']) {
+    await page.selectOption('#capo', fret);
+    await page.waitForTimeout(350);
+    const now = await controlAt();
+    grew = Math.max(grew, Math.abs(now.palette - held.palette));
+    moves.push(now.top - held.top);
+    held = now;
+  }
+  checkThat(
+    'the control stays put while the chord boxes above it change size',
+    grew > 0 && moves.every((m) => Math.abs(m) <= 2),
+    `boxes changed by up to ${grew}px; the control moved ${moves.map((m) => `${m}px`).join(', ')}`,
+  );
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+
   console.log('\n1c. dropping an audio file onto the home screen');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
   const droppedWav = await readFile(await writeFixture(dir));
