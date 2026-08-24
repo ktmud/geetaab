@@ -248,65 +248,48 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
  * The reference is an unprocessed A/B of a Martin D-28 and a Gibson J-45 —
  * one player, one room, one Zoom H8N (youtube.com/watch?v=QnYqnOW4la8).
  * Measured over seven octave bands the two guitars differ from each other by
- * only 1.0 dB; everything else about the sound is shared, so the target is
- * their mean, chord by chord. The recording's chords were segmented by this
- * repo's own analyzer, each segment credited to its guitar by the body colour
- * in the storyboard frames (natural top: D-28, sunburst: J-45), and the voice
- * fitted to the seven chords the video and the library both play:
- * E G C D Am Em F.
+ * about 1 dB; everything else about the sound is shared, so the target is
+ * their mean. The recording's chords were segmented by this repo's own
+ * analyzer, each segment credited to its guitar by the body colour in the
+ * storyboard frames (natural top: D-28, sunburst: J-45), and the voice fitted
+ * on the seven chords the video and the library both play: E G C D Am Em F.
  */
-const ACOUSTIC: PluckVoice = { cutoff: 3200, pluckPos: 0.12, seedCutoff: 1120 };
+const ACOUSTIC: PluckVoice = { cutoff: 16000, pluckPos: 0.12, seedCutoff: 430 };
 
 /*
-   Fitted at 44.1 kHz, which is where it is heard — a browser's AudioContext
-   runs at 44.1 or 48 kHz and never at the 22 kHz the analysis works in. The
-   error is the band MAE against the video's segments of the same chord,
-   averaged over the seven chords, with the synth side averaged over five
-   excitation seeds: one strum is one draw of the loop's noise, worth 3-4 dB
-   of per-band luck (the barre F draws badly at seed 20), and the video side
-   is already an average of dozens of real strums.
+   Fitted at 44.1 kHz to three time-resolved statistics of the recording's
+   strums, averaged over excitation seeds: the attack's band profile (first
+   70 ms), the sustain's (0.25-0.9 s), and how far each band falls over the
+   first half second.
 
-     voice as fitted to GuitarSet    5.14 dB against this recording
-     refitted                        1.15 dB
+   Time-resolved, because a first fit to the time-averaged spectrum converged
+   to 1.15 dB of band error and sounded nothing like the reference. An
+   average over time cannot tell a bright attack over a dead sustain from a
+   steady warm tone — and that is exactly what it had built: the loop filter
+   was doing the darkening, so the 1920-3840 band fell at 81 dB/s where the
+   recording falls at 13, and every chord collapsed to a thud within half a
+   second. The recording holds nearly the same tilt from attack through ring,
+   so the two corners now do opposite jobs: the loop barely damps at all
+   (16 kHz — the partials get to live) and the excitation is seeded dark
+   (430 Hz — the warmth is in the string from the first millisecond), with
+   the body EQ holding it there.
 
-   Both corners came down a long way (loop 11 kHz -> 3.2, seed 1.5 -> 1.1):
-   this recording is far darker than GuitarSet's close mics, in the attack
-   itself and not only in how fast the top dies. `pluckPos` barely moved,
-   0.13 -> 0.12 — where the pick meets the string survived the change of
-   reference, which is what a parameter doing physical work should do. */
+     drop from attack peak to 0.5 s      model 6.9 dB, recording 7.2
+     1920-3840 fall over that half second      11.8 against its 6.4
 
-/**
- * The strum's impact on the box, independent of the chord.
- *
- * In the reference, chords with no string below 130 Hz still carry real
- * energy at 60-120 Hz — the video's C sits 6 dB under its 120-240 peak where
- * this model's strings alone put it 13 under. Strings cannot make that: it is
- * the pick ploughing through and the heel of the hand, ringing the air mode
- * whatever the left hand holds. One damped sine at that mode covers it,
- * scaled by how many strings the sweep actually strikes.
- */
-const THUMP = { amp: 0.014, freq: 99, tau: 0.062 };
-
-function addThump(out: Float32Array, at: number, sampleRate: number, amp: number): void {
-  const len = Math.min(out.length - at, Math.floor(THUMP.tau * 6 * sampleRate));
-  for (let i = 0; i < len; i++) {
-    const t = i / sampleRate;
-    out[at + i] += amp * Math.exp(-t / THUMP.tau) * Math.sin(2 * Math.PI * THUMP.freq * t);
-  }
-}
+   The top octave still dies faster than the recording's, which may not even
+   be the guitar: a sustained -21 dB re 120-240 up there is not far off a
+   quiet room's floor. */
 
 /**
- * The soundboard: two resonances it adds, and what it takes away.
+ * The soundboard: two low resonances, and the recording's tilt.
  *
- * A guitar body has dozens of coupled modes, but in octave bands a few
- * numbers carry the whole difference, and which numbers depends on the
- * reference. Against GuitarSet the box was mostly a deep 760 Hz scoop; under
- * the video reference, with the string model itself now much darker, that
- * scoop came apart. What is left is gentler and higher: a dip at 360, a broad
- * one through 1-1.5 kHz — the presence region this recording simply does not
- * have — and 8 dB of shelf off the top two octaves. The two low resonances
- * still put the air and top-plate modes under everything, a little softer
- * than before because the strum's thump now supplies part of that bottom.
+ * With the loop filter no longer darkening anything, the whole warmth of the
+ * reference lives here and in the excitation: a deep dip at 360 Hz, a broad
+ * one centred at 1.3 kHz — the presence region this recording simply does
+ * not have — and 11 dB of shelf off everything above 2.5k. The air and
+ * top-plate modes at 104 and 198 Hz sit under it all, which is what keeps a
+ * chord with no open bass string from sounding like a smaller instrument.
  */
 function body(x: Float32Array, sampleRate: number): Float32Array {
   const out = Float32Array.from(x);
@@ -357,18 +340,26 @@ function body(x: Float32Array, sampleRate: number): Float32Array {
       out[i] = yn;
     }
   };
-  resonate(104, 2.4, 1.9);
-  resonate(198, 3.0, 1.6);
-  peak(360, 1.1, -6);
-  peak(1170, 1.15, -8.9);
-  shelf(2460, -8);
+  resonate(104, 2.4, 2.5);
+  resonate(198, 3.0, 1.5);
+  peak(360, 1.1, -10.8);
+  peak(1320, 0.97, -9.7);
+  shelf(2460, -10.8);
   return out;
+}
+
+/** The hand coming down on the strings, rather than a hard edit at the end. */
+function fadeTail(samples: Float32Array, sampleRate: number, seconds: number): void {
+  const len = Math.min(samples.length, Math.floor(seconds * sampleRate));
+  for (let i = 0; i < len; i++) {
+    samples[samples.length - 1 - i] *= 0.5 - 0.5 * Math.cos((Math.PI * i) / len);
+  }
 }
 
 export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; seed?: number } = {}): Float32Array {
   const sampleRate = opts.sampleRate ?? 44100;
   const rand = mulberry32(opts.seed ?? 20);
-  const out = new Float32Array(Math.ceil(2.4 * sampleRate));
+  const out = new Float32Array(Math.ceil(3.2 * sampleRate));
   let voice = 0;
   frets.forEach((fret, string) => {
     if (fret < 0) return;
@@ -377,10 +368,11 @@ export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; s
     const at = Math.floor(voice * 0.019 * sampleRate);
     const middle = 1 - Math.abs(voice - 2.5) / 3.5;
     voice++;
-    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.24 + 0.12 * middle, sampleRate, 2.9, rand, ACOUSTIC);
+    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.24 + 0.12 * middle, sampleRate, 3.3, rand, ACOUSTIC);
   });
-  addThump(out, 0, sampleRate, THUMP.amp * (voice / 6));
-  return normalizePeak(body(out, sampleRate), 0.85);
+  const shaped = body(out, sampleRate);
+  fadeTail(shaped, sampleRate, 0.35);
+  return normalizePeak(shaped, 0.85);
 }
 
 /**
@@ -440,21 +432,18 @@ export function renderShapePattern(
         const display = pluckStringOf(step.pluck, { frets } as ChordShape);
         const index = 6 - display;
         const voice = sounding.find((v) => v.string === index);
-        // A fingertip pulling one string barely moves the top: no thump here.
-        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.3, rand, ACOUSTIC);
+        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.6, rand, ACOUSTIC);
         continue;
       }
       // A sweep, not a block: the strings are struck in order across about
       // 25 ms, and an upstroke starts at the treble end.
       const order = step.direction === 'U' ? [...sounding].reverse() : sounding;
       const spread = (step.direction === 'U' ? 0.018 : 0.025) / Math.max(1, order.length - 1);
-      let struck = 0;
       order.forEach((voice, i) => {
         // An upstroke on a guitar catches the top strings and little else.
         const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
         if (!reach) return;
-        struck++;
-        const decay = step.mute ? 0.18 : 2.3;
+        const decay = step.mute ? 0.18 : 2.6;
         addPluck(
           out,
           Math.floor((at + i * spread) * sampleRate),
@@ -466,10 +455,11 @@ export function renderShapePattern(
           ACOUSTIC,
         );
       });
-      addThump(out, Math.floor(at * sampleRate), sampleRate, THUMP.amp * (amp / 0.3) * (struck / 6));
     }
   }
-  return normalizePeak(body(out, sampleRate), 0.88);
+  const shaped = body(out, sampleRate);
+  fadeTail(shaped, sampleRate, 0.4);
+  return normalizePeak(shaped, 0.88);
 }
 
 /** The demo progression: I–V–vi–IV in G, the backbone of a huge slice of pop. */
