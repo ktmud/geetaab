@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AnalysisResult } from '../core/analyze';
 import { isNoChord } from '../core/chordTypes';
 import type { SongTab } from '../music/tab';
@@ -85,6 +85,30 @@ export function TabView({
     // song's bars are, and the layout works it out.
     return engraveSystems(bars, tab.strum);
   }, [tab, tabScope]);
+
+  /**
+   * Whether the docked Practise button has got out of the way.
+   *
+   * It is fixed over the bottom of the page so it is reachable from anywhere in
+   * a long tab, but at the end of the page there is nothing left to reach past
+   * — it just sits on the last system and the footer. Near the bottom it slides
+   * down and hands the space back.
+   */
+  const [tucked, setTucked] = useState(false);
+  useEffect(() => {
+    const onScroll = (): void => {
+      const doc = document.documentElement;
+      const fromBottom = doc.scrollHeight - (window.scrollY + window.innerHeight);
+      setTucked(fromBottom < 90);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, []);
 
   const copyText = async (): Promise<void> => {
     const text = songTabText(tab, title, {
@@ -303,7 +327,7 @@ export function TabView({
 
       <PrintSheet tab={tab} title={title} />
 
-      <div className="sticky-cta">
+      <div className={`sticky-cta${tucked ? ' tucked' : ''}`}>
         <button
           className="btn btn-primary btn-lg"
           onClick={() => {

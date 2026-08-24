@@ -254,6 +254,35 @@ try {
   );
   await page.emulateMedia({ media: 'screen' });
 
+  console.log('\n1bb. the Practise button gets out of the way at the foot of the page');
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  const ctaAt = () =>
+    page.evaluate(() => {
+      const cta = document.querySelector('.sticky-cta');
+      const footer = document.querySelector('.app-footer');
+      if (!cta || !footer) return null;
+      const c = cta.getBoundingClientRect();
+      const f = footer.getBoundingClientRect();
+      const style = getComputedStyle(cta);
+      const hidden = style.opacity === '0' || style.visibility === 'hidden';
+      // Does the button's box overlap the footer's, on screen?
+      const overlaps = !hidden && c.bottom > f.top && c.top < f.bottom;
+      return { hidden, overlaps };
+    });
+  const ctaTop = await ctaAt();
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(600);
+  const ctaBottom = await ctaAt();
+  checkThat(
+    'it is there while there is still page to reach past, and gone once there is not',
+    ctaTop && ctaBottom && !ctaTop.hidden && ctaBottom.hidden && !ctaBottom.overlaps,
+    `top of page ${JSON.stringify(ctaTop)}, foot of page ${JSON.stringify(ctaBottom)}`,
+  );
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+
   console.log('\n1c. dropping an audio file onto the home screen');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
   const droppedWav = await readFile(await writeFixture(dir));

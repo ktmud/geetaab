@@ -1610,6 +1610,29 @@ input[type='range'] {
   pointer-events: auto;
 }
 
+/* At the foot of the page there is nothing left to reach past, so the button
+   gets out of the way of the last system and the footer. */
+.sticky-cta {
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease;
+}
+
+.sticky-cta.tucked {
+  transform: translateY(115%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-cta {
+    transition: opacity 0.18s ease;
+  }
+
+  .sticky-cta.tucked {
+    transform: none;
+    visibility: hidden;
+  }
+}
+
 /* ---------- practice (landscape) ---------- */
 
 .practice {
