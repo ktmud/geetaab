@@ -14,7 +14,7 @@ import { translateKeyName, useLanguage, useT } from '../i18n';
 import { enterLandscape, exitLandscape } from './landscape';
 import { pluckStringOf } from '../music/pick';
 import type { AnalysisResult } from '../core/analyze';
-import type { SongTab } from '../music/tab';
+import { eventIndexAt, type SongTab } from '../music/tab';
 import { TabSettings } from './TabSettings';
 import type { ArrangedSong, TabOptions } from './tabOptions';
 import { ChordDiagram } from './ChordDiagram';
@@ -109,7 +109,8 @@ export function Practice({
   const [volume, setVolume] = useState(1);
   const [volumeOpen, setVolumeOpen] = useState(false);
   const [clickOn, setClickOn] = useState(!audio);
-  const [activeIndex, setActiveIndex] = useState(0);
+  // -1 until the first chord arrives; see findEventIndex.
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [beatIndex, setBeatIndex] = useState(0);
   const [countIn, setCountIn] = useState<number | null>(null);
   const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(null);
@@ -231,15 +232,8 @@ export function Practice({
     if (metronomeRef.current) metronomeRef.current.enabled = clickOn;
   }, [clickOn]);
 
-  const findEventIndex = useCallback(
-    (time: number): number => {
-      for (let i = 0; i < events.length; i++) {
-        if (time < events[i].endTime) return i;
-      }
-      return Math.max(0, events.length - 1);
-    },
-    [events],
-  );
+  // The rule itself lives in the tab model, where a test can reach it.
+  const findEventIndex = useCallback((time: number): number => eventIndexAt(events, time), [events]);
 
   useEffect(() => {
     let raf = 0;
@@ -490,6 +484,8 @@ export function Practice({
   /** How many bars the loop button covers, so the button can say so. */
   const loopBars = tab.loop?.length ?? 4;
   const active = events[activeIndex];
+  // slice(0) during the run-in, so the countdown counts into the first chord
+  // rather than past it to the second.
   const next = events.slice(activeIndex + 1).find((event) => event.chord);
   const beatsToNext = next ? Math.max(0, Math.round((next.startTime - position) / beatSeconds)) : null;
   const barBeat = ((beatIndex - barPhase) % tab.beatsPerBar + tab.beatsPerBar) % tab.beatsPerBar;

@@ -63,6 +63,27 @@ export interface BuildTabOptions {
   strum?: StrumPattern;
 }
 
+/**
+ * Which event is sounding at a moment, or -1 before the first one is.
+ *
+ * A song does not necessarily start on a chord. The decode runs on the beat
+ * grid, so anything before the first chord the arranger kept — a count-off, an
+ * intro that proved nothing, a fade-in — is a run-in with no chord in it, and
+ * on a real recording that is not a rounding error: one take measured here runs
+ * 13.3 seconds before its first chord.
+ *
+ * Answering 0 for that stretch, which is what a plain scan does, tells a player
+ * a chord is sounding when none is. Answering -1 says the truthful thing:
+ * nothing yet, and here is what is coming.
+ */
+export function eventIndexAt(events: TabEvent[], time: number): number {
+  if (events.length === 0 || time < events[0].startTime) return -1;
+  for (let i = 0; i < events.length; i++) {
+    if (time < events[i].endTime) return i;
+  }
+  return events.length - 1;
+}
+
 /** Time of a beat index, extrapolating past the end of the tracked grid. */
 export function beatTime(beats: number[], index: number): number {
   if (beats.length === 0) return 0;

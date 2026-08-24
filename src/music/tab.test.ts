@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeAudio } from '../core/analyze';
 import { DEMO_PROGRESSION, renderProgression } from '../audio/synth';
-import { buildTab, findLoop } from './tab';
+import { eventIndexAt, buildTab, findLoop, type TabEvent } from './tab';
 import { barTab, songTabText, tabSystems } from './tabText';
 
 const audio = renderProgression([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], {
@@ -119,5 +119,47 @@ describe('findLoop', () => {
   it('ignores a lone repeated pair that is not the progression', () => {
     const loop = findLoop(bars(['C', 'C', 'F', 'G', 'Am', 'Em', 'F', 'G']));
     expect(loop).toBeNull();
+  });
+});
+
+describe('eventIndexAt', () => {
+  const at = (start: number, end: number, chord: boolean): TabEvent => ({
+    chord: chord ? ({ shapeLabel: 'C' } as unknown as TabEvent['chord']) : null,
+    startBeat: 0,
+    endBeat: 0,
+    startTime: start,
+    endTime: end,
+    numeral: null,
+  });
+  // A take whose first chord lands well into the recording: an intro that
+  // proved nothing, a count-off, a fade-in.
+  const events = [at(13.3, 15.1, true), at(15.1, 17.0, true), at(17.0, 19.2, true)];
+
+  it('says nothing is sounding before the first chord, however long that is', () => {
+    // Answering 0 here is what lights the first block while the playhead is
+    // still to the left of it, and starts the countdown at the second chord.
+    expect(eventIndexAt(events, 0)).toBe(-1);
+    expect(eventIndexAt(events, 13.29)).toBe(-1);
+  });
+
+  it('starts answering at the moment the first chord does', () => {
+    expect(eventIndexAt(events, 13.3)).toBe(0);
+    expect(eventIndexAt(events, 15.0)).toBe(0);
+    expect(eventIndexAt(events, 15.1)).toBe(1);
+    expect(eventIndexAt(events, 18.0)).toBe(2);
+  });
+
+  it('holds on the last event past the end rather than falling off', () => {
+    expect(eventIndexAt(events, 19.2)).toBe(2);
+    expect(eventIndexAt(events, 600)).toBe(2);
+  });
+
+  it('has nothing to say about an empty song', () => {
+    expect(eventIndexAt([], 0)).toBe(-1);
+  });
+
+  it('answers 0 from the very start when the song does begin on a chord', () => {
+    // The synthesised fixtures do, which is why this never showed up there.
+    expect(eventIndexAt([at(0, 2, true), at(2, 4, true)], 0)).toBe(0);
   });
 });
