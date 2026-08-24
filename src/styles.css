@@ -2862,12 +2862,27 @@ input[type='range'] {
 
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+  /* A narrow floor, because this grid is for browsing eighty-four shapes rather
+     than learning four: more of them on a row beats bigger ones. At the old
+     122-point floor the narrowest phone fitted a single column, which turned
+     the whole vocabulary into eighty-four full-width rows to scroll past. The
+     inner min() is what stops a track from being wider than the grid holding
+     it. */
+  grid-template-columns: repeat(auto-fill, minmax(min(116px, 100%), 1fr));
   gap: 10px;
 }
 
 .library-grid .diagram-card {
   min-width: 0;
+}
+
+/* Same as the palette: the box uses the card rather than sitting small in the
+   middle of it. A lower cap here, because these tiles are meant to stay small
+   enough that a screenful is a useful number of chords. */
+.library-grid .diagram {
+  width: 100%;
+  height: auto;
+  max-width: 118px;
 }
 
 /* ---------- how chords are recognized ---------- */

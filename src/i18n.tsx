@@ -164,7 +164,7 @@ export const dictionary = {
         'The thumb rocks between two bass strings while the fingers answer. The folk and country engine.',
     } as Record<string, string>,
     shapeNoteFourStringF: 'The four-string F that gets you past the barre',
-    shapeNoteBarre: (family: string, fret: number) => `${family}-shape barre at fret ${fret}`,
+    shapeNoteBarre: (family: string, fret: number) => `${family}-shape barre at fret ${fret}`,
     capoChip: (fret: number) => `Capo ${fret}`,
     capoPlayIn: (fret: number, key: string) => `Capo ${fret} · play in ${key}`,
     printCapo: (fret: number, key: string) => `capo on fret ${fret}, shapes read in ${key}`,
@@ -694,7 +694,9 @@ export const dictionary = {
         '拇指在两根低音弦之间来回换，手指在中间应答。民谣和乡村的骨架。',
     } as Record<string, string>,
     shapeNoteFourStringF: '不用横按的四弦 F，先靠它过关',
-    shapeNoteBarre: (family: string, fret: number) => `${family} 型大横按 · 第 ${fret} 品`,
+    // Hard spaces inside 「第 N 品」: in a narrow tile it would otherwise wrap
+    // between the number and the measure word.
+    shapeNoteBarre: (family: string, fret: number) => `${family} 型大横按 · 第 ${fret} 品`,
     capoChip: (fret: number) => `变调夹 ${fret} 品`,
     capoPlayIn: (fret: number, key: string) => `变调夹 ${fret} 品 · 按 ${key} 指法`,
     printCapo: (fret: number, key: string) => `变调夹夹在第 ${fret} 品，按 ${key} 的指法`,

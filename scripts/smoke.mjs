@@ -177,6 +177,41 @@ try {
   );
   await page.getByRole('button', { name: 'Play Bm', exact: true }).click();
   await page.waitForTimeout(200);
+  // Eighty-four shapes one to a row is eighty-four screens to scroll past, and
+  // that is what the narrowest phone used to get.
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  const grids = [];
+  for (const width of [320, 375, 430]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(250);
+    const seen = await page.evaluate(() => {
+      const grid = document.querySelector('.library-grid');
+      const tiles = [...grid.querySelectorAll('.diagram-card')];
+      const box = tiles[0]?.getBoundingClientRect();
+      const drawing = tiles[0]?.querySelector('.diagram')?.getBoundingClientRect();
+      return {
+        columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+        fill: box && drawing ? drawing.width / box.width : 0,
+        spilling: tiles.filter((t) => t.scrollWidth > t.clientWidth + 1).length,
+        wider: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+    grids.push(`${width}:${seen.columns}`);
+    checkThat(
+      `at ${width} points the vocabulary sits at least two to a row`,
+      seen.columns >= 2 && seen.fill > 0.6 && seen.spilling === 0 && !seen.wider,
+      JSON.stringify(seen),
+    );
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForTimeout(250);
+  checkThat(
+    'and a desktop lays out many more of them',
+    (await page.evaluate(
+      () => getComputedStyle(document.querySelector('.library-grid')).gridTemplateColumns.split(' ').length,
+    )) >= 6,
+    grids.join(' '),
+  );
 
   console.log('\n1. demo track through the worker');
   await page.goto(ORIGIN, { waitUntil: 'networkidle' });
