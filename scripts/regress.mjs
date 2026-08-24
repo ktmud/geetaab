@@ -37,8 +37,8 @@
    - `ref`, a bare chord VOCABULARY, supports only "is the detected chord
      anywhere in this song" (the `family`/`exact` columns). It cannot see
      position: the right four chords in a scrambled order still score 100%.
-   - `sheet`, an ORDERED sheet extracted from a published tab PDF by
-     scripts/sheets.mjs, adds order: the `order` column is the fraction of the
+   - `sheet`, an ORDERED sheet — from an engraved PDF via scripts/sheets.mjs,
+     or from a plain-text tab via scripts/tabsheet.mjs — adds order: the `order` column is the fraction of the
      sheet's chord changes recovered in playing order (order-preserving
      alignment, best transposition when `transpose` is "auto"). Read it with
      `oprec` beside it — the fraction of DETECTED changes that landed in the
@@ -46,8 +46,11 @@
      harmonic mean, is the number that does not. `barRatio` is
      the median count of detected bars per matched sheet bar — it sits near 1
      on a correct beat grid and near 2 when the tempo ran double, so it is a
-     tempo-octave check that needs no BPM ground truth. `sheetBars` windows
-     the sheet to a bar range, for songs that modulate partway.
+     tempo-octave check that needs no BPM ground truth. It is left empty for a
+     sheet marked `"positions": "ordinal"`, which is what a text tab produces:
+     no bar lines to count into, so the order is real and the spacing is a
+     fiction. `sheetBars` windows the sheet to a bar range, for songs that
+     modulate partway.
    - `refTimeline`, TIME-ALIGNED chords (Harte labels, e.g. from GuitarSet's
      .jams), supports the strictest number: `recall` is chord symbol recall on
      a 10 ms grid — the fraction of reference chord time where the detection
@@ -138,7 +141,15 @@ async function loadSheet(path, dir, barRange) {
   const events = sheet.events
     .filter((e) => e.bar >= from && e.bar < to)
     .map((e) => ({ chord: parseSheetSymbol(e.symbol), bar: e.bar }));
-  return { events, totalBars: Math.min(to, sheet.totalBars), meter: sheet.meter ?? 4 };
+  return {
+    events,
+    totalBars: Math.min(to, sheet.totalBars),
+    meter: sheet.meter ?? 4,
+    // A text tab has no bar lines, so scripts/tabsheet.mjs numbers the chords
+    // one to a slot. The order is real; the spacing is not, and barRatio is
+    // computed entirely from spacing.
+    ordinal: sheet.positions === 'ordinal',
+  };
 }
 
 /** Fragmentation: what makes a chart look chopped up even when it is right. */
@@ -261,7 +272,7 @@ for (const song of manifest.songs ?? []) {
       })
       .filter((r) => r != null && Number.isFinite(r))
       .sort((a, b) => a - b);
-    row.barRatio = ratios.length ? +ratios[ratios.length >> 1].toFixed(2) : null;
+    row.barRatio = sheet.ordinal || !ratios.length ? null : +ratios[ratios.length >> 1].toFixed(2);
     if (row.shift == null) row.shift = align.shift;
 
     // Slash-chord bass pass: of the slash basses the sheet prints inside

@@ -13,6 +13,8 @@ export default defineConfig({
   worker: { format: 'es' },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // scripts/ too: the corpus tooling has parsers in it, and a parser with
+    // no test is a parser that quietly changes what the corpus scores mean.
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
 });

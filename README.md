@@ -330,6 +330,17 @@ src/store/    IndexedDB song library
 golden/       reference outputs of every analysis stage, for ports to check against
 ```
 
+Accuracy is measured against references of three grades, and the corpus itself
+lives outside this repository. A bare chord **vocabulary** supports only "is
+this chord anywhere in the song" — position-blind, so a scrambled order still
+scores full marks. An **ordered sheet** adds order recall and its precision:
+`scripts/sheets.mjs` extracts one from an engraved PDF, and
+`scripts/tabsheet.mjs` from a plain-text tab, which has no bar lines at all —
+those sheets carry the order and say so, and the tempo-octave column is left
+empty rather than computed from spacing the extractor invented.
+**Time-aligned** chords support the strictest number, chord symbol recall on a
+10 ms grid.
+
 The engine carries a `major.minor.patch` version of its own, separate from the
 app's. **Major** means the result's shape changed, so a stored analysis cannot
 be read as it stands and a port has to move in the same commit. **Minor** means
