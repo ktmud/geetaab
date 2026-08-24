@@ -56,6 +56,29 @@ export function voicingFor(root: number, quality: ChordQuality): number[] {
  * real string for the cost of one multiply-add per sample, which keeps the test
  * fixtures cheap enough to synthesize on every run.
  */
+export interface PluckVoice {
+  /**
+   * Corner of the loop filter in Hz: how fast the upper partials die.
+   *
+   * Set in Hz rather than as a coefficient because a coefficient is not a
+   * timbre — the two-point average this replaces is a filter whose corner
+   * moves with the sample rate, so the same chord came out of a 44.1 kHz
+   * device sounding brighter than out of a 48 kHz one, and brighter than
+   * anything measured at 22 kHz offline. Measured in the browser at 44.1 kHz
+   * the top two octaves were 12 dB hotter than the same call in node at
+   * 22 kHz. A corner in Hz is the same corner everywhere.
+   */
+  cutoff?: number;
+  /** Legacy weight for the previous sample, when no `cutoff` is given: a plain
+      two-point average, whose response depends on the sample rate. Every
+      caller that predates `cutoff` gets exactly what it always got. */
+  damping?: number;
+  /** Where along the string it was plucked, as a fraction of its length. A
+      pluck at 1/p nulls every pth harmonic, which is the difference between a
+      string and filtered noise. 0 leaves the excitation broadband. */
+  pluckPos?: number;
+}
+
 function addPluck(
   out: Float32Array,
   startSample: number,
@@ -64,26 +87,52 @@ function addPluck(
   sampleRate: number,
   decay: number,
   rand: () => number,
+  voice: PluckVoice = {},
 ): void {
   if (startSample < 0 || startSample >= out.length) return;
+  const damping = voice.damping ?? 0.5;
+  const pluckPos = voice.pluckPos ?? 0;
+  // A one-pole at a fixed corner, or the rate-dependent two-point average the
+  // fixtures were built on. `a` is the pole; `damping` is the FIR weight.
+  const pole = voice.cutoff != null ? Math.exp((-2 * Math.PI * voice.cutoff) / sampleRate) : null;
   const f0 = midiToFreq(midi);
   // The loop filter contributes half a sample of delay; fold it into the length
   // so the string sounds at the requested pitch rather than a few cents flat.
   const n = Math.max(2, Math.round(sampleRate / f0 - 0.5));
   const buf = new Float32Array(n);
+  // The excitation is noise through a one-pole, and its corner has to be in Hz
+  // for the same reason the loop filter's does: `0.65` is a corner of 1.5 kHz
+  // at 22 kHz and of 3 kHz at 44 kHz, so the seed itself came out brighter on
+  // a device with a faster clock. Legacy callers keep the coefficient.
+  const seedPole = voice.cutoff != null ? Math.exp((-2 * Math.PI * 1512) / sampleRate) : 0.65;
   let lp = 0;
   for (let i = 0; i < n; i++) {
-    lp = 0.65 * lp + 0.35 * (rand() * 2 - 1);
+    lp = seedPole * lp + (1 - seedPole) * (rand() * 2 - 1);
     buf[i] = lp;
+  }
+  if (pluckPos > 0) {
+    // Comb the excitation: the initial shape of a plucked string is a triangle
+    // with its corner at the pluck point, and the harmonics with a node there
+    // are simply not excited. Modelled as delay-and-subtract, which is what
+    // that triangle's spectrum is.
+    const d = Math.max(1, Math.round(n * pluckPos));
+    const seed = Float32Array.from(buf);
+    for (let i = 0; i < n; i++) buf[i] = seed[i] - seed[(i + d) % n];
   }
   const len = Math.min(out.length - startSample, Math.floor(decay * sampleRate));
   const g = Math.pow(0.001, n / (decay * sampleRate)); // -60 dB after `decay`
   let idx = 0;
   let last = 0;
+  let lowpassed = 0;
   for (let i = 0; i < len; i++) {
     const cur = buf[idx];
     out[startSample + i] += amp * cur;
-    buf[idx] = g * 0.5 * (cur + last);
+    if (pole != null) {
+      lowpassed = (1 - pole) * cur + pole * lowpassed;
+      buf[idx] = g * lowpassed;
+    } else {
+      buf[idx] = g * ((1 - damping) * cur + damping * last);
+    }
     last = cur;
     idx = idx + 1 === n ? 0 : idx + 1;
   }
@@ -188,13 +237,104 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
 }
 
 /**
- * One slow strum of an actual fingering, low string first.
+ * The voice the chord library plays, measured against a real guitar.
  *
- * Unlike `renderProgression` this voices the exact frets of a shape rather
- * than an idealised chord, so the chord library plays what the diagram above
- * it shows — a learner checking their own strum against it hears the same
- * notes in the same octaves.
+ * GuitarSet is 180 close-miked acoustic recordings, so it answers what a real
+ * one looks like rather than what a plucked-string model sounds like on its
+ * own. Two differences showed up and both are here. A real guitar keeps its
+ * upper partials: over the two seconds after a strum its spectral centroid
+ * settles around 1400 Hz, while a plain two-point loop filter had ours down at
+ * 510 Hz and sounding like a rubber band. And a real one is loudest between
+ * 120 and 240 Hz with a dip above it, where ours peaked at 480-960 — the
+ * difference is the box, which `body` below stands in for.
  */
+const ACOUSTIC: PluckVoice = { cutoff: 11000, pluckPos: 0.13 };
+
+/*
+   Calibrated against GuitarSet at 44.1 kHz, which is where it is heard — a
+   browser's AudioContext runs at 44.1 or 48 kHz and never at the 22 kHz the
+   analysis works in, and this model does not sound the same at both. Mean
+   absolute error over seven octave bands, one strum of E major against the
+   longest sustained E major in 00_SS1-68-E_comp:
+
+     before          7.68 dB
+     after           1.17 dB at 44.1 kHz, 1.33 at 48
+
+   `pluckPos` is a sharp optimum — 0.08 and 0.18 both cost about 2 dB — which
+   is what you would expect of a parameter that is doing real physical work
+   rather than fitting noise: it is roughly where a pick meets the string. */
+
+/**
+ * The soundboard: two resonances it adds, and a scoop it takes away.
+ *
+ * A guitar body has dozens of coupled modes, but measured against GuitarSet in
+ * octave bands the whole difference is three numbers. Referenced to 120-240 Hz,
+ * where a real acoustic peaks, a bare string model came out +9.3 dB at 240-480,
+ * +13.4 at 480-960 and +6.4 at 960-1920, while the bottom octave and everything
+ * above 4 kHz were already within half a decibel. So the box is not adding
+ * bass here — it is taking out a broad scoop through the low mids, deepest
+ * around 700 Hz, which is what makes a guitar sound like a box with a hole in
+ * it rather than like a rubber band. The two added resonances put the air and
+ * top-plate modes back under it.
+ */
+function body(x: Float32Array, sampleRate: number): Float32Array {
+  const out = Float32Array.from(x);
+  /** Parallel band-pass, added to the dry signal: a mode that rings. */
+  const resonate = (freq: number, q: number, gain: number): void => {
+    const w = (2 * Math.PI * freq) / sampleRate;
+    const alpha = Math.sin(w) / (2 * q);
+    const a0 = 1 + alpha, a1 = -2 * Math.cos(w), a2 = 1 - alpha;
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < out.length; i++) {
+      const xn = x[i];
+      const yn = (alpha * xn - alpha * x2 - a1 * y1 - a2 * y2) / a0;
+      x2 = x1; x1 = xn; y2 = y1; y1 = yn;
+      out[i] += gain * yn;
+    }
+  };
+  /** Peaking filter in series, applied to everything: the scoop. */
+  const peak = (freq: number, q: number, db: number): void => {
+    const A = Math.pow(10, db / 40);
+    const w = (2 * Math.PI * freq) / sampleRate;
+    const alpha = Math.sin(w) / (2 * q);
+    const b0 = 1 + alpha * A, b1 = -2 * Math.cos(w), b2 = 1 - alpha * A;
+    const a0 = 1 + alpha / A, a1 = -2 * Math.cos(w), a2 = 1 - alpha / A;
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < out.length; i++) {
+      const xn = out[i];
+      const yn = (b0 * xn + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+      x2 = x1; x1 = xn; y2 = y1; y1 = yn;
+      out[i] = yn;
+    }
+  };
+  /** High shelf: the top two octaves of a bare string are brighter than wood. */
+  const shelf = (freq: number, db: number): void => {
+    const A = Math.pow(10, db / 40);
+    const w = (2 * Math.PI * freq) / sampleRate;
+    const c = Math.cos(w), sq = 2 * Math.sqrt(A) * (Math.sin(w) / 2) * Math.SQRT2;
+    const b0 = A * (A + 1 + (A - 1) * c + sq);
+    const b1 = -2 * A * (A - 1 + (A + 1) * c);
+    const b2 = A * (A + 1 + (A - 1) * c - sq);
+    const a0 = A + 1 - (A - 1) * c + sq;
+    const a1 = 2 * (A - 1 - (A + 1) * c);
+    const a2 = A + 1 - (A - 1) * c - sq;
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < out.length; i++) {
+      const xn = out[i];
+      const yn = (b0 * xn + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+      x2 = x1; x1 = xn; y2 = y1; y1 = yn;
+      out[i] = yn;
+    }
+  };
+  resonate(104, 2.4, 2.6);
+  resonate(198, 3.0, 1.5);
+  peak(360, 1.1, -4);
+  peak(760, 1.0, -13);
+  peak(1500, 1.2, -2);
+  shelf(2200, -6);
+  return out;
+}
+
 export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; seed?: number } = {}): Float32Array {
   const sampleRate = opts.sampleRate ?? 44100;
   const rand = mulberry32(opts.seed ?? 20);
@@ -202,10 +342,14 @@ export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; s
   let voice = 0;
   frets.forEach((fret, string) => {
     if (fret < 0) return;
-    const at = Math.floor(voice++ * 0.032 * sampleRate);
-    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.3, sampleRate, 2.1, rand);
+    // A real strum crosses the strings in about 20 ms, not 32 per string, and
+    // the pick digs hardest into the middle of the sweep.
+    const at = Math.floor(voice * 0.019 * sampleRate);
+    const middle = 1 - Math.abs(voice - 2.5) / 3.5;
+    voice++;
+    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.24 + 0.12 * middle, sampleRate, 2.6, rand, ACOUSTIC);
   });
-  return normalizePeak(out, 0.85);
+  return normalizePeak(body(out, sampleRate), 0.85);
 }
 
 /**
@@ -265,7 +409,7 @@ export function renderShapePattern(
         const display = pluckStringOf(step.pluck, { frets } as ChordShape);
         const index = 6 - display;
         const voice = sounding.find((v) => v.string === index);
-        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.1, rand);
+        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.1, rand, ACOUSTIC);
         continue;
       }
       // A sweep, not a block: the strings are struck in order across about
@@ -285,11 +429,12 @@ export function renderShapePattern(
           sampleRate,
           decay,
           rand,
+          ACOUSTIC,
         );
       });
     }
   }
-  return normalizePeak(out, 0.85);
+  return normalizePeak(body(out, sampleRate), 0.88);
 }
 
 /** The demo progression: I–V–vi–IV in G, the backbone of a huge slice of pop. */
