@@ -267,16 +267,21 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
 const ACOUSTIC: PluckVoice = { cutoff: 12000, pluckPos: 0.12, seedCutoff: 925 };
 
 /**
- * The fingers' contact, for picked notes: a nail is not a pick's shoulder.
+ * The fingers' contact, for picked notes: crisp at the start, warm after.
  *
- * Measured, the video's finger-picked treble notes and this model's sat at
- * parity — and the ear still called ours dull, because a lone note lives or
- * dies on the clarity of its start in a way no median band profile captures.
- * So finger plucks (`i` `m` `a`) get a brighter seed and a contact nearer
- * the bridge, deliberately past the literal measurement; the thumb keeps
- * the warm strum contact above.
+ * An exposed single note is where this model's character shows, and two
+ * wrong versions taught what the right one is. Seeded at strum brightness
+ * the note is dull; seeded bright through the strum's near-transparent loop
+ * it stays bright its whole length and reads as thin. A real picked note
+ * does neither: the contact is crisp and the tone it settles into is round.
+ * So the nail's seed is bright and its loop corner is low — the note opens
+ * at 2 kHz and rounds off within a couple hundred milliseconds, and against
+ * the video's finger-picked notes the settled body lands within half a
+ * decibel (hi/mid -18.4 dB against -18.5). An ideal-triangle excitation was
+ * tried too and measured soft and dark: the ideal string is not where pick
+ * brightness comes from.
  */
-const NAIL: PluckVoice = { cutoff: 12000, pluckPos: 0.1, seedCutoff: 1800 };
+const NAIL: PluckVoice = { cutoff: 4000, pluckPos: 0.1, seedCutoff: 2000 };
 
 /*
    Fitted at 44.1 kHz to time-resolved statistics of the recording's strums,
