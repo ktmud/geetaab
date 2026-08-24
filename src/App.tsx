@@ -24,6 +24,7 @@ import { Practice } from './ui/Practice';
 import { TabView } from './ui/TabView';
 import { useArrangedSong, type TabOptions } from './ui/tabOptions';
 import { Backdrop } from './ui/Backdrop';
+import { Privacy } from './ui/Privacy';
 import { GitHubIcon, GuitarMark, MoonIcon, SunIcon } from './ui/icons';
 import { formatLocation, parseLocation, routeOf } from './router';
 
@@ -35,6 +36,8 @@ type Screen =
   | { name: 'practice' }
   | { name: 'chords' }
   | { name: 'how' }
+  | { name: 'privacy' }
+  | { name: 'privacyIos' }
   | { name: 'error'; error: 'recordingTooShort' | 'couldNotDecode' | 'analysisFailed'; detail?: string };
 
 interface Session {
@@ -482,6 +485,16 @@ export function App() {
           <HowItWorks onBack={() => setScreen({ name: 'home' })} />
         ) : null}
 
+        {screen.name === 'privacy' ? (
+          <Privacy onBack={() => setScreen({ name: 'home' })} />
+        ) : null}
+
+        {/* Reachable by address only — nothing links here. It is the policy the
+            App Store listing points at, and it is about the native app. */}
+        {screen.name === 'privacyIos' ? (
+          <Privacy platform="ios" onBack={() => setScreen({ name: 'home' })} />
+        ) : null}
+
         {screen.name === 'analyzing' ? (
           <div className="shell">
             <div className="card" style={{ marginTop: 40 }}>
@@ -526,8 +539,10 @@ export function App() {
           </div>
     ) : null}
 
+        {/* Links only. The sentence that used to introduce the repository link
+            said in words what the link says by being a link, and it was taking
+            the room the other two needed. */}
         <footer className="app-footer">
-          <span>{t.geetaabOpenSource}</span>
           <a href="https://github.com/ktmud/geetaab" target="_blank" rel="noreferrer">
             <GitHubIcon size={15} /> ktmud/geetaab
           </a>
@@ -536,6 +551,14 @@ export function App() {
               <span aria-hidden="true">·</span>
               <button className="footer-link" onClick={() => setScreen({ name: 'how' })}>
                 {t.howChordsRecognized}
+              </button>
+            </>
+          ) : null}
+          {screen.name !== 'privacy' ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <button className="footer-link" onClick={() => setScreen({ name: 'privacy' })}>
+                {t.privacyLink}
               </button>
             </>
           ) : null}

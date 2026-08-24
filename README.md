@@ -5,7 +5,9 @@ then practise it karaoke-style, either way up you hold the phone.
 
 Everything runs in the browser. No audio leaves the device, there is no server, and
 there is no model download — the chord recognition is a few hundred lines of signal
-processing that ship with the page.
+processing that ship with the page. `#/privacy` says so in full; `#/privacy-ios` is
+the same document for the native app, addressable and deliberately unlinked, because
+the App Store listing points at it and it is about a different program.
 
 ## 简介
 

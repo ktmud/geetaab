@@ -1644,6 +1644,143 @@ try {
   const anchored = await page.evaluate(() => Math.round(window.scrollY));
   checkThat('and the explainer stepper still jumps within the page', anchored > 100, `at ${anchored}`);
 
+  console.log('\n7cc. the privacy page, and the claim it makes');
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  const footer = await page.evaluate(() => ({
+    text: document.querySelector('.app-footer')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    links: [...document.querySelectorAll('.app-footer a, .app-footer button')].map((el) =>
+      el.textContent.trim(),
+    ),
+  }));
+  checkThat(
+    'the footer is three links and no sentence in front of them',
+    footer.links.length === 3 &&
+      footer.links[0].includes('ktmud/geetaab') &&
+      footer.links[2] === 'Privacy' &&
+      !footer.text.includes('open source'),
+    JSON.stringify(footer.links),
+  );
+  await page.getByRole('button', { name: 'Privacy', exact: true }).click();
+  await page.waitForTimeout(400);
+  const privacy = await page.evaluate(() => ({
+    hash: location.hash,
+    sections: document.querySelectorAll('.privacy .card').length,
+    heading: document.querySelector('.privacy h1')?.textContent ?? '',
+    // Off the list once you are on it, like the explainer's own link.
+    stillLinked: [...document.querySelectorAll('.app-footer button')].some(
+      (el) => el.textContent.trim() === 'Privacy',
+    ),
+  }));
+  checkThat(
+    'it has its own address, four sections, and drops its own link',
+    // The language may already be pinned in the URL by an earlier section.
+    privacy.hash.startsWith('#/privacy') &&
+      privacy.sections === 4 &&
+      privacy.heading.length > 10 &&
+      !privacy.stillLinked,
+    JSON.stringify(privacy),
+  );
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  checkThat(
+    'and reloading the address comes back to it rather than home',
+    await page.evaluate(() => document.querySelector('.privacy') !== null),
+  );
+  // The page's whole claim is that nothing is sent anywhere. Watch the wire
+  // while a song is worked out, since a policy that says so is worth exactly
+  // as much as the requests it does not make.
+  const offSite = [];
+  const watch = (request) => {
+    const url = new URL(request.url());
+    if (url.origin !== new URL(ORIGIN).origin) offSite.push(request.url());
+  };
+  page.on('request', watch);
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'try the demo' }).click();
+  await page.getByText('Chords you need').waitFor({ timeout: 90000 });
+  page.off('request', watch);
+  checkThat(
+    'and working a song out sends nothing off this origin at all',
+    offSite.length === 0,
+    offSite.length ? offSite.slice(0, 4).join(' ') : 'no request left the origin',
+  );
+
+  // The App Store listing points at a URL, so that URL has to load, has to be
+  // about the app rather than the site, and has to stay unlinked — a policy
+  // for a different program in the site's own footer would be worse than none.
+  await page.goto(`${ORIGIN}#/privacy-ios`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  const native = await page.evaluate(() => {
+    const text = document.querySelector('.privacy')?.textContent ?? '';
+    return {
+      shown: Boolean(document.querySelector('.privacy')),
+      sections: document.querySelectorAll('.privacy .card').length,
+      dated: /Last changed \d{4}-\d{2}-\d{2}/.test(text),
+      // The four things a reviewer looks for, and the app really does them.
+      microphone: /microphone/i.test(text),
+      onDevice: /on-device|on the device/i.test(text),
+      noCollection: /collects nothing|never uploads/i.test(text),
+      deletion: /Deleting the app/i.test(text),
+      linkedAnywhere: [...document.querySelectorAll('.app-footer a, .app-footer button')].some((el) =>
+        (el.textContent ?? '').toLowerCase().includes('ios'),
+      ),
+    };
+  });
+  checkThat(
+    'the App Store policy loads at its own address and is about the app',
+    native.shown &&
+      native.sections >= 6 &&
+      native.dated &&
+      native.microphone &&
+      native.onDevice &&
+      native.noCollection &&
+      native.deletion &&
+      !native.linkedAnywhere,
+    JSON.stringify(native),
+  );
+
+  console.log('\n7cd. one mark, and a logotype that is not the chord face');
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(300);
+  const brand = await page.evaluate(() => {
+    const el = document.querySelector('.brand');
+    const svg = el?.querySelector('svg');
+    const heading = document.querySelector('h1');
+    const first = (family) => family.split(',')[0].replace(/["']/g, '').trim();
+    return {
+      // The favicon's drawing: three dots, three strings, no nut bar, and the
+      // tile painted rather than themed.
+      dots: svg?.querySelectorAll('circle').length ?? 0,
+      tile: svg?.querySelector('rect')?.getAttribute('fill') ?? null,
+      themed: (svg?.innerHTML ?? '').includes('var(--'),
+      logotype: first(getComputedStyle(el).fontFamily),
+      weight: getComputedStyle(el).fontWeight,
+      heading: heading ? first(getComputedStyle(heading).fontFamily) : null,
+    };
+  });
+  const faviconMark = await page.evaluate(
+    () => decodeURIComponent(document.querySelector('link[rel="icon"]')?.getAttribute('href') ?? ''),
+  );
+  checkThat(
+    'the header wears the same mark as the tab, drawn from the same grid',
+    brand.dots === 3 &&
+      brand.tile === '#ff9d3d' &&
+      !brand.themed &&
+      faviconMark.includes('#ff9d3d') &&
+      faviconMark.includes("cx='7'") &&
+      faviconMark.includes("cx='17'"),
+    JSON.stringify({ dots: brand.dots, tile: brand.tile, themed: brand.themed, favicon: faviconMark.slice(0, 60) }),
+  );
+  checkThat(
+    // They used to share one rule, so the name was set in the face a chord is
+    // set in. Fraunces belongs to the music.
+    'the logotype is rounded and heavy, and the headings kept Fraunces',
+    brand.logotype !== 'Fraunces' &&
+      Number(brand.weight) >= 700 &&
+      brand.heading === 'Fraunces',
+    `logotype ${brand.logotype} ${brand.weight}, headings ${brand.heading}`,
+  );
+
   console.log('\n7d. installable to the home screen');
   // The only way an iPhone gives a web page the whole screen: Safari has no
   // Fullscreen API for anything but a <video>, so standalone-from-the-home-

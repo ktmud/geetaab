@@ -80,10 +80,6 @@
   --bad-text: #ffd0cc;
 
   /* The brand mark's brass gradient, and the dark it is cut out of. */
-  --mark-hi: #ffd487;
-  --mark-mid: #f5b03c;
-  --mark-lo: #dd7a26;
-  --mark-ink: #2a1a08;
 
   /* The veil that says "the screen behind this is not listening to you". */
   --scrim: rgb(6 7 13 / 0.82);
@@ -107,7 +103,6 @@
   --glow-accent: 0 0 16px 2px rgb(var(--accent-rgb) / 0.55);
   --glow-accent-sm: 0 0 12px 2px rgb(var(--accent-rgb) / 0.5);
   --glow-accent-scan: 0 0 18px 3px rgb(var(--accent-rgb) / 0.5);
-  --glow-mark: drop-shadow(0 4px 12px rgb(var(--accent-rgb) / 0.22));
 
   /* The chroma meter and the spectrogram both colour by pitch class, so both
      read their lightness from here rather than baking it in. */
@@ -213,10 +208,6 @@
   --bad-text: #93190e;
 
   /* The mark keeps its brass gradient, pitched down so it does not glare. */
-  --mark-hi: #f6c46a;
-  --mark-mid: #e08c14;
-  --mark-lo: #b25e08;
-  --mark-ink: #2a1a08;
 
   /* A pale veil over pale paper dims nothing, and the dialog above it stops
      reading as a dialog: on light the modal scrim has to be the dark one. */
@@ -235,7 +226,6 @@
   --glow-accent: 0 0 0 1px rgb(var(--accent-rgb) / 0.18);
   --glow-accent-sm: 0 0 0 1px rgb(var(--accent-rgb) / 0.16);
   --glow-accent-scan: 0 0 10px 1px rgb(var(--accent-rgb) / 0.22);
-  --glow-mark: drop-shadow(0 3px 8px rgb(var(--accent-strong-rgb) / 0.18));
 
   /* The chroma meter turns from light on dark into ink on paper. */
   --pc-s: 72%;
@@ -318,10 +308,6 @@
   --bad-text: #93190e;
 
   /* The mark keeps its brass gradient, pitched down so it does not glare. */
-  --mark-hi: #f6c46a;
-  --mark-mid: #e08c14;
-  --mark-lo: #b25e08;
-  --mark-ink: #2a1a08;
 
   /* A pale veil over pale paper dims nothing, and the dialog above it stops
      reading as a dialog: on light the modal scrim has to be the dark one. */
@@ -340,7 +326,6 @@
   --glow-accent: 0 0 0 1px rgb(var(--accent-rgb) / 0.18);
   --glow-accent-sm: 0 0 0 1px rgb(var(--accent-rgb) / 0.16);
   --glow-accent-scan: 0 0 10px 1px rgb(var(--accent-rgb) / 0.22);
-  --glow-mark: drop-shadow(0 3px 8px rgb(var(--accent-strong-rgb) / 0.18));
 
   /* The chroma meter turns from light on dark into ink on paper. */
   --pc-s: 72%;
@@ -371,8 +356,7 @@
    generic serif. */
 .display,
 h1,
-h2,
-.brand {
+h2 {
   font-family: var(--font-display);
   font-optical-sizing: auto;
   font-variation-settings: 'SOFT' 40, 'WONK' 1;
@@ -483,12 +467,20 @@ button {
   border-bottom: 1px solid var(--line-soft);
 }
 
+/* The logotype is deliberately not the chord face — it used to share a rule
+   with the headings, and that is the mistake this splits. Fraunces belongs to
+   the music: it is what a chord name is set in, here and in the native app,
+   and the name of the app is not a chord. Rounded and heavy instead, which is
+   the same voice as the mark's round caps and dots, and on Apple platforms it
+   is literally the face the native app signs itself with. Archivo carries it
+   everywhere else. */
 .brand {
   display: flex;
   align-items: center;
   gap: 11px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  font-family: ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', var(--font);
+  font-weight: 800;
+  letter-spacing: -0.02em;
   font-size: 21px;
 }
 
@@ -499,7 +491,10 @@ button {
 
 .brand-mark {
   flex: none;
-  filter: var(--glow-mark);
+  /* A tile, not a glyph: it gets a shadow the way an app icon does rather than
+     the glow the old gradient mark needed to lift off a dark page. */
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
 }
 
 /* The landing page carries the full lockup, and gives up the sticky header for
@@ -4416,4 +4411,10 @@ html[lang^='zh'] .how-it-works em {
 .hw-circle-note {
   font-size: 13px;
   margin-bottom: 0;
+}
+
+/* The store wants a date on a policy; it is a footnote, not a heading. */
+.privacy-dated {
+  font-size: 12.5px;
+  margin: -12px 0 20px;
 }

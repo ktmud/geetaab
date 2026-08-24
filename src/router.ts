@@ -12,8 +12,14 @@
  * Only the screens a person could reasonably bookmark are addressable. The tab
  * and practice screens belong to a song held in memory, so they stay where
  * they are; reloading returns to the library, as it always did.
+ *
+ * `privacyIos` is addressable and deliberately unlinked. The App Store asks for
+ * a privacy policy at a URL, and the policy for the native app is not the one
+ * for this site — different permissions, different storage, a different set of
+ * things that could go wrong — so it gets its own address rather than a
+ * paragraph inside a page about the web build.
  */
-export type Route = 'home' | 'chords' | 'how';
+export type Route = 'home' | 'chords' | 'how' | 'privacy' | 'privacyIos';
 
 export type Language = 'en' | 'zh';
 
@@ -27,6 +33,10 @@ const PATHS: Record<Route, string> = {
   home: '/',
   chords: '/chords',
   how: '/how',
+  privacy: '/privacy',
+  // Addressable but unlinked: the App Store needs a policy at a URL, and that
+  // policy is about a different app from the one this site is.
+  privacyIos: '/privacy-ios',
 };
 
 const ROUTES = new Map<string, Route>(
@@ -51,7 +61,11 @@ export function formatLocation(location: Location): string {
 
 /** The addressable screens, so callers need not know which names are routes. */
 export function routeOf(screenName: string): Route | null {
-  return screenName === 'home' || screenName === 'chords' || screenName === 'how'
+  return screenName === 'home' ||
+    screenName === 'chords' ||
+    screenName === 'how' ||
+    screenName === 'privacy' ||
+    screenName === 'privacyIos'
     ? screenName
     : null;
 }
