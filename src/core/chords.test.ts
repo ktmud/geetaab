@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { consolidateSegments, type ChordSegment } from './chords';
+import { annotateBassNotes, consolidateSegments, type ChordSegment } from './chords';
 import { chordName, type ChordQuality } from './chordTypes';
 
 /** Beat-chroma builder: named pitch-class weights over a small noise floor. */
@@ -109,5 +109,51 @@ describe('consolidateSegments', () => {
     const segments = [segment(E, 'min7', 0, 6), segment(E, 'min', 6, 8)];
     consolidateSegments(segments, treble, bass, 8);
     expect(segments.map((s) => chordName(s.chord))).toEqual(['Em7', 'Em']);
+  });
+});
+
+describe('annotateBassNotes', () => {
+  const G_OVER_B_BASS = chromaBeat([[B, 1.0], [G, 0.3]]);
+  const G_ROOT_BASS = chromaBeat([[G, 1.0], [D, 0.35]]);
+
+  it('hears a chord-tone bass louder than the root as a slash chord', () => {
+    const bass = grid([G_OVER_B_BASS, G_OVER_B_BASS, G_OVER_B_BASS, G_OVER_B_BASS]);
+    const segments = [segment(G, 'maj', 0, 4)];
+    annotateBassNotes(segments, bass, 4);
+    expect(segments[0].bass).toBe(B); // G/B
+  });
+
+  it('leaves a root-position chord unannotated', () => {
+    const bass = grid([G_ROOT_BASS, G_ROOT_BASS, G_ROOT_BASS, G_ROOT_BASS]);
+    const segments = [segment(G, 'maj', 0, 4)];
+    annotateBassNotes(segments, bass, 4);
+    expect(segments[0].bass).toBeUndefined();
+  });
+
+  it('never proposes a bass outside the chord tones', () => {
+    // Loud F# under a G chord: a passing note, not an inversion of G.
+    const passing = chromaBeat([[Fsharp, 1.0], [G, 0.3]]);
+    const bass = grid([passing, passing, passing, passing]);
+    const segments = [segment(G, 'maj', 0, 4)];
+    annotateBassNotes(segments, bass, 4);
+    expect(segments[0].bass).toBeUndefined();
+  });
+
+  it('never reads the fifth as the bass — alternating bass rings there anyway', () => {
+    // A loud D under G is how fingerstyle plays a plain G, not G/D.
+    const alternating = chromaBeat([[D, 1.0], [G, 0.4]]);
+    const bass = grid([alternating, alternating, alternating, alternating]);
+    const segments = [segment(G, 'maj', 0, 4)];
+    annotateBassNotes(segments, bass, 4);
+    expect(segments[0].bass).toBeUndefined();
+  });
+
+  it('only ever adds the bass field: chord, timing and confidence stay put', () => {
+    const bass = grid([G_OVER_B_BASS, G_OVER_B_BASS, G_ROOT_BASS, G_ROOT_BASS]);
+    const segments = [segment(G, 'maj', 0, 2), segment(G, 'dom7', 2, 4)];
+    const before = JSON.stringify(segments);
+    annotateBassNotes(segments, bass, 4);
+    const stripped = segments.map(({ bass: _bass, ...rest }) => rest);
+    expect(JSON.stringify(stripped)).toBe(before);
   });
 });

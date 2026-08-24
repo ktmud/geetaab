@@ -902,6 +902,20 @@
   "useFlats": false,
   "name": "C major"
  },
+ "keyBareGLean": {
+  "tonic": 7,
+  "mode": "major",
+  "confidence": 0.9329966742000149,
+  "useFlats": false,
+  "name": "G major"
+ },
+ "keyFromEvidence": {
+  "tonic": 0,
+  "mode": "major",
+  "confidence": 0.8416916926841842,
+  "useFlats": false,
+  "name": "C major"
+ },
  "analysis": {
   "duration": 20.625,
   "tempo": 95.70312499999994,

@@ -306,6 +306,12 @@ export interface ChordSegment {
   startBeat?: number;
   endBeat?: number;
   confidence: number;
+  /**
+   * Sounding bass note when it is a chord tone other than the root (a slash
+   * chord: G/B carries 11 here). Undefined for root position. Written by
+   * annotateBassNotes after the decode; never consulted by the decode itself.
+   */
+  bass?: number;
 }
 
 /** Collapse a per-frame state path into timed segments. */
@@ -577,6 +583,80 @@ export function consolidateSegments(
       seg.chord = stateToChord(best.state);
       seg.confidence = best.score;
     }
+  }
+}
+
+export interface BassNoteOptions {
+  /** How much louder than the root the alternative must ring in the bass. */
+  ratio?: number;
+  /** Shortest segment (in beats) worth a bass verdict; shorter ones are noisy. */
+  minBeats?: number;
+}
+
+/**
+ * Decide, per decoded segment, whether the sounding bass is the root or
+ * another chord tone — the slash-chord pass (G with B in the bass is G/B).
+ *
+ * This is deliberately NOT part of the Viterbi lattice: 12 x N inversion
+ * states would multiply the state space and blur the templates that already
+ * work. Run after the decode, it can only add an annotation; it never touches
+ * chord, timing or confidence, so the chord track is identical whether or not
+ * this pass runs (asserted by a unit test, and verified against a captured
+ * corpus decode).
+ *
+ * Only a chord's THIRD or SEVENTH qualifies as the bass. A bass outside the
+ * chord is far more often a passing note or bleed than a real inversion, and
+ * the fifth is unjudgeable from this evidence: fingerstyle alternates
+ * root-fifth in the bass as a matter of technique, and the root's third
+ * harmonic lands on the fifth too. Measured on the sheet corpus (67 printed
+ * slash events across 6 sheets, swept offline over the captured bass chroma):
+ * with the fifth as a candidate, false annotations are dominated by it at
+ * every threshold (29 of 38 at ratio 1.2, 16 of 23 at 1.35) while the
+ * fifth-bass chords actually printed (three D/A bars) are never recovered —
+ * so second-inversion chords are declared out of reach rather than guessed.
+ */
+export function annotateBassNotes(
+  segments: ChordSegment[],
+  bass: Float32Array,
+  beatCount: number,
+  opts: BassNoteOptions = {},
+): void {
+  // Calibrated on the same sweep: at ratio 1.5 (fifth excluded) the corpus
+  // reads 13 of 53 aligned printed slashes with only 4 disagreements, and
+  // all 4 are plausible unprinted first inversions (C/E, Em/G, Bm/D) — one
+  // edition of the same recording prints exactly such basses. 1.2 and 1.35
+  // hear no additional printed slash (13 both) and disagree 12 and 8 times;
+  // 1.7 drops real ones (11/53). minBeats 2: a 1-beat median is one sample.
+  const ratio = opts.ratio ?? 1.5;
+  const minBeats = opts.minBeats ?? 2;
+  for (const seg of segments) {
+    if (seg.chord.root < 0) continue;
+    const b0 = seg.startBeat ?? 0;
+    const b1 = Math.min(beatCount, seg.endBeat ?? b0 + 1);
+    const span = b1 - b0;
+    if (span < minBeats) continue;
+    // Same interior trim as refineSegments: the last beat of a segment
+    // already contains the next chord's bass.
+    let lo = b0;
+    let hi = span >= 3 ? b1 - 1 : b1;
+    if (span >= 4) lo = b0 + 1;
+    if (hi <= lo) {
+      lo = b0;
+      hi = b1;
+    }
+    const med = medianChromaRange(bass, lo, hi);
+    const rootLevel = Math.max(1e-6, med[seg.chord.root]);
+    let best = -1;
+    let bestLevel = 0;
+    for (const iv of QUALITY_INTERVALS[seg.chord.quality]) {
+      if (iv === 0 || iv === 7) continue; // root position; fifth: see above
+      const pc = (seg.chord.root + iv) % 12;
+      if (med[pc] > bestLevel) {
+        bestLevel = med[pc];
+        best = pc;
+      }
+    }
+    if (best >= 0 && bestLevel > ratio * rootLevel) seg.bass = best;
   }
 }
 

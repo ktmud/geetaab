@@ -139,6 +139,24 @@ out.decodeNames = path.map((s) => chordName(stateToChord(s)));
 
 // --- key --------------------------------------------------------------------
 out.keyFromHistogram = estimateKey([0.2, 0.01, 0.1, 0.02, 0.12, 0.08, 0.01, 0.18, 0.02, 0.14, 0.03, 0.09]);
+{
+  // A histogram whose bare correlation says G major, with segment evidence
+  // that says C: the chords open and close on C, C occupies the most time,
+  // and G7→C recurs. The evidence must flip the verdict — a port that
+  // ignores the segment argument reproduces G major here and is caught.
+  const gLeaningHist = [0.1195, 0.0575, 0.1078, 0.0566, 0.0945, 0.072, 0.0655, 0.1408, 0.0549, 0.085, 0.0554, 0.0905];
+  out.keyBareGLean = estimateKey(gLeaningHist);
+  const evidence = [
+    { root: 0, quality: 'maj', start: 0, end: 4 },
+    { root: 5, quality: 'maj', start: 4, end: 6 },
+    { root: 7, quality: 'dom7', start: 6, end: 8 },
+    { root: 0, quality: 'maj', start: 8, end: 12 },
+    { root: 9, quality: 'min', start: 12, end: 14 },
+    { root: 7, quality: 'maj', start: 14, end: 16 },
+    { root: 0, quality: 'maj', start: 16, end: 20 },
+  ];
+  out.keyFromEvidence = estimateKey(gLeaningHist, evidence);
+}
 
 // --- the whole pipeline -----------------------------------------------------
 const analysis = analyzeAudio(signal, SR);
@@ -162,6 +180,9 @@ out.analysis = {
     startBeat: s.startBeat,
     endBeat: s.endBeat,
     confidence: s.confidence,
+    // Slash-chord pass: the sounding bass when it is a non-root chord tone.
+    // Undefined serializes to nothing, so root-position segments are as before.
+    bass: s.bass,
   })),
 };
 out.chordToneHistogram = chordToneHistogram(analysis.segments);

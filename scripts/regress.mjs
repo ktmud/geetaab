@@ -82,7 +82,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeAudio } from '../src/core/analyze.ts';
 import { isNoChord } from '../src/core/chordTypes.ts';
+import { keyRelation } from '../src/core/key.ts';
 import {
+  pitchClass,
   bestShiftAlignment,
   bestShiftRecall,
   classifyTempo,
@@ -261,11 +263,39 @@ for (const song of manifest.songs ?? []) {
       .sort((a, b) => a - b);
     row.barRatio = ratios.length ? +ratios[ratios.length >> 1].toFixed(2) : null;
     if (row.shift == null) row.shift = align.shift;
+
+    // Slash-chord bass pass: of the slash basses the sheet prints inside
+    // aligned runs, how many ring through with the right pitch class, and how
+    // many detected annotations have no printed slash behind them.
+    let slashRef = 0;
+    let slashHit = 0;
+    let slashFP = 0;
+    for (const { sheet: si, detected: di } of align.matched) {
+      const want = sheetSeq[si].slashBasses.map((b) => (b + align.shift + 12) % 12);
+      slashRef += want.length;
+      for (const b of want) if (detSeq[di].basses.has(b)) slashHit++;
+      for (const pc of detSeq[di].basses.keys()) if (!want.includes(pc)) slashFP++;
+    }
+    const slashAll = sheetSeq.reduce((s, e) => s + e.slashBasses.length, 0);
+    if (slashAll || slashFP) {
+      row.slashAll = slashAll;
+      row.slashRef = slashRef;
+      row.slashHit = slashHit;
+      row.slashFP = slashFP;
+    }
   }
 
   if (song.trueTempo) {
     row.trueTempo = song.trueTempo;
     row.tempoClass = classifyTempo(res.tempo, song.trueTempo);
+  }
+
+  if (song.gsKey) {
+    // Annotated key ("Eb:major"): classify the estimate into the MIREX-style
+    // near-miss classes, so a dominant read as the tonic is visible as such.
+    const [tonicName, modeName] = song.gsKey.split(':');
+    row.gsKey = song.gsKey;
+    row.keyClass = keyRelation(res.key, pitchClass(tonicName), modeName.trim());
   }
   results[song.id] = row;
   rows.push({ song, row });
@@ -293,6 +323,10 @@ for (const { song, row } of rows) {
   // The position-aware number is gated exactly like the vocabulary one.
   const deltaR = was && row.recall != null && was.recall != null ? +(row.recall - was.recall).toFixed(1) : null;
   if (deltaR != null && deltaR < -TOLERANCE) regressions.push({ id: song.id, metric: 'recall', was: was.recall, now: row.recall, delta: deltaR });
+  // A key that was exactly right must stay exactly right.
+  if (was?.keyClass === 'exact' && row.keyClass && row.keyClass !== 'exact') {
+    regressions.push({ id: song.id, metric: 'key', was: 'exact', now: row.keyClass, delta: '' });
+  }
   for (const [key, want] of Object.entries(song.expect ?? {})) {
     if (row[key] !== want) expectationFailures.push(`${song.id}: ${key} is ${row[key]}, expected ${want}`);
   }
@@ -311,7 +345,7 @@ for (const { song, row } of rows) {
       num(row.sandwiched, 5) +
       num(row.changesPerMin, 7) +
       num(row.tempoClass ? TEMPO_MARK[row.tempoClass] : '—', 5) +
-      `  ${row.key}${row.freeTime ? ' · free time' : ''}${row.shift ? ` · +${row.shift}` : ''}`,
+      `  ${row.key}${row.keyClass ? (row.keyClass === 'exact' ? ' · key ok' : ` · KEY ${row.keyClass} (truth ${row.gsKey})`) : ''}${row.freeTime ? ' · free time' : ''}${row.shift ? ` · +${row.shift}` : ''}`,
   );
 }
 
@@ -333,6 +367,14 @@ if (scored.length) {
   console.log(
     `${pad('mean of ' + scored.length, 18)}${num(mean.toFixed(2), 7)}${num('', 6)}${num(meanRecall, 7)}${num(meanOrder, 7)}${num(meanPrec, 7)}${num(meanF1, 6)}${num('', 6)}${num('', 7)}${num('', 5)}${num(sand, 5)}`,
   );
+  const slashed = rows.filter(({ row }) => row.slashAll != null);
+  if (slashed.length) {
+    const t = (k) => slashed.reduce((s, { row }) => s + (row[k] ?? 0), 0);
+    console.log(
+      `slash basses: ${t('slashHit')} heard of ${t('slashRef')} aligned ` +
+        `(${t('slashAll')} printed in the sheets), ${t('slashFP')} annotated with no slash printed`,
+    );
+  }
   const tempoed = rows.filter(({ row }) => row.tempoClass);
   if (tempoed.length) {
     const counts = {};
@@ -342,6 +384,23 @@ if (scored.length) {
         Object.entries(counts)
           .map(([k, v]) => `${TEMPO_MARK[k]} ${v}`)
           .join('  '),
+    );
+  }
+  const keyed = rows.filter(({ row }) => row.keyClass);
+  if (keyed.length) {
+    const counts = {};
+    for (const { row } of keyed) counts[row.keyClass] = (counts[row.keyClass] ?? 0) + 1;
+    // MIREX weighting as mir_eval applies it: only the fifth ABOVE gets the
+    // 0.5 near-miss credit; the subdominant counts as a plain error.
+    const MIREX_WEIGHT = { exact: 1, fifthUp: 0.5, fifthDown: 0, relative: 0.3, parallel: 0.2, other: 0 };
+    const weighted = keyed.reduce((s, { row }) => s + MIREX_WEIGHT[row.keyClass], 0) / keyed.length;
+    console.log(
+      `key vs truth (${keyed.length} songs): ` +
+        ['exact', 'fifthUp', 'fifthDown', 'relative', 'parallel', 'other']
+          .filter((k) => counts[k])
+          .map((k) => `${k} ${counts[k]}`)
+          .join('  ') +
+        `  ·  MIREX ${weighted.toFixed(4)}`,
     );
   }
 }

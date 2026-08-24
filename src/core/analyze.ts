@@ -2,6 +2,7 @@ import { CHROMA_HOP_SIZE, CHROMA_SAMPLE_RATE, computeChromagram } from './chroma
 import {
   aggregateByBeats,
   aggregateEnergyByBeats,
+  annotateBassNotes,
   bridgeShortGaps,
   consolidateSegments,
   decodeChords,
@@ -38,8 +39,10 @@ import { estimateKey, type KeyEstimate } from './key';
  *   3  consolidateSegments: a song's own vocabulary settles drifting bars
  *   4  a hold pass on the easy level, for songs that change twice a bar
  *   5  tempo prior narrowed (width 0.9 → 0.6), calibrated on GuitarSet
+ *   6  key referees profile correlation with chord-track evidence (I vs V),
+ *      and segments carry the sounding bass note for slash chords
  */
-export const ANALYSIS_VERSION = 5;
+export const ANALYSIS_VERSION = 6;
 
 export interface AnalysisResult {
   duration: number;
@@ -152,7 +155,12 @@ export function analyzeAudio(
   const barPhase = freeTime
     ? 0
     : estimateBarPhase(changeBeats, beatsPerBar, decoded.beatCount, decoded.beatEnergy);
-  const key = estimateKey(chordToneHistogram(decoded.segments));
+  const key = estimateKey(
+    chordToneHistogram(decoded.segments),
+    decoded.segments
+      .filter((s) => !isNoChord(s.chord))
+      .map((s) => ({ root: s.chord.root, quality: s.chord.quality, start: s.start, end: s.end })),
+  );
 
   const totalDuration = decoded.segments.reduce((sum, s) => sum + (s.end - s.start), 0);
   const confidence =
@@ -280,8 +288,12 @@ function decodeOnGrid(
   refineSegments(raw, treble.data, bass.data, treble.count);
   const merged = mergeAdjacent(raw);
   consolidateSegments(merged, treble.data, bass.data, treble.count);
+  const segments = bridgeShortGaps(mergeAdjacent(merged));
+  // Slash chords: a pure annotation on the settled segments. The chord track
+  // is byte-identical with this line removed.
+  annotateBassNotes(segments, bass.data, treble.count);
   return {
-    segments: bridgeShortGaps(mergeAdjacent(merged)),
+    segments,
     path,
     beatCount: treble.count,
     beatEnergy,

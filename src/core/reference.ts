@@ -410,12 +410,21 @@ export function bestShiftAlignment(
   return best!;
 }
 
+export interface DetectedChange {
+  root: number;
+  family: ChordFamily;
+  quality: ChordQuality;
+  beats: number;
+  start: number;
+  end: number;
+  /** Bass annotations of the constituent segments (slash chords), by duration. */
+  basses: Map<number, number>;
+}
+
 /** Collapse detected segments into an ordered change sequence: no N.C., no
  * consecutive repeats at root+family level, each with its beat span. */
-export function detectedChangeSequence(
-  segments: ChordSegment[],
-): { root: number; family: ChordFamily; quality: ChordQuality; beats: number; start: number; end: number }[] {
-  const out: { root: number; family: ChordFamily; quality: ChordQuality; beats: number; start: number; end: number }[] = [];
+export function detectedChangeSequence(segments: ChordSegment[]): DetectedChange[] {
+  const out: DetectedChange[] = [];
   for (const seg of segments) {
     if (isNoChord(seg.chord)) continue;
     const family = familyOfQuality(seg.chord.quality);
@@ -425,23 +434,55 @@ export function detectedChangeSequence(
       last.beats += beats;
       last.end = seg.end;
     } else {
-      out.push({ root: seg.chord.root, family, quality: seg.chord.quality, beats, start: seg.start, end: seg.end });
+      out.push({
+        root: seg.chord.root,
+        family,
+        quality: seg.chord.quality,
+        beats,
+        start: seg.start,
+        end: seg.end,
+        basses: new Map(),
+      });
+    }
+    if (seg.bass !== undefined) {
+      const entry = out[out.length - 1];
+      entry.basses.set(seg.bass, (entry.basses.get(seg.bass) ?? 0) + (seg.end - seg.start));
     }
   }
   return out;
 }
 
+export interface SheetChange {
+  root: number;
+  family: ChordFamily;
+  quality: ChordQuality | null;
+  bar: number;
+  bars: number;
+  /** Slash basses printed inside this run (bass differing from the root). */
+  slashBasses: number[];
+}
+
 /** Collapse sheet events the same way, keeping bar spans. `totalBars` bounds
- * the last event. */
-export function sheetChangeSequence(
-  events: SheetEvent[],
-  totalBars: number,
-): { root: number; family: ChordFamily; quality: ChordQuality | null; bar: number; bars: number }[] {
-  const out: { root: number; family: ChordFamily; quality: ChordQuality | null; bar: number; bars: number }[] = [];
+ * the last event. A run absorbs same-root follow-ups (G, G/B), so its slash
+ * basses are kept aside for the bass-note scoring rather than lost. */
+export function sheetChangeSequence(events: SheetEvent[], totalBars: number): SheetChange[] {
+  const out: SheetChange[] = [];
   for (const ev of events) {
     const last = out[out.length - 1];
-    if (last && last.root === ev.chord.root && last.family === ev.chord.family) continue;
-    out.push({ root: ev.chord.root, family: ev.chord.family, quality: ev.chord.quality, bar: ev.bar, bars: 0 });
+    if (!last || last.root !== ev.chord.root || last.family !== ev.chord.family) {
+      out.push({
+        root: ev.chord.root,
+        family: ev.chord.family,
+        quality: ev.chord.quality,
+        bar: ev.bar,
+        bars: 0,
+        slashBasses: [],
+      });
+    }
+    const entry = out[out.length - 1];
+    if (ev.chord.bass !== undefined && ev.chord.bass !== ev.chord.root && !entry.slashBasses.includes(ev.chord.bass)) {
+      entry.slashBasses.push(ev.chord.bass);
+    }
   }
   for (let i = 0; i < out.length; i++) {
     const next = i + 1 < out.length ? out[i + 1].bar : totalBars;
