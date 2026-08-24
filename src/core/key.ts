@@ -56,15 +56,14 @@ const isMajorQuality = (q: ChordQuality) => q === 'maj' || q === 'dom7' || q ===
 /**
  * Weights of the segment-level evidence, added to the profile correlation.
  *
- * Calibrated jointly on GuitarSet's 36 annotated keys, the sheet corpus, and
- * the synthesized unit-test progressions (all evaluated offline over captured
- * decodes). The point below fixes two GuitarSet keys (31/36 exact, from
- * 29/36; MIREX weighted 0.889 from 0.856) and corrects Falling Slowly
- * (F major → C major) on the sheet corpus, with zero previously-right keys
- * lost and a worst-case decision margin of 0.011 — chosen to MAXIMIZE that
- * minimum margin, not to squeeze one more file:
- *   - PRESENCE below 0.2 or FIRST below 0.07 loses BN3-154-E (the relative
- *     minor wins again) and at 0.05/0.05 breaks BN3-119-G.
+ * Calibrated jointly on GuitarSet's annotated keys, the sheet corpus, and the
+ * synthesized unit-test progressions. Each floor and ceiling below is a
+ * measured breaking point, and the point was chosen to MAXIMIZE the worst
+ * decision margin rather than to squeeze out one more file:
+ *   - PRESENCE below 0.2 loses BN3-154-E (the relative minor wins again).
+ *     Between 0.21 and 0.24 nothing moves at all, on either corpus.
+ *   - FIRST below 0.07 loses BN3-154-E too, and at 0.05 with PRESENCE 0.05
+ *     breaks BN3-119-G.
  *   - LAST below 0.09 loses Rock2-85-F (the dominant minor wins); above
  *     0.10 it breaks BN3-119-G and Funk3-112-C#, whose decodes end off-tonic.
  *   - CADENCE below 0.07 breaks BN3-119-G; it is also what holds 安河桥 in
@@ -73,23 +72,31 @@ const isMajorQuality = (q: ChordQuality) => q === 'maj' || q === 'dom7' || q ===
  *   - FINAL_CADENCE below 0.04 breaks BN2-131-B, whose closing F#sus2→B is
  *     the one signal separating B minor from its own dominant minor; the
  *     decode calls the real F#7 minor/sus, which is why it accepts any
- *     quality on either side.
+ *     quality on either side. Raising it to 0.08 changes nothing.
  *   - PRESENCE_CAP: uncapped presence lets a song's most-played chord bully
  *     the tonic — 安河桥 plays its V for 89 s against 23 s of G.
- * The five GuitarSet keys still wrong after this sit behind profile-score
- * gaps of 0.11-0.78 (three are noisy solos); no honest weighting of this
- * evidence reaches them.
+ *
+ * FIRST and CADENCE were raised together (0.08→0.11 and 0.085→0.11) when the
+ * suspension prior moved: a key read here is downstream of the decode, so a
+ * change that reshapes a handful of segments reshuffles the borderline keys
+ * under it. Across the 180 GuitarSet accompaniments the sharper suspension
+ * prior alone cost five exact keys (139→134, all of them fifth or relative
+ * near-misses); either of these two weights on its own recovers three, and
+ * both together recover four (138). They are the two pieces of evidence a
+ * shorter, cleaner segment list makes MORE reliable rather than less — where
+ * a song starts, and how often it falls to its tonic — which is why they are
+ * the ones that hold up when the segments move.
  */
 const EVIDENCE_WEIGHTS = {
   /** Duration share of the candidate tonic triad (mode-matching), capped. */
   presence: 0.24,
   presenceCap: 0.3,
   /** The song opens on the candidate tonic triad. */
-  first: 0.08,
+  first: 0.11,
   /** The song ends on the candidate tonic triad. */
   last: 0.09,
   /** Recurring V→tonic-root motion (the V itself must sound major). */
-  cadence: 0.085,
+  cadence: 0.11,
   /** The very last change lands on the tonic root from its dominant root. */
   finalCadence: 0.06,
 };

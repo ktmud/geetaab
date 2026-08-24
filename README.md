@@ -47,12 +47,14 @@ if what is committed has gone stale, and the build runs the first of those.
 
 准确率我们用两把尺子量，因为只用宽的那把会骗人。宽尺子问「认出的和弦在不在这首歌的和弦
 表里」：十五首有正式出版谱的歌（华语流行、民谣、Taylor Swift、电影配乐）按时长加权平均
-**96%**。但它看不见位置——四个和弦顺序全打乱照样满分。严尺子用 GuitarSet（360 段逐秒标注
-和弦的原声吉他录音，CC BY 4.0）在 10 毫秒网格上逐刻对答案：这才是「对的时刻弹对的和弦」。
-在我们提交的 36 段代表性子集上，伴奏类录音平均 **70%**，其中民谣弹唱类（最贴近本应用的
-场景）**84%**；即兴独奏类只有 19%——单音旋律本来就不该拿和弦识别去读。两把尺子的差距
-本身就是旧口径夸大了多少的度量，两个数都印在回归报告里。已知的硬骨头照旧写在下面的
-「Honest limits」一节，没有藏着。
+**96%**。但它看不见位置——四个和弦顺序全打乱照样满分。严尺子用 GuitarSet（逐秒标注和弦
+的原声吉他录音，CC BY 4.0）在 10 毫秒网格上逐刻对答案：这才是「对的时刻弹对的和弦」。
+在它的 180 段伴奏录音上平均 **64.9%**，其中摇滚 84%、民谣弹唱 83%（最贴近本应用的场景），
+爵士和 funk 掉到 51% 和 44%——它们的和声超出了本应用的七种和弦品质。GuitarSet 每段都录
+两遍：一遍伴奏，一遍即兴独奏，两遍共用同一份和弦标注。180 段独奏我们**故意不用**：独奏
+是单音旋律，标注里的和弦在音频里根本不存在，拿它评分只是在考「猜不猜得中同一张谱」。
+两把尺子的差距本身就是旧口径夸大了多少的度量，两个数都印在回归报告里。已知的硬骨头照旧
+写在下面的「Honest limits」一节，没有藏着。
 
 ```bash
 npm install
@@ -188,29 +190,53 @@ reading each supports, weakest first:
 ### The GuitarSet subset
 
 The repository carries a second, freely-licensed corpus in `guitarset/`:
-36 recordings from **GuitarSet** (Xi, Bittner, Pauwels, Ye & Bello, ISMIR
-2018, CC BY 4.0, <https://doi.org/10.5281/zenodo.3371780>), the only corpus
-here with time-aligned chord annotations and annotated tempi. The subset
-covers every one of GuitarSet's 30 progression variants once in comping form
-(all five styles, all keys, 68–200 BPM, six players round-robin) plus one
-improvised solo per player as a stress case. The reference timelines and
-tempi, derived from the plain chord annotation of each .jams, are committed
-in `guitarset/corpus.json`; the audio is not — 36 recordings are ~70 MB,
-which is no size for a git history — so a script fetches exactly the members
-it needs from Zenodo (HTTP range requests into the 657 MB archive) and
-decodes them with the app's own resampler, no external tools:
+the 180 accompaniment recordings of **GuitarSet** (Xi, Bittner, Pauwels, Ye &
+Bello, ISMIR 2018, CC BY 4.0, <https://doi.org/10.5281/zenodo.3371780>), the
+only corpus here with time-aligned chord annotations and annotated tempi.
+Every one of GuitarSet's 30 progression variants, played by six players in
+five styles across all keys at 68–200 BPM.
+
+GuitarSet records each excerpt twice — once comping the progression, once
+improvising a lead line over it — and annotates BOTH takes with the same
+lead-sheet chords. The 180 solo takes are **left out on purpose**: a solo is
+one note at a time, so its annotation names harmony that is nowhere in the
+audio, and scoring a chord recogniser against it measures whether it guesses
+the same chart, not whether it hears what was played. With them in, the
+corpus reported family 67.6 / recall 39.3, which is comps 81.7 / 64.1 and
+solos 53.6 / 14.6 averaged together — and a knob tuned on that average is
+tuned half on hallucination. Their beat tracks are sound, so a tempo study
+could still use them; chord accuracy cannot.
+
+The reference timelines and tempi, derived from the plain chord annotation of
+each .jams, are committed in `guitarset/corpus.json`; the audio is not — the
+decoded set is ~460 MB, which is no size for a git history — so a script
+fetches exactly the members it needs from Zenodo (HTTP range requests into
+the 657 MB archive) and decodes them with the app's own resampler, no
+external tools:
 
 ```bash
-npx vite-node scripts/guitarset.mjs        # ~68 MB download into guitarset/data/
-npx vite-node scripts/regress.mjs --corpus guitarset   # ~1 minute
+npx vite-node scripts/guitarset.mjs        # ~340 MB download into guitarset/data/
+npx vite-node scripts/regress.mjs --corpus guitarset   # ~2.5 minutes
 ```
 
-On this subset the honest numbers are: aligned family recall **70%** on the
-comping recordings (84% on the singer-songwriter style closest to this app's
-repertoire, worse on jazz and funk whose harmony leaves the app's seven
-qualities), **19%** on improvised single-note solos, against a vocabulary
-figure of 87%/50% for the same files — the gap is what the vocabulary metric
-flatters. Tempo lands on the annotated value for 25 of 36.
+On this corpus the honest numbers are time-aligned recall **64.9%** against a
+vocabulary figure of **82.4%** — the gap between the two is what the
+vocabulary metric flatters. It splits hard by style, and the split is the
+useful part:
+
+| style | family | recall |
+| --- | --- | --- |
+| rock | 92.7 | 84.3 |
+| singer-songwriter | 91.6 | 83.4 |
+| bossa nova | 81.2 | 61.9 |
+| jazz | 77.2 | 50.7 |
+| funk | 69.2 | 44.4 |
+
+The two styles closest to what people bring this app sit in the mid-eighties;
+jazz and funk fall away because their harmony leaves the app's seven
+qualities behind — a 13th or an altered dominant has no template here and is
+read as whichever triad it most resembles. Key lands exactly on 138 of 180,
+tempo on the annotated value for 117 of 180.
 
 ### Reading order out of a published sheet
 

@@ -370,6 +370,32 @@ for (const song of manifest.songs ?? []) {
       row.slashHit = slashHit;
       row.slashFP = slashFP;
     }
+
+    // Suspension pass, for the same reason and read the same way. Nothing
+    // else in either corpus can see a sus: family scoring folds sus2 and sus4
+    // into 'maj' by design, and GuitarSet's lead sheets never print one — its
+    // whole vocabulary is maj/min/7/hdim7 — so on that corpus every sus the
+    // app writes is a guaranteed miss and suppressing the quality outright
+    // scores as a free win. This line is what makes the sus prior falsifiable:
+    // `heard` has to hold while `written where the sheet prints a plain
+    // triad` falls, or the prior is not calibrating anything, only deleting.
+    const isSus = (q) => q === 'sus2' || q === 'sus4';
+    let susRef = 0;
+    let susHit = 0;
+    let susFP = 0;
+    for (const { sheet: si, detected: di } of align.matched) {
+      if (isSus(sheetSeq[si].quality)) {
+        susRef++;
+        if (isSus(detSeq[di].quality)) susHit++;
+      } else if (isSus(detSeq[di].quality)) susFP++;
+    }
+    const susAll = sheetSeq.filter((e) => isSus(e.quality)).length;
+    if (susAll || susFP) {
+      row.susAll = susAll;
+      row.susRef = susRef;
+      row.susHit = susHit;
+      row.susFP = susFP;
+    }
   }
 
   if (song.trueTempo) {
@@ -460,6 +486,15 @@ if (scored.length) {
     console.log(
       `slash basses: ${t('slashHit')} heard of ${t('slashRef')} aligned ` +
         `(${t('slashAll')} printed in the sheets), ${t('slashFP')} annotated with no slash printed`,
+    );
+  }
+
+  const susy = rows.filter(({ row }) => row.susAll != null);
+  if (susy.length) {
+    const t = (k) => susy.reduce((s, { row }) => s + (row[k] ?? 0), 0);
+    console.log(
+      `suspensions: ${t('susHit')} heard of ${t('susRef')} aligned ` +
+        `(${t('susAll')} printed in the sheets), ${t('susFP')} written where the sheet prints a plain triad`,
     );
   }
   const tempoed = rows.filter(({ row }) => row.tempoClass);

@@ -54,6 +54,11 @@ import { estimateKey, type KeyEstimate } from './key';
  * Reset to 1.0.0 for the first release.
  *
  * History:
+ *   1.3.0  suspensions are held further from the plain triad, and two pieces
+ *          of key evidence were raised to keep the borderline keys steady
+ *          under the shorter segment list that follows. On the sheet corpus
+ *          the app now writes 7 suspensions the sheet does not print, down
+ *          from 19, and still hears 6 of the 7 it used to get right.
  *   1.2.0  the tempo estimate keeps its runners-up, so a recording with more
  *          than one defensible count can offer them instead of the app
  *          guessing. The chosen tempo is unchanged; the result carries a list
@@ -66,7 +71,7 @@ import { estimateKey, type KeyEstimate } from './key';
  * is not comparable to it, so every song stored under one of those numbers is
  * treated as stale — which is what it is.
  */
-export const ANALYSIS_VERSION = '1.2.0';
+export const ANALYSIS_VERSION = '1.3.0';
 
 /**
  * Whether a stored analysis should be worked out again from its audio.

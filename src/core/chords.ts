@@ -117,8 +117,18 @@ const QUALITY_PRIOR: Record<ChordQuality, number> = {
   dom7: 0,
   min7: 0,
   maj7: -0.012,
-  sus4: -0.02,
-  sus2: -0.02,
+  // Suspensions are held apart from the plain triad by a wider margin than
+  // the synthesized margins alone suggest, because on real recordings the
+  // third is often the quietest note in the voicing and a sus template wins
+  // wherever it is momentarily buried. Measured on the sheet corpus, -0.02
+  // wrote 19 suspensions the sheet does not print for every 7 it got right;
+  // -0.03 cuts the false ones to 7 and keeps 6 of the 7. Past -0.03 the trade
+  // reverses — true and false fall together — so this is not a value to keep
+  // pushing, and GuitarSet cannot see the difference either way: its lead
+  // sheets never print a suspension, so any prior that suppresses the quality
+  // scores as a free win there.
+  sus4: -0.03,
+  sus2: -0.03,
 };
 
 export interface ScoreOptions {
