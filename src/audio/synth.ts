@@ -266,6 +266,18 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
  */
 const ACOUSTIC: PluckVoice = { cutoff: 12000, pluckPos: 0.12, seedCutoff: 925 };
 
+/**
+ * The fingers' contact, for picked notes: a nail is not a pick's shoulder.
+ *
+ * Measured, the video's finger-picked treble notes and this model's sat at
+ * parity — and the ear still called ours dull, because a lone note lives or
+ * dies on the clarity of its start in a way no median band profile captures.
+ * So finger plucks (`i` `m` `a`) get a brighter seed and a contact nearer
+ * the bridge, deliberately past the literal measurement; the thumb keeps
+ * the warm strum contact above.
+ */
+const NAIL: PluckVoice = { cutoff: 12000, pluckPos: 0.1, seedCutoff: 1800 };
+
 /*
    Fitted at 44.1 kHz to time-resolved statistics of the recording's strums,
    averaged over excitation seeds: the attack's band profile (first 70 ms),
@@ -522,6 +534,8 @@ export function renderShapePattern(
     midi: number;
     amp: number;
     mute: boolean;
+    /** Finger pluck rather than a sweep: use the nail's contact. */
+    nail: boolean;
   }
   const events: Event[] = [];
   for (let bar = 0; bar < bars; bar++) {
@@ -535,7 +549,16 @@ export function renderShapePattern(
         const display = pluckStringOf(step.pluck, { frets } as ChordShape);
         const index = 6 - display;
         const voice = sounding.find((v) => v.string === index);
-        if (voice) events.push({ at, string: index, midi: voice.midi, amp: amp * 1.15, mute: false });
+        if (voice) {
+          events.push({
+            at,
+            string: index,
+            midi: voice.midi,
+            amp: amp * 1.15,
+            mute: false,
+            nail: step.pluck.finger !== 'p',
+          });
+        }
         continue;
       }
       // A sweep, not a block: the strings are struck in order across about
@@ -552,6 +575,7 @@ export function renderShapePattern(
           midi: voice.midi,
           amp: amp * (step.mute ? 0.7 : 1),
           mute: step.mute ?? false,
+          nail: false,
         });
       });
     }
@@ -561,7 +585,8 @@ export function renderShapePattern(
     const ev = events[i];
     const next = events.find((later, j) => j > i && later.string === ev.string);
     const hold = next ? Math.max(0.05, next.at - ev.at) : undefined;
-    const contact = { ...ACOUSTIC, pluckPos: ACOUSTIC.pluckPos! + (rand() - 0.5) * 0.05 };
+    const base = ev.nail ? NAIL : ACOUSTIC;
+    const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
     const at = Math.max(0, Math.floor(ev.at * sampleRate));
     if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
     else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold);
