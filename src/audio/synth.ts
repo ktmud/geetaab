@@ -264,7 +264,7 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
  * storyboard frames (natural top: D-28, sunburst: J-45), and the voice fitted
  * on the seven chords the video and the library both play: E G C D Am Em F.
  */
-const ACOUSTIC: PluckVoice = { cutoff: 22000, pluckPos: 0.12, seedCutoff: 925 };
+const ACOUSTIC: PluckVoice = { cutoff: 12000, pluckPos: 0.12, seedCutoff: 925 };
 
 /*
    Fitted at 44.1 kHz to time-resolved statistics of the recording's strums,
@@ -417,8 +417,15 @@ function fadeTail(samples: Float32Array, sampleRate: number, seconds: number): v
  * in line with the soundboard dumps its energy fast, the other rings — so
  * every pluck here is two Karplus-Strong voices: most of the amplitude dying
  * in `fast` seconds, a quieter one taking `slow` to fall 60 dB.
+ *
+ * `slow` sits deliberately under the recording's measured ring curve: those
+ * ring-outs carry the room as well as the strings, and matching them
+ * literally left every chord hanging too long for the ear. The loop corner
+ * meanwhile is finite again (12 kHz) so the tail loses its top as it rings,
+ * the way a real string's does — a tail that darkens reads as shorter and
+ * realer than one that stays lit.
  */
-const RING = { slow: 14, fast: 0.25, fastMix: 0.7 };
+const RING = { slow: 8, fast: 0.25, fastMix: 0.74 };
 
 function addString(
   out: Float32Array,
@@ -437,7 +444,7 @@ function addString(
 export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; seed?: number } = {}): Float32Array {
   const sampleRate = opts.sampleRate ?? 44100;
   const rand = mulberry32(opts.seed ?? 20);
-  const out = new Float32Array(Math.ceil(4.8 * sampleRate));
+  const out = new Float32Array(Math.ceil(3.8 * sampleRate));
   let voice = 0;
   frets.forEach((fret, string) => {
     if (fret < 0) return;
@@ -453,7 +460,7 @@ export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; s
     addString(out, at, STANDARD_TUNING[string] + fret, amp, sampleRate, rand, contact);
   });
   const shaped = room(body(out, sampleRate), sampleRate);
-  fadeTail(shaped, sampleRate, 0.5);
+  fadeTail(shaped, sampleRate, 0.4);
   return normalizePeak(shaped, 0.85);
 }
 
@@ -496,7 +503,7 @@ export function renderShapePattern(
   const barSeconds = pattern.beatsPerBar * beat;
   // A tail past the last bar, because the final chord should ring rather than
   // be cut off at the bar line.
-  const out = new Float32Array(Math.ceil((barSeconds * bars + 3.0) * sampleRate));
+  const out = new Float32Array(Math.ceil((barSeconds * bars + 2.6) * sampleRate));
 
   // Which strings are sounding, low to high, and at what pitch.
   const sounding: { string: number; midi: number }[] = [];
@@ -560,7 +567,7 @@ export function renderShapePattern(
     else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold);
   }
   const shaped = room(body(out, sampleRate), sampleRate);
-  fadeTail(shaped, sampleRate, 0.5);
+  fadeTail(shaped, sampleRate, 0.4);
   return normalizePeak(shaped, 0.88);
 }
 
