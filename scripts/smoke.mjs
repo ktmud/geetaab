@@ -335,7 +335,46 @@ try {
     ctaTop && ctaBottom && !ctaTop.hidden && ctaBottom.hidden && !ctaBottom.overlaps,
     `top of page ${JSON.stringify(ctaTop)}, foot of page ${JSON.stringify(ctaBottom)}`,
   );
+
+  // Two chord boxes to a row at the very least, on the narrowest phone there
+  // is. One to a row put a box drawn at 92 points in the middle of a card
+  // three hundred and fifty wide, all the way down the page.
+  const palette = async () =>
+    page.evaluate(() => {
+      const pal = document.querySelector('.palette');
+      const tiles = [...pal.querySelectorAll('.diagram-card')];
+      const box = tiles[0]?.getBoundingClientRect();
+      const drawing = tiles[0]?.querySelector('.diagram')?.getBoundingClientRect();
+      const heights = new Set(tiles.map((t) => Math.round(t.getBoundingClientRect().height)));
+      return {
+        columns: getComputedStyle(pal).gridTemplateColumns.split(' ').length,
+        // The drawing should use the card it is given, not sit small in it.
+        fill: box && drawing ? drawing.width / box.width : 0,
+        // Nothing may push its own track wider than the grid gave it.
+        spilling: tiles.filter((t) => t.scrollWidth > t.clientWidth + 1).length,
+        ragged: heights.size > 1,
+        wider: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+  const palettes = [];
+  for (const width of [320, 375, 430]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(250);
+    const seen = await palette();
+    palettes.push(`${width}: ${seen.columns} cols, ${Math.round(seen.fill * 100)}% filled`);
+    checkThat(
+      `at ${width} points the chords sit at least two to a row, filling their cards`,
+      seen.columns >= 2 && seen.fill > 0.6 && seen.spilling === 0 && !seen.ragged && !seen.wider,
+      JSON.stringify(seen),
+    );
+  }
   await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForTimeout(250);
+  checkThat(
+    'and a desktop spends its width on more of them rather than on bigger ones',
+    (await palette()).columns >= 4,
+    palettes.join(' · '),
+  );
   await page.evaluate(() => window.scrollTo(0, 0));
 
   console.log('\n1c. dropping an audio file onto the home screen');

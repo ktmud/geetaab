@@ -1346,12 +1346,46 @@ input[type='range'] {
    wider track than the bare-diagram grid below. */
 .palette {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  /* Two to a row at the very least. Auto-fill wanted a 180px track and a phone
+     could not give it two, so it gave one — a chord box drawn at 92 points,
+     centred in a card three hundred and fifty wide, all the way down the page.
+     Shapes are also read against each other: side by side is how you notice
+     that Am is C with one finger moved. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.palette .chord-tile {
+@media (min-width: 540px) {
+  .palette {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 720px) {
+  .palette {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 980px) {
+  .palette {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+/* The track decides the width now, so nothing in a tile may insist on its own. */
+.palette .chord-tile,
+.palette .diagram-card {
   min-width: 0;
+}
+
+/* And the box grows into the room rather than sitting at its drawn size in the
+   middle of a card twice as wide. Capped, because past this the fret spacing
+   is wider than a finger and the drawing stops looking like a fretboard. */
+.palette .diagram-card .diagram {
+  width: 100%;
+  height: auto;
+  max-width: 132px;
 }
 
 /* ---------- chord chart ---------- */
