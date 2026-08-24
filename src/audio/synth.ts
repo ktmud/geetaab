@@ -92,6 +92,11 @@ function addPluck(
   decay: number,
   rand: () => number,
   voice: PluckVoice = {},
+  /** Seconds until the string is struck again and this vibration is damped.
+      Rendered with a short fade so the cut is a finger landing, not a splice.
+      Omitted, the string rings out its whole decay — the legacy behaviour,
+      byte-identical for every caller that predates it. */
+  holdSeconds?: number,
 ): void {
   if (startSample < 0 || startSample >= out.length) return;
   const damping = voice.damping ?? 0.5;
@@ -124,14 +129,19 @@ function addPluck(
     const seed = Float32Array.from(buf);
     for (let i = 0; i < n; i++) buf[i] = seed[i] - seed[(i + d) % n];
   }
-  const len = Math.min(out.length - startSample, Math.floor(decay * sampleRate));
+  const natural = Math.min(out.length - startSample, Math.floor(decay * sampleRate));
+  const fadeLen = Math.floor(0.03 * sampleRate);
+  const held = holdSeconds != null ? Math.floor(holdSeconds * sampleRate) + fadeLen : natural;
+  const len = Math.min(natural, held);
+  const fadeFrom = held < natural ? len - fadeLen : len;
   const g = Math.pow(0.001, n / (decay * sampleRate)); // -60 dB after `decay`
   let idx = 0;
   let last = 0;
   let lowpassed = 0;
   for (let i = 0; i < len; i++) {
     const cur = buf[idx];
-    out[startSample + i] += amp * cur;
+    const fade = i >= fadeFrom ? 0.5 + 0.5 * Math.cos((Math.PI * (i - fadeFrom)) / fadeLen) : 1;
+    out[startSample + i] += amp * fade * cur;
     if (pole != null) {
       lowpassed = (1 - pole) * cur + pole * lowpassed;
       buf[idx] = g * lowpassed;
@@ -254,42 +264,44 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
  * storyboard frames (natural top: D-28, sunburst: J-45), and the voice fitted
  * on the seven chords the video and the library both play: E G C D Am Em F.
  */
-const ACOUSTIC: PluckVoice = { cutoff: 16000, pluckPos: 0.12, seedCutoff: 430 };
+const ACOUSTIC: PluckVoice = { cutoff: 22000, pluckPos: 0.12, seedCutoff: 925 };
 
 /*
-   Fitted at 44.1 kHz to three time-resolved statistics of the recording's
-   strums, averaged over excitation seeds: the attack's band profile (first
-   70 ms), the sustain's (0.25-0.9 s), and how far each band falls over the
-   first half second.
+   Fitted at 44.1 kHz to time-resolved statistics of the recording's strums,
+   averaged over excitation seeds: the attack's band profile (first 70 ms),
+   the sustain's (0.25-0.9 s), how far each band falls over the first half
+   second, and how far the chord has fallen 1, 1.5 and 2 seconds in. The
+   profiles are referenced to 480-960 Hz with the two bass bands
+   half-weighted: the recording's bottom carries the room and the mic's
+   proximity, and a fit that referenced everything to that bass mountain
+   could hide dullness behind it.
 
-   Time-resolved, because a first fit to the time-averaged spectrum converged
-   to 1.15 dB of band error and sounded nothing like the reference. An
-   average over time cannot tell a bright attack over a dead sustain from a
-   steady warm tone — and that is exactly what it had built: the loop filter
-   was doing the darkening, so the 1920-3840 band fell at 81 dB/s where the
-   recording falls at 13, and every chord collapsed to a thud within half a
-   second. The recording holds nearly the same tilt from attack through ring,
-   so the two corners now do opposite jobs: the loop barely damps at all
-   (16 kHz — the partials get to live) and the excitation is seeded dark
-   (430 Hz — the warmth is in the string from the first millisecond), with
-   the body EQ holding it there.
+   No time-averaged spectrum appears in the objective at all any more. One
+   fit to that converged to 1.15 dB of band error while collapsing every
+   chord to a thud in half a second — an average over time cannot tell a
+   bright attack over a dead sustain from a steady warm tone. What survived
+   the rounds of listening and refitting is a division of labour: the loop
+   filter damps nothing (its corner sits above hearing — decay belongs to the
+   two-stage RING below), the excitation corner sets the brightness, and the
+   body EQ holds the recording's tilt. The per-band settle over the first
+   half second now sits within a decibel of the recording from 240 Hz to
+   3.8 kHz.
 
-     drop from attack peak to 0.5 s      model 6.9 dB, recording 7.2
-     1920-3840 fall over that half second      11.8 against its 6.4
+     drop, attack peak to 0.5 s     model 6.0 dB, recording 7.2
+     two seconds into a chord       model -13 dB, recording -9.4
 
-   The top octave still dies faster than the recording's, which may not even
-   be the guitar: a sustained -21 dB re 120-240 up there is not far off a
-   quiet room's floor. */
+   Some of that last gap is the recording's room ringing on, which the
+   `room` below imitates but deliberately understates. */
 
 /**
  * The soundboard: two low resonances, and the recording's tilt.
  *
  * With the loop filter no longer darkening anything, the whole warmth of the
- * reference lives here and in the excitation: a deep dip at 360 Hz, a broad
- * one centred at 1.3 kHz — the presence region this recording simply does
- * not have — and 11 dB of shelf off everything above 2.5k. The air and
- * top-plate modes at 104 and 198 Hz sit under it all, which is what keeps a
- * chord with no open bass string from sounding like a smaller instrument.
+ * reference lives here and in the excitation: a dip at 360 Hz, a deep broad
+ * one at 1.5 kHz — the presence region this recording simply does not
+ * have — and a steep shelf off everything above 2.5k. The air and top-plate
+ * modes at 104 and 198 Hz sit under it all, which is what keeps a chord with
+ * no open bass string from sounding like a smaller instrument.
  */
 function body(x: Float32Array, sampleRate: number): Float32Array {
   const out = Float32Array.from(x);
@@ -340,11 +352,50 @@ function body(x: Float32Array, sampleRate: number): Float32Array {
       out[i] = yn;
     }
   };
-  resonate(104, 2.4, 2.5);
-  resonate(198, 3.0, 1.5);
-  peak(360, 1.1, -10.8);
-  peak(1320, 0.97, -9.7);
-  shelf(2460, -10.8);
+  resonate(104, 2.4, 3.2);
+  resonate(198, 3.0, 2.1);
+  peak(360, 1.1, -9);
+  peak(1540, 1.12, -13.4);
+  shelf(2460, -15.7);
+  return out;
+}
+
+/**
+ * A close mic still hears the room.
+ *
+ * The reference was recorded in one, and a bone-dry model reads as synthetic
+ * next to it no matter how well the spectra line up. This is the smallest
+ * room that works: a few dozen sparse early reflections inside a quarter
+ * second, exponentially quieter and lowpassed — walls absorb treble — mixed
+ * far under the dry signal. No feedback, so nothing can ring or turn
+ * metallic.
+ */
+function room(x: Float32Array, sampleRate: number): Float32Array {
+  const r = mulberry32(7);
+  const wet = new Float32Array(x.length);
+  for (let tap = 0; tap < 44; tap++) {
+    const t = 0.008 + 0.24 * Math.pow(r(), 1.6);
+    const g = (r() < 0.5 ? -1 : 1) * 0.34 * Math.exp(-t / 0.075);
+    const d = Math.floor(t * sampleRate);
+    for (let i = 0; i + d < x.length; i++) wet[i + d] += g * x[i];
+  }
+  // A short late tail on top of the reflections — two damped combs, roughly
+  // 0.6 s to -60 dB — so the last second of a chord sits on the room instead
+  // of falling to digital black. In the reference, a passage's final chord is
+  // still only ~9 dB down two seconds after the strum.
+  for (const { d, g } of [
+    { d: Math.floor(0.0531 * sampleRate), g: 0.58 },
+    { d: Math.floor(0.0673 * sampleRate), g: 0.54 },
+  ]) {
+    for (let i = d; i < wet.length; i++) wet[i] += g * wet[i - d];
+  }
+  const out = Float32Array.from(x);
+  const pole = Math.exp((-2 * Math.PI * 3800) / sampleRate);
+  let lp = 0;
+  for (let i = 0; i < out.length; i++) {
+    lp = (1 - pole) * (0.55 * wet[i]) + pole * lp;
+    out[i] += lp;
+  }
   return out;
 }
 
@@ -356,22 +407,53 @@ function fadeTail(samples: Float32Array, sampleRate: number, seconds: number): v
   }
 }
 
+/**
+ * A real string decays in two stages, and both are audible in the reference:
+ * a strum settles about 7 dB in the first half second, then hangs on — the
+ * passage-ending chords are still only ~9 dB down two seconds after the
+ * strike. One exponential cannot do both; every fit that tried had to choose
+ * between a punchy attack and the long 尾音, and whichever it chose sounded
+ * wrong. Physically the stages are the string's two polarizations — the one
+ * in line with the soundboard dumps its energy fast, the other rings — so
+ * every pluck here is two Karplus-Strong voices: most of the amplitude dying
+ * in `fast` seconds, a quieter one taking `slow` to fall 60 dB.
+ */
+const RING = { slow: 14, fast: 0.25, fastMix: 0.7 };
+
+function addString(
+  out: Float32Array,
+  at: number,
+  midi: number,
+  amp: number,
+  sampleRate: number,
+  rand: () => number,
+  voice: PluckVoice,
+  holdSeconds?: number,
+): void {
+  addPluck(out, at, midi, amp * RING.fastMix, sampleRate, RING.fast, rand, voice, holdSeconds);
+  addPluck(out, at, midi, amp * (1 - RING.fastMix), sampleRate, RING.slow, rand, voice, holdSeconds);
+}
+
 export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; seed?: number } = {}): Float32Array {
   const sampleRate = opts.sampleRate ?? 44100;
   const rand = mulberry32(opts.seed ?? 20);
-  const out = new Float32Array(Math.ceil(3.2 * sampleRate));
+  const out = new Float32Array(Math.ceil(4.8 * sampleRate));
   let voice = 0;
   frets.forEach((fret, string) => {
     if (fret < 0) return;
-    // A real strum crosses the strings in about 20 ms, not 32 per string, and
-    // the pick digs hardest into the middle of the sweep.
-    const at = Math.floor(voice * 0.019 * sampleRate);
+    // A real strum crosses the strings in about 20 ms, not 32 per string, the
+    // pick digs hardest into the middle of the sweep, and no two strings get
+    // exactly the same timing, weight, or contact point — the jitter is what
+    // keeps six ideal strings from sounding like one machine.
+    const at = Math.floor((voice * 0.019 + 0.004 * rand()) * sampleRate);
     const middle = 1 - Math.abs(voice - 2.5) / 3.5;
     voice++;
-    addPluck(out, at, STANDARD_TUNING[string] + fret, 0.24 + 0.12 * middle, sampleRate, 3.3, rand, ACOUSTIC);
+    const amp = (0.24 + 0.12 * middle) * (0.9 + 0.2 * rand());
+    const contact = { ...ACOUSTIC, pluckPos: ACOUSTIC.pluckPos! + (rand() - 0.5) * 0.05 };
+    addString(out, at, STANDARD_TUNING[string] + fret, amp, sampleRate, rand, contact);
   });
-  const shaped = body(out, sampleRate);
-  fadeTail(shaped, sampleRate, 0.35);
+  const shaped = room(body(out, sampleRate), sampleRate);
+  fadeTail(shaped, sampleRate, 0.5);
   return normalizePeak(shaped, 0.85);
 }
 
@@ -414,7 +496,7 @@ export function renderShapePattern(
   const barSeconds = pattern.beatsPerBar * beat;
   // A tail past the last bar, because the final chord should ring rather than
   // be cut off at the bar line.
-  const out = new Float32Array(Math.ceil((barSeconds * bars + 2.2) * sampleRate));
+  const out = new Float32Array(Math.ceil((barSeconds * bars + 3.0) * sampleRate));
 
   // Which strings are sounding, low to high, and at what pitch.
   const sounding: { string: number; midi: number }[] = [];
@@ -422,17 +504,31 @@ export function renderShapePattern(
     if (fret >= 0) sounding.push({ string, midi: STANDARD_TUNING[string] + fret + capo });
   });
 
+  // Collect every pluck first, render second: a string that is struck again
+  // has to know when, because striking a string silences what it was doing.
+  // Without that damping, a ring measured in seconds turns any picking
+  // pattern into a wash — eight notes a bar all sounding at once is a harp
+  // with the pedal down, not a guitar.
+  interface Event {
+    at: number;
+    string: number;
+    midi: number;
+    amp: number;
+    mute: boolean;
+  }
+  const events: Event[] = [];
   for (let bar = 0; bar < bars; bar++) {
     for (const step of pattern.steps) {
-      const at = bar * barSeconds + step.beat * beat;
-      const amp = step.accent ? 0.34 : 0.26;
+      // A human lands a few milliseconds off the grid, differently every time.
+      const at = bar * barSeconds + step.beat * beat + 0.006 * (rand() - 0.5);
+      const amp = (step.accent ? 0.34 : 0.26) * (0.9 + 0.2 * rand());
       if (step.pluck) {
         // One string, named by the shape rather than fixed: the thumb follows
         // the chord's own bass, which is the whole point of the notation.
         const display = pluckStringOf(step.pluck, { frets } as ChordShape);
         const index = 6 - display;
         const voice = sounding.find((v) => v.string === index);
-        if (voice) addPluck(out, Math.floor(at * sampleRate), voice.midi, amp * 1.15, sampleRate, 2.6, rand, ACOUSTIC);
+        if (voice) events.push({ at, string: index, midi: voice.midi, amp: amp * 1.15, mute: false });
         continue;
       }
       // A sweep, not a block: the strings are struck in order across about
@@ -443,22 +539,28 @@ export function renderShapePattern(
         // An upstroke on a guitar catches the top strings and little else.
         const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
         if (!reach) return;
-        const decay = step.mute ? 0.18 : 2.6;
-        addPluck(
-          out,
-          Math.floor((at + i * spread) * sampleRate),
-          voice.midi,
-          amp * (step.mute ? 0.7 : 1),
-          sampleRate,
-          decay,
-          rand,
-          ACOUSTIC,
-        );
+        events.push({
+          at: at + i * spread * (0.85 + 0.3 * rand()),
+          string: voice.string,
+          midi: voice.midi,
+          amp: amp * (step.mute ? 0.7 : 1),
+          mute: step.mute ?? false,
+        });
       });
     }
   }
-  const shaped = body(out, sampleRate);
-  fadeTail(shaped, sampleRate, 0.4);
+  events.sort((a, b) => a.at - b.at);
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const next = events.find((later, j) => j > i && later.string === ev.string);
+    const hold = next ? Math.max(0.05, next.at - ev.at) : undefined;
+    const contact = { ...ACOUSTIC, pluckPos: ACOUSTIC.pluckPos! + (rand() - 0.5) * 0.05 };
+    const at = Math.max(0, Math.floor(ev.at * sampleRate));
+    if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
+    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold);
+  }
+  const shaped = room(body(out, sampleRate), sampleRate);
+  fadeTail(shaped, sampleRate, 0.5);
   return normalizePeak(shaped, 0.88);
 }
 
