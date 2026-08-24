@@ -478,9 +478,15 @@ button {
   display: flex;
   align-items: center;
   gap: 11px;
-  font-family: ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', var(--font);
+  /* `-apple-system-rounded` is the older WebKit spelling; some Safari versions
+     know it and not the standard one. Both resolve to SF Pro Rounded, which is
+     the face the native app signs itself with — the same file, not a lookalike.
+     It cannot be shipped as a webfont (it is Apple's, and not redistributable),
+     so everywhere else falls back to Archivo, which is not rounded. */
+  font-family: ui-rounded, 'SF Pro Rounded', -apple-system-rounded, var(--font);
+  /* Heavy is what the app asks for, and 800 is heavy in CSS terms. */
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   font-size: 21px;
 }
 
@@ -491,10 +497,14 @@ button {
 
 .brand-mark {
   flex: none;
-  /* A tile, not a glyph: it gets a shadow the way an app icon does rather than
-     the glow the old gradient mark needed to lift off a dark page. */
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
+  /* A drop-shadow, not a box-shadow. The tile's corners are drawn inside the
+     SVG — rx=6 on a 24-unit grid, so 11.5px at the 46px size the home screen
+     uses — while a box-shadow follows the element's own box and whatever
+     border-radius CSS gives it. Those two radii cannot be kept in step across
+     every size the mark is drawn at, and where they disagreed the shadow's
+     squarer corners showed as a pale frame around the tile. drop-shadow reads
+     the alpha channel, so it follows the drawing at any size. */
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.16));
 }
 
 /* The landing page carries the full lockup, and gives up the sticky header for
