@@ -45,7 +45,11 @@ import { estimateKey, type KeyEstimate } from './key';
  *          carries a fix to songs a player already has rather than only to new
  *          ones, and the part `golden/golden.json` is regenerated for.
  *   patch  nothing observable changed: a refactor, a comment, a speed-up.
- *          Nothing is recomputed, and no fixture moves.
+ *          Nothing is recomputed. The fixture normally does not move either —
+ *          the one exception is removing a field that nothing reads, which
+ *          changes the fixture's shape without changing any answer in it. That
+ *          still has to reach the port, but it is not worth a whole library
+ *          being worked out again, which is what a minor would cost.
  *
  * The explainer at /how is part of this contract too: it describes what this
  * file does, so a minor that changes the description is not finished until
@@ -54,6 +58,14 @@ import { estimateKey, type KeyEstimate } from './key';
  * Reset to 1.0.0 for the first release.
  *
  * History:
+ *   1.3.1  dropped `beatStates`. It was the raw Viterbi path over the beat
+ *          grid, on the public result and therefore in every stored song, and
+ *          nothing anywhere read it. In free time it was worse than unused: the
+ *          segments beside it are re-decoded on a half-second grid and the path
+ *          was not, so the two disagreed about the chord on 29 of 289 beats of
+ *          one corpus song while sitting in the same object. The decoder is
+ *          still pinned by `decodePath` and `decodeNames` in the fixture, which
+ *          check it exactly rather than by digest.
  *   1.3.0  suspensions are held further from the plain triad, and two pieces
  *          of key evidence were raised to keep the borderline keys steady
  *          under the shorter segment list that follows. On the sheet corpus
@@ -71,7 +83,7 @@ import { estimateKey, type KeyEstimate } from './key';
  * is not comparable to it, so every song stored under one of those numbers is
  * treated as stale — which is what it is.
  */
-export const ANALYSIS_VERSION = '1.3.0';
+export const ANALYSIS_VERSION = '1.3.1';
 
 /**
  * Whether a stored analysis should be worked out again from its audio.
@@ -98,8 +110,6 @@ export interface AnalysisResult {
   key: KeyEstimate;
   tuning: number;
   segments: ChordSegment[];
-  /** Detected chord for each beat interval, as a lattice state. */
-  beatStates: number[];
   confidence: number;
   /** Normalised periodicity of the onsets; low means no steady pulse to find. */
   rhythmicity: number;
@@ -131,7 +141,6 @@ export interface AnalyzeOptions {
 
 interface Decoded {
   segments: ChordSegment[];
-  path: number[];
   beatCount: number;
   beatEnergy: Float32Array;
   scores: Float32Array;
@@ -250,7 +259,6 @@ export function analyzeAudio(
     key,
     tuning: chroma.tuning,
     segments: decoded.segments,
-    beatStates: decoded.path,
     confidence,
     rhythmicity,
     freeTime,
@@ -437,7 +445,6 @@ function decodeOnGrid(
   annotateBassNotes(segments, bass.data, treble.count);
   return {
     segments,
-    path,
     beatCount: treble.count,
     beatEnergy,
     scores: scored.scores,

@@ -615,9 +615,13 @@ export interface BassNoteOptions {
  * corpus decode).
  *
  * Only a chord's THIRD or SEVENTH qualifies as the bass. A bass outside the
- * chord is far more often a passing note or bleed than a real inversion, and
- * the fifth is unjudgeable from this evidence: fingerstyle alternates
- * root-fifth in the bass as a matter of technique, and the root's third
+ * chord is far more often a passing note or bleed than a real inversion; the
+ * second and fourth of a suspension are excluded for the same reason the
+ * comment gives below about what was calibrated — they were not, and a
+ * suspension inverted onto its own suspended note is not a chord anyone
+ * writes down (Esus2/F# is how the sweep found it, which is F#m7 spelled
+ * badly). And the fifth is unjudgeable from this evidence: fingerstyle
+ * alternates root-fifth in the bass as a matter of technique, and the root's third
  * harmonic lands on the fifth too. Measured on the sheet corpus (67 printed
  * slash events across 6 sheets, swept offline over the captured bass chroma):
  * with the fifth as a candidate, false annotations are dominated by it at
@@ -659,7 +663,8 @@ export function annotateBassNotes(
     let best = -1;
     let bestLevel = 0;
     for (const iv of QUALITY_INTERVALS[seg.chord.quality]) {
-      if (iv === 0 || iv === 7) continue; // root position; fifth: see above
+      // Root position; the fifth and a suspension's own 2nd or 4th: see above.
+      if (iv === 0 || iv === 7 || iv === 2 || iv === 5) continue;
       const pc = (seg.chord.root + iv) % 12;
       if (med[pc] > bestLevel) {
         bestLevel = med[pc];
@@ -709,6 +714,7 @@ export function mergeAdjacent(segments: ChordSegment[]): ChordSegment[] {
     const last = out[out.length - 1];
     if (last && last.chord.root === seg.chord.root && last.chord.quality === seg.chord.quality) {
       last.end = seg.end;
+      last.endIndex = seg.endIndex;
       last.endBeat = seg.endBeat;
       last.confidence = (last.confidence + seg.confidence) / 2;
     } else {

@@ -95,6 +95,7 @@ import { analyzeAudio } from '../src/core/analyze.ts';
 import { separateRepet } from '../src/core/separation.ts';
 import { isNoChord } from '../src/core/chordTypes.ts';
 import { keyRelation } from '../src/core/key.ts';
+import { buildTab, findLoop } from '../src/music/tab.ts';
 import {
   pitchClass,
   bestShiftAlignment,
@@ -222,7 +223,11 @@ for (const song of manifest.songs ?? []) {
   if (separateFirst) {
     const first = analyzeAudio(samples, song.sampleRate ?? 22050);
     const bar = (60 / first.tempo) * (first.beatsPerBar || 4);
-    const hint = first.loop?.length ? bar * first.loop.length : bar * 4;
+    // The loop is a property of the TAB, not of the analysis — `AnalysisResult`
+    // has no `loop` field, so reaching for one here silently took the fallback
+    // on every song ever measured. Ask the thing that actually knows.
+    const loop = findLoop(buildTab(first, { simplify: true }).bars);
+    const hint = bar * (loop?.length ?? 4);
     const rate = song.sampleRate ?? 22050;
     try {
       if (adaptive) {

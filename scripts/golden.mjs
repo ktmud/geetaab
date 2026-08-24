@@ -172,7 +172,6 @@ out.analysis = {
   freeTime: analysis.freeTime,
   beatCount: analysis.beats.length,
   beats: digest(analysis.beats),
-  beatStates: digest(analysis.beatStates),
   segments: analysis.segments.map((s) => ({
     name: chordName(s.chord),
     start: s.start,
