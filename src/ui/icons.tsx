@@ -201,35 +201,6 @@ export function TrashIcon({ size = 24, className }: IconProps) {
   );
 }
 
-/**
- * A phone turning itself sideways, on a loop.
- *
- * The static version of this — a phone with an arrow over it — reads as
- * "rotation" only to someone who already knew. Showing the motion says it in
- * no language at all, which is the whole job of the screen it sits on. The
- * animation lives in the stylesheet so it can be switched off for a reader who
- * has asked for less motion.
- */
-export function PhoneRotateIcon({ size = 24, className }: IconProps) {
-  return (
-    <svg
-      {...svgProps(size, className)}
-      viewBox="0 0 48 48"
-      strokeWidth={2.2}
-      className={`phone-rotate${className ? ` ${className}` : ''}`}
-    >
-      {/* The arc stays put; the phone turns under it. */}
-      <path className="phone-rotate-arc" d="M12.5 15.5a14.5 14.5 0 0 1 23 0" />
-      <path className="phone-rotate-arc" d="M35.5 8.6v7h-7" />
-      <g className="phone-rotate-body">
-        <rect x="17.6" y="16.4" width="12.8" height="23.2" rx="2.6" />
-        <path d="M21.8 19.6h4.4" />
-        <path d="M21.8 36.4h4.4" />
-      </g>
-    </svg>
-  );
-}
-
 export function SlidersIcon({ size = 24, className }: IconProps) {
   return (
     <svg {...svgProps(size, className)}>

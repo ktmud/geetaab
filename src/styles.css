@@ -2148,84 +2148,6 @@ input[type='range'] {
   color: var(--accent);
 }
 
-.rotate-hint {
-  position: fixed;
-  inset: 0;
-  z-index: 110;
-  background: var(--bg);
-  display: grid;
-  place-items: center;
-  text-align: center;
-  padding: 32px;
-}
-
-.rotate-hint svg {
-  width: 68px;
-  height: 68px;
-  margin-bottom: 18px;
-  color: var(--accent);
-}
-
-.rotate-lock-hint {
-  max-width: 320px;
-  margin: 0 auto 18px;
-  font-size: 13px;
-  color: var(--text-faint);
-}
-
-/* The phone turns itself, over and over, so the instruction does not depend on
-   reading the sentence under it. The arc above stays put — it is the path, not
-   the thing travelling it — and it dims on the way so the eye follows the
-   phone rather than the decoration. */
-@keyframes phone-rotate {
-  0%,
-  18% {
-    transform: rotate(0deg);
-  }
-  40%,
-  76% {
-    transform: rotate(-90deg);
-  }
-  96%,
-  100% {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes phone-rotate-arc {
-  0%,
-  14% {
-    opacity: 0.85;
-  }
-  46%,
-  100% {
-    opacity: 0.22;
-  }
-}
-
-.phone-rotate-body {
-  transform-box: fill-box;
-  transform-origin: 50% 50%;
-  animation: phone-rotate 3.4s cubic-bezier(0.65, 0, 0.2, 1) infinite;
-}
-
-.phone-rotate-arc {
-  animation: phone-rotate-arc 3.4s ease-in-out infinite;
-}
-
-/* Asked for less motion: show the destination instead of the journey. */
-@media (prefers-reduced-motion: reduce) {
-  .phone-rotate-body {
-    animation: none;
-    transform: rotate(-90deg);
-  }
-
-  .phone-rotate-arc {
-    animation: none;
-    opacity: 0.4;
-  }
-}
-
 @media (orientation: landscape) and (max-height: 460px) {
   .practice-hud {
     font-size: 11px;
@@ -4068,4 +3990,85 @@ html[lang^='zh'] .how-it-works em {
 .settings-note {
   margin: 12px 0 0;
   font-size: 13px;
+}
+
+/* ---- the player, held upright ----------------------------------------- */
+
+/* The same player with its two panels swapped round, not squeezed.
+   Landscape has width to spend and no height; upright is the other way about.
+   So the chord under your fingers becomes the hero and takes whatever height
+   is left over — an upright phone has room for a diagram twice the size the
+   sidebar could give it — and the lookahead becomes a strip underneath, since
+   a timeline wants width, which is the one thing this orientation cannot
+   spare. Everything below — strum strip, seek bar, transport — was already a
+   stack and stays one, in the thumb's half of the screen. */
+.practice.portrait .practice-stage {
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.practice.portrait .practice-now {
+  gap: 6px;
+  padding: 14px 12px 10px;
+}
+
+/* The name grows with the diagram under it. At the sidebar's size it would be
+   a caption on a picture, and the name is the half you read at a glance. */
+.practice.portrait .practice-now-name {
+  font-size: clamp(38px, 16vw, 76px);
+}
+
+/* Big enough to read from across the room, and still bounded by the card: it
+   takes the height that is going, capped on both axes, and gives it back when
+   there is not enough rather than pushing the next-chord strip out through the
+   bottom. Height leads and width follows it, which is the part that matters on
+   a short screen — sizing the width instead leaves the drawing shrunk to fit
+   the height it was given and stranded in the middle of a box it no longer
+   fills. */
+.practice.portrait .practice-now > svg {
+  /* ChordDiagram draws its box at height = 1.18 x width, so the two caps are
+     written from one number. Capping only the width would leave flex holding
+     the taller height it had already resolved, and the drawing letterboxed
+     inside a box it does not fill. */
+  --diagram-width: min(56vw, 240px);
+  width: auto;
+  height: 100%;
+  max-width: var(--diagram-width);
+  max-height: min(42vh, calc(var(--diagram-width) * 1.18));
+  min-height: 0;
+}
+
+/* Short phones spend their height on the chord instead of on the two things
+   that repeat something already on screen. The degree line tells you something
+   once per song; the next-chord strip says in words what the lane one row down
+   is already showing in space, and it costs seventy pixels — nearly half of
+   what is left for the diagram at this height. */
+@media (orientation: portrait) and (max-height: 700px) {
+  .practice.portrait .practice-now-sub,
+  .practice.portrait .practice-next {
+    display: none;
+  }
+}
+
+/* The lookahead is a strip, not a panel. Leftover height belongs to the chord
+   above it — stretching these blocks taller says nothing, because nothing in
+   them is read vertically. */
+.practice.portrait .practice-lane {
+  height: clamp(92px, 17vh, 150px);
+}
+
+.practice.portrait .strum-strip {
+  overflow-x: auto;
+}
+
+/* The transport is the thing a thumb reaches for, so it keeps its size while
+   the readouts around it give way. */
+@media (orientation: portrait) and (max-width: 430px) {
+  .practice.portrait .practice-hud strong {
+    max-width: 38vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }

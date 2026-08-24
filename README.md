@@ -1,7 +1,7 @@
 # geetaab
 
 Play a song near your microphone and get a guitar tab a beginner can actually play,
-then practise it karaoke-style on a landscape screen.
+then practise it karaoke-style, either way up you hold the phone.
 
 Everything runs in the browser. No audio leaves the device, there is no server, and
 there is no model download — the chord recognition is a few hundred lines of signal
@@ -9,7 +9,7 @@ processing that ship with the page.
 
 ## 简介
 
-对着麦克风放一首歌，它给你一份你真弹得下来的吉他谱，然后横过屏幕，像唱卡拉 OK 那样跟着练。
+对着麦克风放一首歌，它给你一份你真弹得下来的吉他谱，然后像唱卡拉 OK 那样跟着练——手机横着竖着都行。
 
 所有事情都在浏览器里做完：录音不上传，没有服务器，也不下载任何模型——所谓和弦识别，就是跟
 着网页一起加载的那几百行信号处理代码。
@@ -75,11 +75,16 @@ npm run dev        # 打开 http://localhost:5173
    count-in, a metronome, a live right-hand guide, the next chord previewed beside the
    current one, section looping, slow-down that keeps the pitch, a scrubbable
    position bar with ten-second skips, and a volume control tucked behind a button.
-   Opening it takes the screen sideways where the platform allows that — full
-   screen plus an orientation lock, requested inside the tap so the browser still
-   counts it as a gesture. iOS Safari grants neither, so the rotate prompt stays,
-   with the phone in it turning on a loop and a line about rotation lock, which is
-   the actual reason turning the phone does nothing.
+   Opening it takes the full screen where the platform allows that, requested
+   inside the tap so the browser still counts it as a gesture; iOS Safari has no
+   Fullscreen API outside `<video>` and refuses. The screen has a layout for
+   either way up. Sideways it is a chord panel beside a wide lane; upright the
+   two swap axes — the chord you are on becomes the hero and takes the height
+   going spare, and the lane becomes a strip under it, because a timeline wants
+   width and that is what an upright phone has none of. It used to lock the
+   orientation to landscape and show anyone it could not a screen asking them to
+   turn the phone over; that is gone, because overriding how someone is holding
+   their phone is a poor price for a lane that is merely wider.
    The right-hand patterns include fingerpicking as well as strumming. A picking
    pattern names the string and the finger for every pluck, and the thumb's string
    is worked out from the chord shape rather than printed once — the fifth string

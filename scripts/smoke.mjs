@@ -470,33 +470,107 @@ try {
       // them, which is not a disagreement about anything.
       return { under: under?.name ?? null, lit: blocks.find((b) => b.active)?.name ?? null };
     });
-  // Playback is already running from the checks above; only start it if it is not.
-  if (await page.getByRole('button', { name: 'Play' }).count()) {
-    await page.getByRole('button', { name: 'Play' }).click();
-    for (let i = 0; i < 30; i++) {
-      if ((await clock()) !== '0:00') break;
-      await page.waitForTimeout(300);
+  // The section above left the player; this one needs it running, because a
+  // playhead that is not on screen agrees with everything. Opening the screen
+  // rolls into the count-in by itself, so pressing play here would pause it.
+  await page.getByRole('button', { name: /Practise this/ }).click();
+  for (let i = 0; i < 40; i++) {
+    if ((await clock()) !== '0:00') break;
+    if (i === 20 && (await page.getByRole('button', { name: 'Play', exact: true }).count())) {
+      await page.getByRole('button', { name: 'Play', exact: true }).click();
     }
+    await page.waitForTimeout(300);
   }
+  checkThat('the song is playing under the line', (await clock()) !== '0:00', `clock at ${await clock()}`);
   const misaligned = [];
+  let compared = 0;
   for (const [w, h] of [[1280, 720], [1180, 720], [1280, 680], [1024, 720], [1280, 720]]) {
     await page.setViewportSize({ width: w, height: h });
     for (let k = 0; k < 3; k++) {
       const seen = await alignment();
-      if (seen && seen.under && seen.under !== seen.lit) misaligned.push(`${w}x${h}: ${seen.under} under, ${seen.lit} lit`);
+      if (seen && seen.under) {
+        compared++;
+        if (seen.under !== seen.lit) misaligned.push(`${w}x${h}: ${seen.under} under, ${seen.lit} lit`);
+      }
       await page.waitForTimeout(120);
     }
   }
   checkThat(
     'resizing mid-playback never leaves the line over one chord and the light on another',
-    misaligned.length === 0,
-    misaligned.length ? misaligned.join('; ') : 'aligned through every resize',
+    // Counted, because a line that is never over a block agrees with everything.
+    misaligned.length === 0 && compared >= 10,
+    misaligned.length ? misaligned.join('; ') : `aligned across ${compared} of 15 samples`,
   );
   if (await page.getByRole('button', { name: 'Pause' }).count()) {
     await page.getByRole('button', { name: 'Pause' }).click();
   }
 
+  console.log('\n2bc. the same player, held upright');
+  // Practice used to demand landscape and show a "turn your phone" screen to
+  // anyone who would not. Upright is a layout now, so the check is that it is
+  // the player and that all of it is on the screen: a transport hanging off
+  // the bottom of a phone is the same failure as no transport at all.
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.waitForTimeout(400);
+  const upright = await page.evaluate(() => {
+    const box = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height), bottom: Math.round(r.bottom) };
+    };
+    const stage = document.querySelector('.practice-stage');
+    return {
+      player: Boolean(document.querySelector('.practice.portrait')),
+      prompt: Boolean(document.querySelector('.rotate-hint')),
+      columns: stage ? getComputedStyle(stage).gridTemplateColumns.split(' ').length : 0,
+      diagram: box('.practice-now > svg'),
+      lane: box('.practice-lane'),
+      dock: box('.practice-dock'),
+      viewport: window.innerHeight,
+    };
+  });
+  checkThat(
+    'an upright phone gets the player, not a screen asking it to turn over',
+    upright.player && !upright.prompt && upright.columns === 1,
+    JSON.stringify({ player: upright.player, prompt: upright.prompt, columns: upright.columns }),
+  );
+  checkThat(
+    'the transport stays on the screen rather than hanging off the bottom',
+    upright.dock !== null && upright.dock.bottom <= upright.viewport,
+    `dock ends at ${upright.dock?.bottom} of ${upright.viewport}`,
+  );
+  // The diagram takes whatever height the lane and transport leave, so its two
+  // caps have to be written from one number — cap only the width and flex hands
+  // it a taller box than the drawing fills.
+  checkThat(
+    'the chord is drawn large and in proportion',
+    upright.diagram !== null &&
+      upright.diagram.w >= 150 &&
+      Math.abs(upright.diagram.h / upright.diagram.w - 1.18) < 0.03,
+    JSON.stringify(upright.diagram),
+  );
+  checkThat(
+    'and the lane is a strip under it, not the room the chord should have had',
+    upright.lane !== null && upright.lane.h <= 160 && upright.lane.h < upright.diagram.h,
+    `lane ${upright.lane?.h}px against a ${upright.diagram?.h}px diagram`,
+  );
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForTimeout(400);
+  checkThat(
+    'turning it back gives the sidebar and the wide lane again',
+    await page.evaluate(() => {
+      const stage = document.querySelector('.practice-stage');
+      return (
+        !document.querySelector('.practice.portrait') &&
+        stage !== null &&
+        getComputedStyle(stage).gridTemplateColumns.split(' ').length === 2
+      );
+    }),
+  );
+
   console.log('\n2c. fingerpicking tells you which string the thumb takes');
+  await page.getByRole('button', { name: /Exit/ }).click();
   await page.getByText('Chords you need').waitFor({ timeout: 90000 });
   await (await page.locator('select').all())[1].selectOption({ label: 'The eight-note pattern' });
   await page.waitForTimeout(250);

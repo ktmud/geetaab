@@ -6,7 +6,7 @@ import { TabSettings } from './TabSettings';
 import type { ArrangedSong, TabOptions } from './tabOptions';
 import { songTabText } from '../music/tabText';
 import { engraveSystems } from '../music/tabEngrave';
-import { enterLandscape } from './landscape';
+import { enterImmersive } from './immersive';
 import { TabStaff } from './TabStaff';
 import { shapeNoteText, useT, useLanguage, translateKeyName } from '../i18n';
 import { ChordCard } from './ChordDiagram';
@@ -333,7 +333,7 @@ export function TabView({
           onClick={() => {
             // Synchronously, before the screen swaps: full screen is only
             // granted while this gesture is still being handled.
-            void enterLandscape();
+            void enterImmersive();
             onPractice(tab);
           }}
         >

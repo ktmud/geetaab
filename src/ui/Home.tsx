@@ -273,9 +273,9 @@ export function Home({
               </div>
             </div>
             <div>
-              <h3>{t.practiceSideways}</h3>
+              <h3>{t.practiceAlong}</h3>
               <p>
-                {t.sidewaysDescription}
+                {t.practiceAlongDescription}
               </p>
             </div>
           </article>

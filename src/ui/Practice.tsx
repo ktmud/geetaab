@@ -11,7 +11,7 @@ import {
 import { Metronome, ClockTransport, MediaTransport, type Transport } from '../audio/player';
 import { resumeAudio } from '../audio/context';
 import { translateKeyName, useLanguage, useT } from '../i18n';
-import { enterLandscape, exitLandscape } from './landscape';
+import { enterImmersive, exitImmersive } from './immersive';
 import { pluckStringOf } from '../music/pick';
 import type { AnalysisResult } from '../core/analyze';
 import { eventIndexAt, type SongTab } from '../music/tab';
@@ -25,7 +25,6 @@ import {
   PauseIcon,
   PlayIcon,
   RewindIcon,
-  PhoneRotateIcon,
   SlidersIcon,
   CloseIcon,
   SkipBackTenIcon,
@@ -194,13 +193,13 @@ export function Practice({
     return () => observer.disconnect();
   }, []);
 
-  // The screen is taken sideways from inside the tap that opened it (see
-  // landscape.ts — full screen is only granted while the gesture is live). This
-  // is the second attempt, for the paths that arrive here without one, and the
-  // cleanup that hands the orientation back either way.
+  // The full screen is taken from inside the tap that opened this one (see
+  // immersive.ts — it is only granted while the gesture is live). This is the
+  // second attempt, for the paths that arrive here without one, and the cleanup
+  // that hands the screen back either way.
   useEffect(() => {
-    void enterLandscape();
-    return exitLandscape;
+    void enterImmersive();
+    return exitImmersive;
   }, []);
 
   useEffect(() => {
@@ -514,28 +513,8 @@ export function Practice({
     Math.min(tab.bars.length, Math.floor((beatIndex - barPhase) / tab.beatsPerBar) + 1),
   );
 
-  if (portrait) {
-    return (
-      <div className="rotate-hint">
-        <div>
-          <PhoneRotateIcon size={68} />
-          <h2>{t.turnPhoneSideways}</h2>
-          <p style={{ maxWidth: 320, margin: '0 auto 6px' }}>
-            {t.sidewaysNeeded}
-          </p>
-          {/* Reaching this screen at all usually means the phone refused to
-              turn, and by far the commonest reason is rotation lock. */}
-          <p className="rotate-lock-hint">{t.sidewaysLockHint}</p>
-          <button className="btn" onClick={onExit}>
-            {t.backToTab}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="practice">
+    <div className={`practice${portrait ? ' portrait' : ''}`}>
       <div className="practice-hud">
         <button className="btn btn-ghost" onClick={onExit} style={{ padding: '4px 8px' }}>
           <BackIcon size={17} /> {t.exit}
