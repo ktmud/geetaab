@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ANALYSIS_VERSION, type AnalysisResult } from './core/analyze';
+import { ANALYSIS_VERSION, analysisIsStale, type AnalysisResult } from './core/analyze';
 import { decodeAudioFile } from './audio/decode';
 import type { TakeGap } from './audio/takeTimeline';
 import { DEMO_PROGRESSION, renderProgression } from './audio/synth';
@@ -265,7 +265,7 @@ export function App() {
       // An accuracy fix should reach songs a player already has. When the
       // stored tab predates the current pipeline and the audio was kept, work
       // it out again; without the audio the old tab is all there is.
-      if (song.analysisVersion !== ANALYSIS_VERSION && song.audio) {
+      if (analysisIsStale(song.analysisVersion) && song.audio) {
         try {
           const decoded = await decodeAudioFile(
             new File([song.audio], `${song.title}`, { type: song.audio.type || 'audio/wav' }),
@@ -412,7 +412,7 @@ export function App() {
             style={{ background: 'none', border: 'none', padding: 0 }}
           >
             <GuitarMark size={screen.name === 'home' ? 46 : 30} className="brand-mark" />
-            <span className="brand-text">geetaab</span>
+            <span className="brand-text">Geetaab</span>
           </button>
           <span className="spacer" />
           {screen.name !== 'practice' && screen.name !== 'chords' ? (

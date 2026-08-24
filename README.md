@@ -1,4 +1,4 @@
-# geetaab
+# Geetaab
 
 Play a song near your microphone and get a guitar tab a beginner can actually play,
 then practise it karaoke-style, either way up you hold the phone.
@@ -329,6 +329,16 @@ src/ui/       screens and components
 src/store/    IndexedDB song library
 golden/       reference outputs of every analysis stage, for ports to check against
 ```
+
+The engine carries a `major.minor.patch` version of its own, separate from the
+app's. **Major** means the result's shape changed, so a stored analysis cannot
+be read as it stands and a port has to move in the same commit. **Minor** means
+the numbers changed: stored songs are worked out again from their audio the
+next time they are opened, so an accuracy fix reaches tabs a player already
+has, and `golden/golden.json` is regenerated. **Patch** means nothing
+observable changed — no recompute, no fixture. It is the minor that costs a
+player a minute of their phone, which is the whole reason the three parts are
+worth telling apart.
 
 The chord shape database is verified by tests rather than by eye: every shape must
 sound the chord it claims, keep the root in the bass, and stay inside four fingers

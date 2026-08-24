@@ -28,21 +28,44 @@ import { medianOf, resample } from './dsp';
 import { estimateKey, type KeyEstimate } from './key';
 
 /**
- * Bumped whenever a change to this pipeline would give a stored song a
- * different tab. A song saved under an older number is re-analysed from its
- * audio the next time it is opened, so an accuracy fix reaches songs a player
- * already has rather than only new ones.
+ * The engine's version, and the reason a stored song is ever worked out again.
  *
- * History:
- *   1  the pipeline as first shipped
- *   2  graded N.C., free-time detection, parabolic tempo, three tab levels
- *   3  consolidateSegments: a song's own vocabulary settles drifting bars
- *   4  a hold pass on the easy level, for songs that change twice a bar
- *   5  tempo prior narrowed (width 0.9 → 0.6), calibrated on GuitarSet
- *   6  key referees profile correlation with chord-track evidence (I vs V),
- *      and segments carry the sounding bass note for slash chords
+ * A single counter said only "different", which meant every change that
+ * touched this file had to be treated as one that invalidates every tab a
+ * player has saved — a renamed local as expensive as a new key estimator. The
+ * three parts say what kind of different:
+ *
+ *   major  the result's shape changed. A stored analysis cannot be read as it
+ *          stands, and the Swift port has to move with it or the two builds
+ *          are no longer describing the same thing.
+ *   minor  the numbers changed — an accuracy fix. A stored analysis still
+ *          parses, but it is the old answer, so it is worked out again from
+ *          the audio the next time the song is opened. This is the part that
+ *          carries a fix to songs a player already has rather than only to new
+ *          ones, and the part `golden/golden.json` is regenerated for.
+ *   patch  nothing observable changed: a refactor, a comment, a speed-up.
+ *          Nothing is recomputed, and no fixture moves.
+ *
+ * Reset to 1.0.0 for the first release. The counter it replaces ran 1..6 and
+ * is not comparable to it, so every song stored under one of those numbers is
+ * treated as stale — which is what it is.
  */
-export const ANALYSIS_VERSION = 6;
+export const ANALYSIS_VERSION = '1.0.0';
+
+/**
+ * Whether a stored analysis should be worked out again from its audio.
+ *
+ * Patch releases are excluded by definition: they produce the same answer, so
+ * recomputing would spend a minute of someone's phone to arrive back where it
+ * started. Anything this cannot parse — a missing version, or one of the bare
+ * integers written before 1.0.0 — is stale, because there is no way to tell
+ * that it is not.
+ */
+export function analysisIsStale(stored: string | number | undefined): boolean {
+  if (typeof stored !== 'string') return true;
+  const line = (version: string): string => version.split('.').slice(0, 2).join('.');
+  return line(stored) !== line(ANALYSIS_VERSION);
+}
 
 export interface AnalysisResult {
   duration: number;

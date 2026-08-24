@@ -478,6 +478,61 @@ try {
   await page.getByRole('button', { name: 'try the demo' }).click();
   await page.getByText('Chords you need').waitFor({ timeout: 90000 });
 
+  console.log('\n1d. a recording with no music in it does not hand you a tab');
+  // Room tone through the whole pipeline: the templates still match something,
+  // and the result is a tab made of nothing. Printing it under a notice saying
+  // no chords came through is worse than not printing it — chord boxes are
+  // more convincing than a paragraph.
+  await page.goto(ORIGIN, { waitUntil: 'networkidle' });
+  const noise = await readFile(roomTone);
+  await page.evaluate(async (bytes) => {
+    const file = new File([new Uint8Array(bytes)], 'just-noise.wav', { type: 'audio/wav' });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }));
+    window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
+  }, [...noise]);
+  await page.locator('.notice-bad, .palette').first().waitFor({ timeout: 90000 });
+  await page.waitForTimeout(400);
+  const verdict = () =>
+    page.evaluate(() => ({
+      said: Boolean(document.querySelector('.notice-bad')),
+      wayIn: document.querySelector('.notice-action')?.textContent?.trim() ?? null,
+      chords: Boolean(document.querySelector('.palette')),
+      tablature: Boolean(document.querySelector('.tablature')),
+      practise: Boolean(document.querySelector('.sticky-cta')),
+      // The page must not keep a dock's worth of room for a button it is not
+      // showing.
+      reserved: document.querySelector('.shell')?.classList.contains('has-dock') ?? null,
+      // The title stays: it is the one thing on this screen that is the
+      // reader's rather than the analyser's.
+      title: document.querySelector('.tab-title-input')?.value ?? null,
+    }));
+  const shut = await verdict();
+  checkThat(
+    'it says so and stops there, rather than printing a tab made of noise',
+    shut.said && shut.wayIn && !shut.chords && !shut.tablature && !shut.practise && !shut.reserved,
+    JSON.stringify(shut),
+  );
+  checkThat('and keeps the title, which is the reader\'s own', shut.title === 'just-noise', shut.title);
+  await page.locator('.notice-action').click();
+  await page.waitForTimeout(400);
+  const opened = await verdict();
+  checkThat(
+    'asking for it anyway gives the whole screen, with the verdict still on it',
+    opened.said && !opened.wayIn && opened.chords && opened.practise && opened.reserved,
+    JSON.stringify(opened),
+  );
+
+  // Section 2 continues from the demo tab, so put that exact state back.
+  await page.getByRole('button', { name: 'Home' }).click();
+  await page.getByRole('button', { name: 'try the demo' }).click();
+  await page.getByText('Chords you need').waitFor({ timeout: 90000 });
+  checkThat(
+    'and a real song is untouched by any of it',
+    await page.evaluate(() => !document.querySelector('.notice-bad') && Boolean(document.querySelector('.palette'))),
+  );
+
   console.log('\n2. practice transport');
   await page.getByRole('button', { name: /Practise this/ }).click();
   await page.waitForTimeout(400);

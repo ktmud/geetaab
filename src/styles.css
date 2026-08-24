@@ -889,6 +889,19 @@ input[type='range'] {
   border: 1px solid transparent;
 }
 
+/* A notice that carries a way out of itself: the verdict, then the button. */
+.notice-text {
+  margin: 0;
+}
+
+.notice-action {
+  margin-top: 10px;
+  /* Deliberately quiet. Nothing behind this button is worth practising — the
+     notice above it just said so — and a primary button would argue with it. */
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
 .notice-warn {
   background: var(--warn-bg);
   border-color: var(--warn-border);

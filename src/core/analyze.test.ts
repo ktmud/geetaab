@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeAudio, ANALYSIS_VERSION } from './analyze';
+import { analyzeAudio, analysisIsStale, ANALYSIS_VERSION } from './analyze';
 import { chordName, isNoChord } from './chordTypes';
 import { DEMO_PROGRESSION, renderProgression, renderShapeStrum, type SynthChord } from '../audio/synth';
 
@@ -209,9 +209,27 @@ describe('analyzeAudio', () => {
 });
 
 describe('ANALYSIS_VERSION', () => {
-  it('is a positive integer, so a stored tab can be told stale from current', () => {
-    expect(Number.isInteger(ANALYSIS_VERSION)).toBe(true);
-    expect(ANALYSIS_VERSION).toBeGreaterThan(0);
+  it('is three numbers, so a change can say what kind of change it is', () => {
+    expect(ANALYSIS_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('leaves a stored tab alone when only the patch differs', () => {
+    const [major, minor, patch] = ANALYSIS_VERSION.split('.').map(Number);
+    expect(analysisIsStale(`${major}.${minor}.${patch}`)).toBe(false);
+    expect(analysisIsStale(`${major}.${minor}.${patch + 7}`)).toBe(false);
+  });
+
+  it('works a stored tab out again when the numbers behind it moved', () => {
+    const [major, minor] = ANALYSIS_VERSION.split('.').map(Number);
+    expect(analysisIsStale(`${major}.${minor + 1}.0`)).toBe(true);
+    expect(analysisIsStale(`${major + 1}.0.0`)).toBe(true);
+  });
+
+  it('treats anything it cannot read as stale, the old counter included', () => {
+    // 1..6 were the whole version, not a major: a 6 is not "newer" than 1.0.0.
+    expect(analysisIsStale(6)).toBe(true);
+    expect(analysisIsStale(undefined)).toBe(true);
+    expect(analysisIsStale('')).toBe(true);
   });
 });
 

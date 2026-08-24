@@ -6,9 +6,10 @@ export interface StoredSong {
   title: string;
   createdAt: number;
   analysis: AnalysisResult;
-  /** ANALYSIS_VERSION at the time the tab was worked out. Absent on songs
-      saved before versioning, which are treated as stale. */
-  analysisVersion?: number;
+  /** ANALYSIS_VERSION at the time the tab was worked out. A number on songs
+      saved under the old counter, absent on ones from before versioning at
+      all; `analysisIsStale` treats both as stale. */
+  analysisVersion?: string | number;
   capo?: number;
   strumId?: string;
   simplify?: boolean;

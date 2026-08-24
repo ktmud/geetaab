@@ -70,6 +70,15 @@ export function TabView({
    * opposite failure — audible harmony too smeared to name — where real
    * songs bottom out at 0.220 and noise sits at 0.075.
    */
+  /**
+   * A tab worked out from a recording with no harmony in it is not a tab: it
+   * is what the templates matched against noise. Showing it under the notice
+   * saying so gave the reader the shapes to practise anyway — and chord boxes
+   * are more convincing than a paragraph. So the page stops at the verdict,
+   * and opening it is a deliberate act.
+   */
+  const [openedAnyway, setOpenedAnyway] = useState(false);
+
   const heardNothing = useMemo(() => {
     let played = 0;
     let quiet = 0;
@@ -81,6 +90,10 @@ export function TabView({
     if (played <= 0) return true;
     return quiet / played >= 0.5 || tab.confidence < 0.15;
   }, [analysis.segments, tab.confidence]);
+
+  // A different song is a different verdict; opening one tab must not open the
+  // next one's for it.
+  useEffect(() => setOpenedAnyway(false), [analysis]);
 
   const systems = useMemo(() => {
     const bars =
@@ -132,9 +145,15 @@ export function TabView({
     }
   };
 
+  // Everything the verdict is about, the Practise button included, is held back
+  // until the reader asks for it.
+  const bodyShown = !heardNothing || openedAnyway;
+
   return (
-    // has-dock: this screen keeps a Practise button over the bottom of the page.
-    <div className="shell has-dock">
+    // has-dock: this screen keeps a Practise button over the bottom of the
+    // page — but only while there is one, or the page reserves room for a
+    // button that is not coming.
+    <div className={`shell${bodyShown ? ' has-dock' : ''}`}>
       <div className="btn-row" style={{ marginBottom: 14 }}>
         <button className="btn btn-ghost" onClick={onBack}>
           <BackIcon size={17} /> {t.back}
@@ -190,166 +209,177 @@ export function TabView({
       </div>
 
       {heardNothing ? (
-        <div className="notice notice-bad">{t.heardNoChords}</div>
+        <div className="notice notice-bad">
+          <p className="notice-text">{t.heardNoChords}</p>
+          {openedAnyway ? null : (
+            <button className="btn notice-action" onClick={() => setOpenedAnyway(true)}>
+              {t.showTabAnyway}
+            </button>
+          )}
+        </div>
       ) : lowConfidence ? (
         <div className="notice notice-warn">{t.lowConfidence}</div>
       ) : null}
 
-      {analysis.freeTime ? (
-        <div className="notice notice-info">
-          {t.freeTime}
-        </div>
-      ) : null}
-
-      {tab.loop ? (
-        <div className="card">
-          <div className="eyebrow">{t.theWholeSong}</div>
-          <div className="loop-summary">
-            {tab.loop.bars.map((bar, index) => (
-              <span key={index} style={{ display: 'contents' }}>
-                {index > 0 ? <span className="loop-arrow">→</span> : null}
-                <span className="loop-chord">{bar || 'N.C.'}</span>
-              </span>
-            ))}
-          </div>
-          <p className="faint" style={{ marginTop: 10, marginBottom: 0, fontSize: 13 }}>
-            {t.wholeLoop(tab.loop.length, tab.loop.coverage)}
-          </p>
-        </div>
-      ) : null}
-
-      <div className="card">
-        <h2>{t.chordsYouNeed}</h2>
-        <div className="palette">
-          {tab.palette.map((chord, index) => (
-            <ChordCard
-              key={`${chord.shapeChord.root}-${chord.shapeChord.quality}-${index}`}
-              shape={chord.shape}
-              name={chord.shapeLabel}
-              sub={
-                chord.substitutedFrom
-                  ? t.subbedFor(chord.label)
-                  : tab.capo > 0
-                    ? t.soundsAs(chord.label)
-                    : (shapeNoteText(chord.shape.note, t) ?? undefined)
-              }
-            />
-          ))}
-        </div>
-        {hardChords.length > 0 ? (
-          <div className="notice notice-info" style={{ marginTop: 14 }}>
-            {t.stillNeeds(hardChords.map((c) => c.shapeLabel).join(', '), hardChords.length)}
+      {bodyShown ? (
+        <>
+        {analysis.freeTime ? (
+          <div className="notice notice-info">
+            {t.freeTime}
           </div>
         ) : null}
-      </div>
 
-      <div className="card" ref={settingsAnchor.ref}>
-        <h2>{t.makeItFitHands}</h2>
-        <TabSettings
-          analysis={analysis}
-          song={song}
-          options={options}
-          onOptionsChange={(next) => {
-            settingsAnchor.hold();
-            onOptionsChange(next);
-          }}
-          onRetempo={onRetempo}
-          busy={busy}
-        />
-      </div>
-
-      <div className="card">
-        <h2>{strumName(tab.strum.id)}</h2>
-        <p style={{ fontSize: 14 }}>{t.strumDescriptions[tab.strum.id] ?? ''}</p>
-        <StrumRow tab={tab} />
-      </div>
-
-      <div className="card">
-        <h2>{t.chordChart}</h2>
-        <div className="bars">
-          {tab.bars.map((bar) => (
-            <div
-              key={bar.index}
-              className={`bar${tab.loop && bar.index % tab.loop.length === 0 ? ' section-start' : ''}`}
-            >
-              <div className="bar-head">
-                <span>{bar.index + 1}</span>
-                {bar.beats !== tab.beatsPerBar ? <span>{t.barBeats(bar.beats)}</span> : null}
-              </div>
-              <div className="bar-slots">
-                {bar.slots.map((slot, index) => (
-                  <div
-                    key={index}
-                    className={`bar-slot${slot.event.chord ? '' : ' nc'}`}
-                    style={{ flexGrow: Math.max(1, slot.beats) }}
-                  >
-                    <span className="bar-slot-name">{slot.event.chord?.label ?? 'N.C.'}</span>
-                    {slot.event.numeral ? (
-                      <span className="bar-slot-numeral">{slot.event.numeral}</span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
+        {tab.loop ? (
+          <div className="card">
+            <div className="eyebrow">{t.theWholeSong}</div>
+            <div className="loop-summary">
+              {tab.loop.bars.map((bar, index) => (
+                <span key={index} style={{ display: 'contents' }}>
+                  {index > 0 ? <span className="loop-arrow">→</span> : null}
+                  <span className="loop-chord">{bar || 'N.C.'}</span>
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+            <p className="faint" style={{ marginTop: 10, marginBottom: 0, fontSize: 13 }}>
+              {t.wholeLoop(tab.loop.length, tab.loop.coverage)}
+            </p>
+          </div>
+        ) : null}
 
-      {tab.bars.length > 0 ? (
         <div className="card">
-          <div className="tab-card-head">
-            <h2>{t.tablature}</h2>
-            {tab.loop ? (
-              <div className="segmented">
-                <button aria-pressed={tabScope === 'song'} onClick={() => setTabScope('song')}>
-                  {t.wholeSong}
-                </button>
-                <button aria-pressed={tabScope === 'loop'} onClick={() => setTabScope('loop')}>
-                  {t.justLoop}
-                </button>
-              </div>
-            ) : null}
+          <h2>{t.chordsYouNeed}</h2>
+          <div className="palette">
+            {tab.palette.map((chord, index) => (
+              <ChordCard
+                key={`${chord.shapeChord.root}-${chord.shapeChord.quality}-${index}`}
+                shape={chord.shape}
+                name={chord.shapeLabel}
+                sub={
+                  chord.substitutedFrom
+                    ? t.subbedFor(chord.label)
+                    : tab.capo > 0
+                      ? t.soundsAs(chord.label)
+                      : (shapeNoteText(chord.shape.note, t) ?? undefined)
+                }
+              />
+            ))}
           </div>
-          <div className="tablature">
-            {systems.map((system) => {
-              const label =
-                system.bars.length > 1
-                  ? t.systemBars(system.startBar + 1, system.startBar + system.bars.length)
-                  : t.systemBar(system.startBar + 1);
-              return (
-                <div className="tab-sys" key={system.startBar}>
-                  <LazyTabStaff system={system} label={label} />
+          {hardChords.length > 0 ? (
+            <div className="notice notice-info" style={{ marginTop: 14 }}>
+              {t.stillNeeds(hardChords.map((c) => c.shapeLabel).join(', '), hardChords.length)}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="card" ref={settingsAnchor.ref}>
+          <h2>{t.makeItFitHands}</h2>
+          <TabSettings
+            analysis={analysis}
+            song={song}
+            options={options}
+            onOptionsChange={(next) => {
+              settingsAnchor.hold();
+              onOptionsChange(next);
+            }}
+            onRetempo={onRetempo}
+            busy={busy}
+          />
+        </div>
+
+        <div className="card">
+          <h2>{strumName(tab.strum.id)}</h2>
+          <p style={{ fontSize: 14 }}>{t.strumDescriptions[tab.strum.id] ?? ''}</p>
+          <StrumRow tab={tab} />
+        </div>
+
+        <div className="card">
+          <h2>{t.chordChart}</h2>
+          <div className="bars">
+            {tab.bars.map((bar) => (
+              <div
+                key={bar.index}
+                className={`bar${tab.loop && bar.index % tab.loop.length === 0 ? ' section-start' : ''}`}
+              >
+                <div className="bar-head">
+                  <span>{bar.index + 1}</span>
+                  {bar.beats !== tab.beatsPerBar ? <span>{t.barBeats(bar.beats)}</span> : null}
                 </div>
-              );
-            })}
-          </div>
-          <div className="btn-row" style={{ marginTop: 12 }}>
-            <button className="btn tab-actions-print" onClick={print}>
-              <PrintIcon size={16} /> {t.printTab}
-            </button>
-            <button className="btn" onClick={copyText}>
-              {copied ? t.copied : t.copyTab}
-            </button>
+                <div className="bar-slots">
+                  {bar.slots.map((slot, index) => (
+                    <div
+                      key={index}
+                      className={`bar-slot${slot.event.chord ? '' : ' nc'}`}
+                      style={{ flexGrow: Math.max(1, slot.beats) }}
+                    >
+                      <span className="bar-slot-name">{slot.event.chord?.label ?? 'N.C.'}</span>
+                      {slot.event.numeral ? (
+                        <span className="bar-slot-numeral">{slot.event.numeral}</span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+
+        {tab.bars.length > 0 ? (
+          <div className="card">
+            <div className="tab-card-head">
+              <h2>{t.tablature}</h2>
+              {tab.loop ? (
+                <div className="segmented">
+                  <button aria-pressed={tabScope === 'song'} onClick={() => setTabScope('song')}>
+                    {t.wholeSong}
+                  </button>
+                  <button aria-pressed={tabScope === 'loop'} onClick={() => setTabScope('loop')}>
+                    {t.justLoop}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="tablature">
+              {systems.map((system) => {
+                const label =
+                  system.bars.length > 1
+                    ? t.systemBars(system.startBar + 1, system.startBar + system.bars.length)
+                    : t.systemBar(system.startBar + 1);
+                return (
+                  <div className="tab-sys" key={system.startBar}>
+                    <LazyTabStaff system={system} label={label} />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="btn-row" style={{ marginTop: 12 }}>
+              <button className="btn tab-actions-print" onClick={print}>
+                <PrintIcon size={16} /> {t.printTab}
+              </button>
+              <button className="btn" onClick={copyText}>
+                {copied ? t.copied : t.copyTab}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Built only when something is about to print it; see printing.ts. */}
+        {printing ? <PrintSheet tab={tab} title={title} /> : null}
+
+        <div className={`sticky-cta${tucked ? ' tucked' : ''}`}>
+          <button
+            className="btn btn-primary btn-lg"
+            onClick={() => {
+              // Synchronously, before the screen swaps: full screen is only
+              // granted while this gesture is still being handled.
+              void enterImmersive();
+              onPractice(tab);
+            }}
+          >
+            <PlayIcon size={18} /> {t.practiseThis}
+          </button>
+        </div>
+        </>
       ) : null}
-
-      {/* Built only when something is about to print it; see printing.ts. */}
-      {printing ? <PrintSheet tab={tab} title={title} /> : null}
-
-      <div className={`sticky-cta${tucked ? ' tucked' : ''}`}>
-        <button
-          className="btn btn-primary btn-lg"
-          onClick={() => {
-            // Synchronously, before the screen swaps: full screen is only
-            // granted while this gesture is still being handled.
-            void enterImmersive();
-            onPractice(tab);
-          }}
-        >
-          <PlayIcon size={18} /> {t.practiseThis}
-        </button>
-      </div>
     </div>
   );
 }
