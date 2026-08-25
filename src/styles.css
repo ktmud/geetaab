@@ -1896,10 +1896,17 @@ input[type='range'] {
 .strum-strip-steps {
   display: flex;
   gap: 3px;
+  /* The row takes the space it is given and shares it out by duration, so a
+     stroke that rings for a quarter is twice the stroke that rings for an
+     eighth, and a pattern of one strum a bar is a single long cell. */
+  flex: 1;
+  min-width: 0;
+  max-width: 260px;
 }
 
 .strum-cell {
-  width: 24px;
+  flex-basis: 0;
+  min-width: 24px;
   height: 24px;
   border-radius: 6px;
   background: var(--surface-2);
@@ -1916,11 +1923,26 @@ input[type='range'] {
   color: var(--accent);
 }
 
-.strum-cell.gap {
-  background: transparent;
-  border: 1px dashed var(--line-soft);
-  color: var(--text-faint);
+.strum-cell.held {
+  /* As wide as the stroke is long. The arrow keeps its place at the strike;
+     the dots after it are the eighths the chord rings on through. */
+  justify-content: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px;
+}
+
+.strum-cell-ring {
+  font-style: normal;
   font-weight: 400;
+  letter-spacing: 3px;
+  color: var(--text-faint);
+}
+
+.strum-cell.now .strum-cell-ring {
+  color: var(--on-accent);
+  opacity: 0.65;
 }
 
 .strum-cell.now {

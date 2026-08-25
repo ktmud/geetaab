@@ -509,13 +509,28 @@ export function Practice({
   const shown = scrub ?? Math.min(position, duration);
   const fillPercent = duration > 0 ? Math.min(100, (shown / duration) * 100) : 0;
 
+  /**
+   * The pattern as strokes that last, rather than as a row of equal boxes.
+   *
+   * A strum pattern is written on a grid of eighths, but the eighths a
+   * pattern does not strike are not rests: the chord goes on ringing through
+   * them, and the hand goes on moving through them without touching the
+   * strings. So a stroke's duration runs to the next stroke — in D · D U · U
+   * D U that is a quarter, an eighth, a quarter, then three eighths — and a
+   * strip of identical cells says the opposite, that every stroke is worth
+   * the same. Each stroke here is one cell as wide as it is long, carrying a
+   * faint mark for each eighth it rings through: the hand still passing the
+   * strings, no strike.
+   */
   const strumSlots = useMemo(() => {
-    const slots: { label: string; step?: (typeof tab.strum.steps)[number] }[] = [];
-    for (let beat = 0; beat < tab.beatsPerBar; beat += 0.5) {
-      const step = tab.strum.steps.find((s) => Math.abs(s.beat - beat) < 1e-6);
-      slots.push({ label: beat % 1 === 0 ? String(beat + 1) : '&', step });
-    }
-    return slots;
+    const perBar = tab.beatsPerBar * 2;
+    const struck = [...tab.strum.steps].sort((a, b) => a.beat - b.beat);
+    return struck.map((step, i) => {
+      const startEighth = Math.round(step.beat * 2);
+      // To the next stroke, or round the bar line to the first one again.
+      const nextEighth = i + 1 < struck.length ? Math.round(struck[i + 1].beat * 2) : perBar + Math.round(struck[0].beat * 2);
+      return { step, startEighth, eighths: Math.max(1, nextEighth - startEighth) };
+    });
   }, [tab]);
   const picking = tab.strum.kind === 'pick';
   // Which strings the thumb takes depends on the chord being played, so the
@@ -697,26 +712,25 @@ export function Practice({
           {strumSlots.map((slot, index) => (
             <span
               key={index}
-              className={`strum-cell${slot.step ? (slot.step.accent ? ' accent' : '') : ' gap'}${
-                playing && index === eighth ? ' now' : ''
-              }${slot.step?.pluck ? ' pluck' : ''}`}
+              className={`strum-cell${slot.step.accent ? ' accent' : ''}${
+                playing && eighth >= slot.startEighth && eighth < slot.startEighth + slot.eighths
+                  ? ' now'
+                  : ''
+              }${slot.step.pluck ? ' pluck' : ''}${slot.eighths > 1 ? ' held' : ''}`}
+              style={{ flexGrow: slot.eighths }}
             >
-              {slot.step?.pluck && activeShape ? (
+              {slot.step.pluck && activeShape ? (
                 <>
                   {/* The string is the instruction; the finger reminds you
                       which hand shape it belongs to. */}
                   <b>{pluckStringOf(slot.step.pluck, activeShape)}</b>
                   <i>{slot.step.pluck.finger}</i>
                 </>
-              ) : slot.step ? (
-                slot.step.direction === 'D' ? (
-                  '↓'
-                ) : (
-                  '↑'
-                )
               ) : (
-                '·'
+                slot.step.direction === 'D' ? '↓' : '↑'
               )}
+              {/* The eighths it rings through: the hand passes, nothing is struck. */}
+              {slot.eighths > 1 ? <em className="strum-cell-ring">{'·'.repeat(slot.eighths - 1)}</em> : null}
             </span>
           ))}
         </div>

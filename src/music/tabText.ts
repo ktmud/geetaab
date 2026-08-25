@@ -27,7 +27,13 @@ export interface BarTab {
  * Six-line tablature for one bar under a strumming pattern.
  *
  * Every column is one strum, so the tab shows rhythm as well as pitch — which
- * is the part a chord chart alone leaves out and beginners most often get wrong.
+ * is the part a chord chart alone leaves out and beginners most often get
+ * wrong. Rhythm means spacing as well as order: a stroke lasts until the next
+ * one, so the eighths a pattern does not strike are not silence but the chord
+ * ringing on, and a column that rings for a quarter sits twice as far from
+ * its neighbour as one that rings for an eighth. Columns of equal width would
+ * say every stroke is worth the same, which of D · D U · U D U is not true of
+ * a single one.
  */
 export function barTab(bar: TabBar, strum: StrumPattern): BarTab {
   const steps = strum.steps.filter((s) => s.beat < bar.beats);
@@ -47,23 +53,33 @@ export function barTab(bar: TabBar, strum: StrumPattern): BarTab {
   const width = Math.max(1, ...columns.flatMap((c) => c.cells.map((cell) => cell.length)));
   const pad = (text: string): string => text.padStart(Math.floor((width - text.length) / 2) + text.length, '-').padEnd(width, '-');
 
+  // How long each stroke rings, in eighths, and therefore how much room the
+  // bar gives it: one eighth is a column and its two separators.
+  const gaps = columns.map((c, i) => {
+    const until = i + 1 < columns.length ? columns[i + 1].step.beat : bar.beats;
+    const eighths = Math.max(1, Math.round((until - c.step.beat) * 2));
+    return (i + 1 < columns.length ? 2 : 0) + (eighths - 1) * (width + 2);
+  });
+  const weave = (cells: string[], filler: string): string =>
+    cells.map((cell, i) => cell + filler.repeat(gaps[i])).join('');
+
   const rows = STRING_LABELS.map((label, displayIndex) => {
     const stringIndex = 5 - displayIndex; // rows run high E to low E
-    const body = columns.map((c) => pad(c.cells[stringIndex])).join('--');
-    return `${label}|-${body}-|`;
+    return `${label}|-${weave(columns.map((c) => pad(c.cells[stringIndex])), '-')}-|`;
   });
 
   const prefix = ' '.repeat(STRING_LABELS[0].length + 2);
-  const directions = prefix + columns.map((c) => center(c.step.direction, width)).join('  ') + ' ';
+  const directions = prefix + weave(columns.map((c) => center(c.step.direction, width)), ' ') + ' ';
   const names =
     prefix +
-    columns
-      .map((c, i) => {
+    weave(
+      columns.map((c, i) => {
         const previous = i > 0 ? columns[i - 1].chord : null;
         const changed = i === 0 || c.chord?.label !== previous?.label;
         return center(changed ? (c.chord?.label ?? 'N.C.') : '', width);
-      })
-      .join('  ') +
+      }),
+      ' ',
+    ) +
     ' ';
 
   return { rows, directions, names };
