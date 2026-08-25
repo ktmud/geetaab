@@ -741,58 +741,41 @@ export function renderShapePattern(
  * that is the fretting hand lifting — or G's open bass would ring on under
  * the D that follows it.
  *
- * The count-in bar earns its place twice. It is what a player does before
- * the first chord, and it is what makes the track transcribable: the strum
- * patterns worth demonstrating are syncopated, and a syncopated pattern with
- * no percussion gives a beat tracker no reason to prefer the beat over the
- * off-beat. Measured on this progression at 96 BPM, the classic pattern
- * without a count-in came back with its grid half a beat out — chord
- * boundaries 317 ms from where they were played, phase 0.48 — and with one
- * bar of muted chucks in front, 8 ms and phase 0.018. The chords were right
- * either way; where they fell was not.
+ * The silent lead-in is not only a breath before the first chord: it is what
+ * lets the track be transcribed at all. A syncopated strum pattern with no
+ * percussion gives a beat tracker no reason to prefer the beat over the
+ * off-beat, and it settles the question on whatever the first strum looks
+ * like — which, when the file opens mid-strum, is an attack the analysis
+ * window has already cut in half. Measured on this progression at 96 BPM,
+ * with the classic pattern, chord changes against where they were played:
+ * starting at zero, 317 ms out and the grid half a beat wrong; behind two
+ * tenths of a second of silence, 22 ms. The chords come back right either
+ * way; where they fall does not.
+ *
+ * That margin is not wide. The lock holds from roughly 0.05 s to 0.25 s of
+ * lead-in and slips again beyond it, so `leadIn` is a fitted constant rather
+ * than a taste, and demoTrack.test.ts pins the alignment it buys. A pattern
+ * that strums every eighth (`eighths`) holds phase at almost any lead-in,
+ * and is the safer demo if this ever becomes awkward to maintain.
  */
 export function renderDemoTrack(
   chords: SynthChord[],
   pattern: StrumPattern,
-  opts: { sampleRate?: number; bpm?: number; seed?: number; countInBars?: number } = {},
+  opts: { sampleRate?: number; bpm?: number; seed?: number; leadIn?: number } = {},
 ): Float32Array {
   const sampleRate = opts.sampleRate ?? 44100;
   const bpm = Math.max(30, Math.min(240, opts.bpm ?? 96));
   const rand = mulberry32(opts.seed ?? 20);
   const beat = 60 / bpm;
-  const countIn = Math.max(0, opts.countInBars ?? 1) * pattern.beatsPerBar;
-  const totalBeats = countIn + chords.reduce((n, c) => n + c.beats, 0);
-  const out = new Float32Array(Math.ceil((totalBeats * beat + 2.6) * sampleRate));
+  // A breath before the first chord, so the track does not begin mid-strum.
+  const leadIn = Math.max(0, opts.leadIn ?? 0.2);
+  const totalBeats = chords.reduce((n, c) => n + c.beats, 0);
+  const out = new Float32Array(Math.ceil((leadIn + totalBeats * beat + 2.6) * sampleRate));
 
   const events: PatternEvent[] = [];
   const damps: { at: number; string: number }[] = [];
   let prevSounding: number[] = [];
-  let beatCursor = countIn;
-
-  // The run-in: a bar of muted chucks on the first chord's shape, counting
-  // the tempo in. It is also what pins the beat tracker's phase — four
-  // unambiguous quarter notes before any syncopation starts.
-  if (countIn > 0 && chords.length > 0) {
-    const first = easiestShape({ root: chords[0].root, quality: chords[0].quality });
-    if (first) {
-      const sounding: { string: number; midi: number }[] = [];
-      first.frets.forEach((fret, string) => {
-        if (fret >= 0) sounding.push({ string, midi: STANDARD_TUNING[string] + fret });
-      });
-      for (let b = 0; b < countIn; b++) {
-        collectStepEvents(
-          events,
-          { beat: b % pattern.beatsPerBar, direction: 'D', mute: true, accent: b % pattern.beatsPerBar === 0 },
-          sounding,
-          first.frets,
-          Math.floor(b / pattern.beatsPerBar) * pattern.beatsPerBar * beat,
-          beat,
-          rand,
-        );
-      }
-      prevSounding = sounding.map((v) => v.string);
-    }
-  }
+  let beatCursor = 0;
 
   for (const chord of chords) {
     const shape = easiestShape({ root: chord.root, quality: chord.quality });
@@ -804,7 +787,7 @@ export function renderDemoTrack(
     shape.frets.forEach((fret, string) => {
       if (fret >= 0) sounding.push({ string, midi: STANDARD_TUNING[string] + fret });
     });
-    const changeAt = beatCursor * beat;
+    const changeAt = leadIn + beatCursor * beat;
     for (const s of prevSounding) {
       if (!sounding.some((v) => v.string === s)) damps.push({ at: changeAt, string: s });
     }
@@ -812,7 +795,7 @@ export function renderDemoTrack(
     for (let bar = 0; bar * pattern.beatsPerBar < chord.beats; bar++) {
       for (const step of pattern.steps) {
         if (bar * pattern.beatsPerBar + step.beat >= chord.beats) continue;
-        collectStepEvents(events, step, sounding, shape.frets, (beatCursor + bar * pattern.beatsPerBar) * beat, beat, rand);
+        collectStepEvents(events, step, sounding, shape.frets, leadIn + (beatCursor + bar * pattern.beatsPerBar) * beat, beat, rand);
       }
     }
     beatCursor += chord.beats;
