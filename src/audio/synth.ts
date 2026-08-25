@@ -264,7 +264,7 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
  * storyboard frames (natural top: D-28, sunburst: J-45), and the voice fitted
  * on the seven chords the video and the library both play: E G C D Am Em F.
  */
-const ACOUSTIC: PluckVoice = { cutoff: 12000, pluckPos: 0.12, seedCutoff: 925 };
+const ACOUSTIC: PluckVoice = { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 };
 
 /**
  * The fingers' contact, for picked notes: crisp at the start, warm after.
@@ -282,6 +282,18 @@ const ACOUSTIC: PluckVoice = { cutoff: 12000, pluckPos: 0.12, seedCutoff: 925 };
  * brightness comes from.
  */
 const NAIL: PluckVoice = { cutoff: 4000, pluckPos: 0.1, seedCutoff: 2000 };
+
+/** The thumb's flesh, for bass plucks: darker than a nail, darker than a
+    pick. Measured on the reference's thumb notes: 307 Hz at the attack and
+    barely moving after — the strum contact opened these notes half an
+    octave too bright. */
+const THUMB: PluckVoice = { cutoff: 4000, pluckPos: 0.12, seedCutoff: 500 };
+
+/** A picked note is not a strum: the recording's picking never falls more
+    than ~7 dB between notes, while a strum settles 11. The difference is how
+    much of the pluck lives in the fast decay stage, so plucked events put
+    half their amplitude there instead of the strums' 0.74. */
+const PLUCK_MIX = 0.45;
 
 /*
    Fitted at 44.1 kHz to time-resolved statistics of the recording's strums,
@@ -453,9 +465,12 @@ function addString(
   rand: () => number,
   voice: PluckVoice,
   holdSeconds?: number,
+  fastMix = RING.fastMix,
 ): void {
-  addPluck(out, at, midi, amp * RING.fastMix, sampleRate, RING.fast, rand, voice, holdSeconds);
-  addPluck(out, at, midi, amp * (1 - RING.fastMix), sampleRate, RING.slow, rand, voice, holdSeconds);
+  addPluck(out, at, midi, amp * fastMix, sampleRate, RING.fast, rand, voice, holdSeconds);
+  // The contact's colour dies with the fast stage; what rings on is the
+  // string itself, at the string's own corner, whatever touched it.
+  addPluck(out, at, midi, amp * (1 - fastMix), sampleRate, RING.slow, rand, { ...voice, cutoff: ACOUSTIC.cutoff }, holdSeconds);
 }
 
 export function renderShapeStrum(frets: number[], opts: { sampleRate?: number; seed?: number } = {}): Float32Array {
@@ -541,6 +556,8 @@ export function renderShapePattern(
     mute: boolean;
     /** Finger pluck rather than a sweep: use the nail's contact. */
     nail: boolean;
+    /** Thumb pluck: the flesh's contact. */
+    thumb?: boolean;
   }
   const events: Event[] = [];
   for (let bar = 0; bar < bars; bar++) {
@@ -562,6 +579,7 @@ export function renderShapePattern(
             amp: amp * 1.15,
             mute: false,
             nail: step.pluck.finger !== 'p',
+            thumb: step.pluck.finger === 'p',
           });
         }
         continue;
@@ -590,11 +608,12 @@ export function renderShapePattern(
     const ev = events[i];
     const next = events.find((later, j) => j > i && later.string === ev.string);
     const hold = next ? Math.max(0.05, next.at - ev.at) : undefined;
-    const base = ev.nail ? NAIL : ACOUSTIC;
+    const plucked = ev.nail || ev.thumb;
+    const base = ev.nail ? NAIL : ev.thumb ? THUMB : ACOUSTIC;
     const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
     const at = Math.max(0, Math.floor(ev.at * sampleRate));
     if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
-    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold);
+    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, plucked ? PLUCK_MIX : RING.fastMix);
   }
   const shaped = room(body(out, sampleRate), sampleRate);
   fadeTail(shaped, sampleRate, 0.4);
