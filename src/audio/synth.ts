@@ -281,7 +281,7 @@ const ACOUSTIC: PluckVoice = { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 };
  * tried too and measured soft and dark: the ideal string is not where pick
  * brightness comes from.
  */
-const NAIL: PluckVoice = { cutoff: 5000, pluckPos: 0.1, seedCutoff: 1800 };
+const NAIL: PluckVoice = { cutoff: 6500, pluckPos: 0.08, seedCutoff: 2500 };
 
 /** The thumb's flesh, for bass plucks: darker than a nail, darker than a
     pick. Measured on the reference's thumb notes: 307 Hz at the attack and
@@ -606,6 +606,7 @@ export function renderShapePattern(
             mute: false,
             nail,
             thumb: !nail,
+            tick: nail ? amp * 0.5 : 0,
           });
         }
         continue;
@@ -616,7 +617,10 @@ export function renderShapePattern(
       // with the pick digging hardest into the middle of the sweep.
       const order = step.direction === 'U' ? [...sounding].reverse() : sounding;
       const struck = step.direction === 'U' ? Math.min(4, order.length) : order.length;
-      const perString = step.direction === 'U' ? 0.01 : 0.019;
+      // A practiced strummer crosses the strings fast — the reference measures
+      // under 10 ms — and evenly. The chord-box tap keeps its slow expressive
+      // roll; at tempo that roll reads as hesitation.
+      const perString = step.direction === 'U' ? 0.004 : 0.007;
       order.forEach((voice, i) => {
         // An upstroke on a guitar catches the top strings and little else.
         const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
@@ -626,13 +630,13 @@ export function renderShapePattern(
         // last string with full weight.
         const weight = i === struck - 1 ? 1 : 0.8 + 0.26 * middle;
         events.push({
-          at: at + i * perString * (0.85 + 0.3 * rand()),
+          at: at + i * perString * (0.9 + 0.2 * rand()),
           string: voice.string,
           midi: voice.midi,
-          amp: amp * weight * (step.mute ? 0.7 : 1),
+          amp: amp * weight * (0.94 + 0.12 * rand()) * (step.mute ? 0.7 : 1),
           mute: step.mute ?? false,
           nail: false,
-          tick: i === 0 && !step.mute ? amp : 0,
+          tick: i === 0 && !step.mute ? amp * 0.9 : 0,
         });
       });
     }
@@ -644,13 +648,13 @@ export function renderShapePattern(
     // The pick or fingertip lands on the string a moment before it releases
     // the new note: the old vibration is gone by the strike, so the new
     // attack opens on a clean edge instead of over the tail it replaces.
-    const hold = next ? Math.max(0.05, next.at - ev.at - 0.038) : undefined;
+    const hold = next ? Math.max(0.05, next.at - ev.at - 0.016) : undefined;
     const base = ev.nail ? NAIL : ev.thumb ? THUMB : ACOUSTIC;
     const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
     const at = Math.max(0, Math.floor(ev.at * sampleRate));
     if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
     else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, ev.thumb ? THUMB_MIX : ev.nail ? NAIL_MIX : RING.fastMix);
-    if (ev.tick) addTick(out, at, sampleRate, ev.tick * 0.9, rand);
+    if (ev.tick) addTick(out, at, sampleRate, ev.tick, rand);
   }
   const shaped = room(body(out, sampleRate), sampleRate);
   fadeTail(shaped, sampleRate, 0.4);
