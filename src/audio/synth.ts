@@ -295,7 +295,7 @@ const THUMB: PluckVoice = { cutoff: 4000, pluckPos: 0.12, seedCutoff: 500 };
     recede into that bed rather than droning on top of it. Give both the
     fingers' sustain and the bed to every note and the pattern turns thick:
     "loud and dull" was the ear's name for exactly that. */
-const THUMB_MIX = 0.42;
+const THUMB_MIX = 0.26;
 const NAIL_MIX = 0.62;
 
 /*
@@ -431,6 +431,24 @@ function room(x: Float32Array, sampleRate: number): Float32Array {
   return out;
 }
 
+/** The pick's contact itself: a few milliseconds of bright noise under a
+    sweep's string, sized from the recording's first-12-ms high-band spike.
+    Sweeps only — measured, the plucked notes already spike harder than the
+    recording's. */
+function addTick(out: Float32Array, at: number, sampleRate: number, amp: number, rand: () => number): void {
+  const len = Math.min(out.length - at, Math.floor(0.012 * sampleRate));
+  const lpPole = Math.exp((-2 * Math.PI * 6500) / sampleRate);
+  const hpPole = Math.exp((-2 * Math.PI * 1500) / sampleRate);
+  let hi = 0;
+  let lo = 0;
+  for (let i = 0; i < len; i++) {
+    const white = rand() * 2 - 1;
+    hi = (1 - lpPole) * white + lpPole * hi;
+    lo = (1 - hpPole) * hi + hpPole * lo;
+    out[at + i] += amp * Math.exp(-i / (0.006 * sampleRate)) * (hi - lo);
+  }
+}
+
 /** The hand coming down on the strings, rather than a hard edit at the end. */
 function fadeTail(samples: Float32Array, sampleRate: number, seconds: number): void {
   const len = Math.min(samples.length, Math.floor(seconds * sampleRate));
@@ -561,6 +579,8 @@ export function renderShapePattern(
     nail: boolean;
     /** Thumb pluck: the flesh's contact. */
     thumb?: boolean;
+    /** The pick's contact burst, on the first string of a sweep. */
+    tick?: number;
   }
   const events: Event[] = [];
   for (let bar = 0; bar < bars; bar++) {
@@ -580,8 +600,9 @@ export function renderShapePattern(
             at,
             string: index,
             midi: voice.midi,
-            // The thumb leans in; the fingers answer well under it.
-            amp: amp * (nail ? 0.95 : 1.15),
+            // Levelled to the recording: thumb and fingers peak a few dB over
+            // the passage, the fingers a shade above the thumb.
+            amp: amp * (nail ? 1.05 : 0.63),
             mute: false,
             nail,
             thumb: !nail,
@@ -611,6 +632,7 @@ export function renderShapePattern(
           amp: amp * weight * (step.mute ? 0.7 : 1),
           mute: step.mute ?? false,
           nail: false,
+          tick: i === 0 && !step.mute ? amp : 0,
         });
       });
     }
@@ -619,12 +641,16 @@ export function renderShapePattern(
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
     const next = events.find((later, j) => j > i && later.string === ev.string);
-    const hold = next ? Math.max(0.05, next.at - ev.at) : undefined;
+    // The pick or fingertip lands on the string a moment before it releases
+    // the new note: the old vibration is gone by the strike, so the new
+    // attack opens on a clean edge instead of over the tail it replaces.
+    const hold = next ? Math.max(0.05, next.at - ev.at - 0.038) : undefined;
     const base = ev.nail ? NAIL : ev.thumb ? THUMB : ACOUSTIC;
     const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
     const at = Math.max(0, Math.floor(ev.at * sampleRate));
     if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
     else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, ev.thumb ? THUMB_MIX : ev.nail ? NAIL_MIX : RING.fastMix);
+    if (ev.tick) addTick(out, at, sampleRate, ev.tick * 0.9, rand);
   }
   const shaped = room(body(out, sampleRate), sampleRate);
   fadeTail(shaped, sampleRate, 0.4);

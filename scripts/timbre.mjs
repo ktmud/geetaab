@@ -118,12 +118,21 @@ function strumStats(feat, windows, thresh) {
     for (let k = -2; k <= 2; k++) vals.push(arr[Math.min(feat.frames - 1, Math.max(0, c + k))]);
     return median(vals);
   };
+  const ticks = [];
+  const hiIn = (f0, f1) => {
+    let s = 0;
+    for (let t = Math.max(0, f0); t < f1 && t < feat.frames; t++) s += feat.band[5][t] + feat.band[6][t];
+    return s / Math.max(1, f1 - f0);
+  };
   for (let i = 0; i < ons.length; i++) {
     const f = ons[i];
     const next = ons[i + 1] ?? feat.frames;
     const gap = (next - f) / fps;
     let peak = 0;
     for (let t = f; t < f + Math.round(0.07 * fps); t++) peak = Math.max(peak, feat.total[t]);
+    // Crispness: how far the top two octaves spike in the first ~12 ms over
+    // their level shortly after. Averages cannot see this; ears lead with it.
+    ticks.push(10 * Math.log10(hiIn(f, f + 2) / (hiIn(f + Math.round(0.06 * fps), f + Math.round(0.12 * fps)) + 1e-15) + 1e-15));
     // The quietest moment before the next strum, however close it is.
     if (gap >= 0.28 && gap <= 1.2) {
       let lo = Infinity;
@@ -155,6 +164,7 @@ function strumStats(feat, windows, thresh) {
     drop: median(drops),
     hiBody: median(hiBodies),
     floor: median(floors),
+    tick: median(ticks),
   };
 }
 
@@ -169,12 +179,19 @@ function pickStats(feat, windows, thresh) {
     for (let k = -2; k <= 2; k++) vals.push(arr[Math.min(feat.frames - 1, Math.max(0, c + k))]);
     return median(vals);
   };
+  const ticks = [];
+  const hiIn = (f0, f1) => {
+    let s = 0;
+    for (let t = Math.max(0, f0); t < f1 && t < feat.frames; t++) s += feat.band[5][t] + feat.band[6][t];
+    return s / Math.max(1, f1 - f0);
+  };
   for (let i = 0; i < ons.length; i++) {
     const f = ons[i];
     const next = ons[i + 1] ?? feat.frames;
     const gap = (next - f) / fps;
     let peak = 0;
     for (let t = f; t < f + Math.round(0.05 * fps); t++) peak = Math.max(peak, feat.total[t]);
+    ticks.push(10 * Math.log10(hiIn(f, f + 2) / (hiIn(f + Math.round(0.06 * fps), f + Math.round(0.12 * fps)) + 1e-15) + 1e-15));
     if (gap >= 0.22 && gap <= 1.2) {
       let lo = Infinity;
       for (let t = f + Math.round(0.1 * fps); t < next - Math.round(0.05 * fps); t++) {
@@ -211,7 +228,28 @@ function pickStats(feat, windows, thresh) {
   const fingers = cls(false);
   // How loud a finger note stands over a thumb note: the pattern's balance.
   const balance = thumb.peakDb != null && fingers.peakDb != null ? fingers.peakDb - thumb.peakDb : null;
-  return { events: ons.length, thumb, fingers, balance, floor: median(floors) };
+  // Each register's peak against the passage's own level: "the same level as
+  // the video" means these two rows, not any absolute number.
+  let sumP = 0;
+  let nP = 0;
+  const f0 = windows ? 0 : (ons[0] ?? 0);
+  const f1 = windows ? feat.frames : Math.min(feat.frames, (ons[ons.length - 1] ?? 0) + Math.round(0.3 * fps));
+  for (let f = f0; f < f1; f++) {
+    if (!inWindows(f / fps, windows)) continue;
+    sumP += feat.total[f];
+    nP++;
+  }
+  const passDb = 10 * Math.log10(sumP / Math.max(1, nP) + 1e-15);
+  return {
+    events: ons.length,
+    thumb,
+    fingers,
+    balance,
+    fLevel: fingers.peakDb != null ? fingers.peakDb - passDb : null,
+    tLevel: thumb.peakDb != null ? thumb.peakDb - passDb : null,
+    floor: median(floors),
+    tick: median(ticks),
+  };
 }
 
 // --- render the contexts the library actually plays --------------------------
@@ -322,10 +360,14 @@ reportBands('attack', pat.attack, targets.strum.attack);
 reportBands('sustain', pat.sustain, targets.strum.sustain);
 reportScalar('hiBody', pat.hiBody, targets.strum.hiBody);
 reportScalar('floor', pat.floor, targets.strum.floor);
+reportScalar('tick', pat.tick, targets.strum.tick);
 
 console.log('\npicking (53231323, 84 BPM, C and Am):');
 const pick = pickStats(fineFeatures(contexts.pick, SR), null, 0.4);
 reportRegister('thumb', pick.thumb, targets.pick.thumb);
 reportRegister('fingers', pick.fingers, targets.pick.fingers);
 reportScalar('balance', pick.balance, targets.pick.balance);
+reportScalar('fLevel', pick.fLevel, targets.pick.fLevel);
+reportScalar('tLevel', pick.tLevel, targets.pick.tLevel);
 reportScalar('floor', pick.floor, targets.pick.floor);
+reportScalar('tick', pick.tick, targets.pick.tick);
