@@ -264,7 +264,37 @@ export function renderProgression(chords: SynthChord[], opts: SynthOptions = {})
  * storyboard frames (natural top: D-28, sunburst: J-45), and the voice fitted
  * on the seven chords the video and the library both play: E G C D Am Em F.
  */
-const ACOUSTIC: PluckVoice = { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 };
+/**
+ * Every knob of the demo voice, in one place and exported: the fitting
+ * harness (scripts/timbre.mjs and its descent scripts) turns them while
+ * measuring against reference/timbre-targets.json. The app only reads.
+ */
+export const TUNING = {
+  /** The pick sweeping a chord. */
+  acoustic: { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 } as PluckVoice,
+  /** A fingernail on a picked treble string. */
+  nail: { cutoff: 5400, pluckPos: 0.1, seedCutoff: 900 } as PluckVoice,
+  /** The thumb's flesh on a picked bass string. */
+  thumb: { cutoff: 12000, pluckPos: 0.12, seedCutoff: 425 } as PluckVoice,
+  /** Amplitude share of the fast decay stage, per contact. */
+  nailMix: 0.68,
+  thumbMix: 0.28,
+  /** Contact-burst level, relative to the event's amplitude. */
+  nailTick: 0,
+  sweepTick: 0.5,
+  /** Pluck levels relative to the pattern step's level. */
+  fingerAmp: 0.88,
+  thumbAmp: 0.63,
+  /** Seconds per string a pattern sweep takes, by direction. */
+  sweepDown: 0.0092,
+  sweepUp: 0.0026,
+  /** Seconds before a re-strike that the old vibration is damped. */
+  preDamp: 0.016,
+  /** The room's send level. */
+  roomWet: 0.56,
+};
+
+const ACOUSTIC = TUNING.acoustic;
 
 /**
  * The fingers' contact, for picked notes: crisp at the start, warm after.
@@ -281,13 +311,13 @@ const ACOUSTIC: PluckVoice = { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 };
  * tried too and measured soft and dark: the ideal string is not where pick
  * brightness comes from.
  */
-const NAIL: PluckVoice = { cutoff: 5800, pluckPos: 0.1, seedCutoff: 2100 };
+const NAIL = TUNING.nail;
 
 /** The thumb's flesh, for bass plucks: darker than a nail, darker than a
     pick. Measured on the reference's thumb notes: 307 Hz at the attack and
     barely moving after — the strum contact opened these notes half an
     octave too bright. */
-const THUMB: PluckVoice = { cutoff: 4000, pluckPos: 0.12, seedCutoff: 500 };
+const THUMB = TUNING.thumb;
 
 /** How much of a pluck lives in the fast decay stage. A picked texture is
     two textures: the thumb lays a bed that hardly falls between notes — the
@@ -295,8 +325,7 @@ const THUMB: PluckVoice = { cutoff: 4000, pluckPos: 0.12, seedCutoff: 500 };
     recede into that bed rather than droning on top of it. Give both the
     fingers' sustain and the bed to every note and the pattern turns thick:
     "loud and dull" was the ear's name for exactly that. */
-const THUMB_MIX = 0.26;
-const NAIL_MIX = 0.62;
+
 
 /*
    Fitted at 44.1 kHz to time-resolved statistics of the recording's strums,
@@ -425,7 +454,7 @@ function room(x: Float32Array, sampleRate: number): Float32Array {
   const pole = Math.exp((-2 * Math.PI * 3800) / sampleRate);
   let lp = 0;
   for (let i = 0; i < out.length; i++) {
-    lp = (1 - pole) * (0.55 * wet[i]) + pole * lp;
+    lp = (1 - pole) * (TUNING.roomWet * wet[i]) + pole * lp;
     out[i] += lp;
   }
   return out;
@@ -602,11 +631,11 @@ export function renderShapePattern(
             midi: voice.midi,
             // Levelled to the recording: thumb and fingers peak a few dB over
             // the passage, the fingers a shade above the thumb.
-            amp: amp * (nail ? 1.05 : 0.63),
+            amp: amp * (nail ? TUNING.fingerAmp : TUNING.thumbAmp),
             mute: false,
             nail,
             thumb: !nail,
-            tick: nail ? amp * 0.22 : 0,
+            tick: nail ? amp * TUNING.nailTick : 0,
           });
         }
         continue;
@@ -620,7 +649,7 @@ export function renderShapePattern(
       // A practiced strummer crosses the strings fast — the reference measures
       // under 10 ms — and evenly. The chord-box tap keeps its slow expressive
       // roll; at tempo that roll reads as hesitation.
-      const perString = step.direction === 'U' ? 0.004 : 0.007;
+      const perString = step.direction === 'U' ? TUNING.sweepUp : TUNING.sweepDown;
       order.forEach((voice, i) => {
         // An upstroke on a guitar catches the top strings and little else.
         const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
@@ -636,7 +665,7 @@ export function renderShapePattern(
           amp: amp * weight * (0.94 + 0.12 * rand()) * (step.mute ? 0.7 : 1),
           mute: step.mute ?? false,
           nail: false,
-          tick: i === 0 && !step.mute ? amp * 0.9 : 0,
+          tick: i === 0 && !step.mute ? amp * TUNING.sweepTick : 0,
         });
       });
     }
@@ -648,12 +677,12 @@ export function renderShapePattern(
     // The pick or fingertip lands on the string a moment before it releases
     // the new note: the old vibration is gone by the strike, so the new
     // attack opens on a clean edge instead of over the tail it replaces.
-    const hold = next ? Math.max(0.05, next.at - ev.at - 0.016) : undefined;
+    const hold = next ? Math.max(0.05, next.at - ev.at - TUNING.preDamp) : undefined;
     const base = ev.nail ? NAIL : ev.thumb ? THUMB : ACOUSTIC;
     const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
     const at = Math.max(0, Math.floor(ev.at * sampleRate));
     if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
-    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, ev.thumb ? THUMB_MIX : ev.nail ? NAIL_MIX : RING.fastMix);
+    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, ev.thumb ? TUNING.thumbMix : ev.nail ? TUNING.nailMix : RING.fastMix);
     if (ev.tick) addTick(out, at, sampleRate, ev.tick, rand);
   }
   const shaped = room(body(out, sampleRate), sampleRate);
