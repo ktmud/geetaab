@@ -81,7 +81,7 @@ export function RewindIcon({ size = 24, className }: IconProps) {
   );
 }
 
-export function SkipBackTenIcon({ size = 24, className }: IconProps) {
+export function SkipBackIcon({ size = 24, className, seconds = 10 }: IconProps & { seconds?: number }) {
   return (
     <svg {...svgProps(size, className)}>
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -96,13 +96,13 @@ export function SkipBackTenIcon({ size = 24, className }: IconProps) {
         stroke="none"
         fontFamily="inherit"
       >
-        10
+        {seconds}
       </text>
     </svg>
   );
 }
 
-export function SkipForwardTenIcon({ size = 24, className }: IconProps) {
+export function SkipForwardIcon({ size = 24, className, seconds = 10 }: IconProps & { seconds?: number }) {
   return (
     <svg {...svgProps(size, className)}>
       <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
@@ -117,7 +117,7 @@ export function SkipForwardTenIcon({ size = 24, className }: IconProps) {
         stroke="none"
         fontFamily="inherit"
       >
-        10
+        {seconds}
       </text>
     </svg>
   );

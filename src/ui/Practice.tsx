@@ -27,8 +27,8 @@ import {
   RewindIcon,
   SlidersIcon,
   CloseIcon,
-  SkipBackTenIcon,
-  SkipForwardTenIcon,
+  SkipBackIcon,
+  SkipForwardIcon,
   SpeedIcon,
   VolumeIcon,
 } from './icons';
@@ -79,6 +79,12 @@ export interface PracticeProps {
 }
 
 const PLAYHEAD_FRACTION = 0.26;
+
+/** How far the skip buttons jump. Short enough to land on the bar you meant:
+    at 96 BPM ten seconds is four bars away, which is a search rather than a
+    nudge. The number reaches the buttons, their labels and their icons from
+    here, so they cannot drift apart. */
+const SKIP_SECONDS = 5;
 
 export function Practice({
   analysis,
@@ -779,8 +785,12 @@ export function Practice({
           <button className="transport-btn" onClick={restart} aria-label={t.backStart}>
             <RewindIcon size={19} />
           </button>
-          <button className="transport-btn" onClick={() => skipBy(-10)} aria-label={t.backTenSeconds}>
-            <SkipBackTenIcon size={20} />
+          <button
+            className="transport-btn"
+            onClick={() => skipBy(-SKIP_SECONDS)}
+            aria-label={t.backSeconds(SKIP_SECONDS)}
+          >
+            <SkipBackIcon size={20} seconds={SKIP_SECONDS} />
           </button>
           <button
             className="transport-btn primary"
@@ -791,10 +801,10 @@ export function Practice({
           </button>
           <button
             className="transport-btn"
-            onClick={() => skipBy(10)}
-            aria-label={t.forwardTenSeconds}
+            onClick={() => skipBy(SKIP_SECONDS)}
+            aria-label={t.forwardSeconds(SKIP_SECONDS)}
           >
-            <SkipForwardTenIcon size={20} />
+            <SkipForwardIcon size={20} seconds={SKIP_SECONDS} />
           </button>
           <button
             className="transport-btn"
