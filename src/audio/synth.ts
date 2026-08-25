@@ -285,6 +285,12 @@ export const TUNING = {
   /** Pluck levels relative to the pattern step's level. */
   fingerAmp: 0.88,
   thumbAmp: 0.63,
+  /** How hard an upstroke lands beside a downstroke. The hand is travelling
+      back up, it meets the strings from the treble side, and it does not
+      dig: an upstroke is the lighter half of the motion, and a pattern whose
+      ups and downs weigh the same reads as an undifferentiated stream of
+      strums rather than as the shape it is written in. */
+  upstroke: 0.68,
   /** Seconds per string a pattern sweep takes, by direction. */
   sweepDown: 0.0092,
   sweepUp: 0.0026,
@@ -647,7 +653,12 @@ function collectStepEvents(
       at: at + i * perString * (0.9 + 0.2 * rand()),
       string: voice.string,
       midi: voice.midi,
-      amp: amp * weight * (0.94 + 0.12 * rand()) * (step.mute ? 0.7 : 1),
+      amp:
+        amp *
+        weight *
+        (0.94 + 0.12 * rand()) *
+        (step.mute ? 0.7 : 1) *
+        (step.direction === 'U' ? TUNING.upstroke : 1),
       mute: step.mute ?? false,
       nail: false,
       tick: i === 0 && !step.mute ? amp * TUNING.sweepTick : 0,
