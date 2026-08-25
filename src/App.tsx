@@ -252,12 +252,15 @@ export function App() {
   const handleDemo = useCallback(() => {
     const sampleRate = 44100;
     // The fitted guitar plays the demo; the analyzer hears exactly what the
-    // listener hears, the same as it would a recording.
+    // listener hears, the same as it would a recording. The count-in bar is
+    // not decoration: without it the pattern's syncopation puts the beat
+    // grid half a beat out, and every chord change lands off the bar line.
     const classic = STRUM_PATTERNS.find((p) => p.id === 'classic') ?? STRUM_PATTERNS[0];
     const samples = renderDemoTrack([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], classic, {
       sampleRate,
       bpm: 96,
       seed: 20240,
+      countInBars: 1,
     });
     void runAnalysis(samples, sampleRate, {
       title: t.demoTitle,
