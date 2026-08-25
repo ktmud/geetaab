@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "smoke": "vite-node scripts/smoke.mjs",
+    "demo:audio": "vite-node scripts/demo-audio.mjs",
+    "demo:check": "vite-node scripts/demo-audio.mjs --check",
     "privacy": "vite-node scripts/privacy-page.mjs --write",
     "privacy:check": "vite-node scripts/privacy-page.mjs --check"
   },

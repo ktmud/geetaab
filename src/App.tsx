@@ -250,23 +250,41 @@ export function App() {
   );
 
   const handleDemo = useCallback(() => {
-    const sampleRate = 44100;
-    // The fitted guitar plays the demo; the analyzer hears exactly what the
-    // listener hears, the same as it would a recording. The lead-in is a
-    // breath before the first chord and also what keeps the transcription in
-    // phase — see renderDemoTrack.
-    const classic = STRUM_PATTERNS.find((p) => p.id === 'classic') ?? STRUM_PATTERNS[0];
-    const samples = renderDemoTrack([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], classic, {
-      sampleRate,
-      bpm: 96,
-      seed: 20240,
-      leadIn: 0.2,
-    });
-    void runAnalysis(samples, sampleRate, {
-      title: t.demoTitle,
-      source: 'demo',
-      audio: encodeWav(samples, sampleRate),
-    });
+    void (async () => {
+      // The demo is a recording like any other — a file the app fetches,
+      // decodes and transcribes, so the pipeline the listener is being shown
+      // is the pipeline they would get from their own audio. It is rendered
+      // ahead of time by scripts/demo-audio.mjs rather than synthesized here:
+      // 290 KB against a few hundred milliseconds of the main thread every
+      // time, and the transcription is verified once, where the file is made.
+      try {
+        const response = await fetch(`${import.meta.env.BASE_URL}demo.m4a`);
+        if (!response.ok) throw new Error(`demo audio: ${response.status}`);
+        const audio = await response.blob();
+        const decoded = await decodeAudioFile(new File([audio], 'demo.m4a', { type: 'audio/mp4' }));
+        await runAnalysis(decoded.samples, decoded.sampleRate, {
+          title: t.demoTitle,
+          source: 'demo',
+          audio,
+        });
+      } catch {
+        // No network, or a browser that will not decode AAC: play the guitar
+        // the file was made with. Same music, same seed, same result.
+        const sampleRate = 44100;
+        const classic = STRUM_PATTERNS.find((p) => p.id === 'classic') ?? STRUM_PATTERNS[0];
+        const samples = renderDemoTrack([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], classic, {
+          sampleRate,
+          bpm: 96,
+          seed: 20240,
+          leadInBeats: 1.2,
+        });
+        await runAnalysis(samples, sampleRate, {
+          title: t.demoTitle,
+          source: 'demo',
+          audio: encodeWav(samples, sampleRate),
+        });
+      }
+    })();
   }, [runAnalysis, t]);
 
   const handleOpenSong = useCallback((id: string) => {

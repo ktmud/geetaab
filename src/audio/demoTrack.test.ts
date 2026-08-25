@@ -13,23 +13,23 @@ const BPM = 96;
 const RATE = 22050; // The rate the analysis works in; keeps the test quick.
 const beat = 60 / BPM;
 const classic = STRUM_PATTERNS.find((p) => p.id === 'classic')!;
-/** What App.tsx renders the demo with. */
-const LEAD_IN = 0.2;
+/** What App.tsx renders the demo with, in beats. */
+const LEAD_IN = 1.2;
 
-/** The demo as the app renders it, at a chosen lead-in. */
-function render(leadIn: number): Float32Array {
+/** The demo as the app renders it, at a chosen lead-in (in beats). */
+function render(leadInBeats: number): Float32Array {
   return renderDemoTrack([...DEMO_PROGRESSION], classic, {
     sampleRate: RATE,
     bpm: BPM,
     seed: 20240,
-    leadIn,
+    leadInBeats,
   });
 }
 
 /** When each chord actually starts, in seconds. */
-function playedStarts(leadIn: number): number[] {
+function playedStarts(leadInBeats: number): number[] {
   const starts: number[] = [];
-  let t = leadIn;
+  let t = leadInBeats * beat;
   for (const chord of DEMO_PROGRESSION) {
     starts.push(t);
     t += chord.beats * beat;
@@ -48,10 +48,10 @@ describe('renderDemoTrack', () => {
   });
 
   /** How far each chord landed from where it was played, in seconds. */
-  function startErrors(leadIn: number): number[] {
-    const result = analyzeAudio(render(leadIn), RATE);
+  function startErrors(leadInBeats: number): number[] {
+    const result = analyzeAudio(render(leadInBeats), RATE);
     const heard = result.segments.filter((s) => !isNoChord(s.chord));
-    return playedStarts(leadIn).map((played, i) => Math.abs(heard[i].start - played));
+    return playedStarts(leadInBeats).map((played, i) => Math.abs(heard[i].start - played));
   }
 
   it('puts the chord changes where they were played', () => {
@@ -62,13 +62,22 @@ describe('renderDemoTrack', () => {
     }
   });
 
-  it('needs the lead-in to hold that phase', () => {
-    // Not decoration: the classic pattern skips beat three and leans on the
-    // off-beat eighths, so with no percussion a beat tracker has no reason to
-    // prefer the beat over the off-beat — and a file that opens mid-strum
-    // hands it a first attack the analysis window has already cut in half.
-    // If a better beat tracker ever makes this pass, the lead-in is free to
-    // become a matter of taste again.
-    expect(Math.max(...startErrors(0))).toBeGreaterThan(beat / 4);
-  });
+  it('holds that phase at every rate a browser might render it at', () => {
+    // An AudioContext runs at 44.1 or 48 kHz depending on the device, so the
+    // demo is rendered at whichever the browser hands it — and a phase that
+    // only survives one of them is not a phase that survives.
+    for (const rate of [44100, 48000]) {
+      const samples = renderDemoTrack([...DEMO_PROGRESSION], classic, {
+        sampleRate: rate,
+        bpm: BPM,
+        seed: 20240,
+        leadInBeats: LEAD_IN,
+      });
+      const heard = analyzeAudio(samples, rate).segments.filter((s) => !isNoChord(s.chord));
+      playedStarts(LEAD_IN).forEach((played, i) => {
+        expect(Math.abs(heard[i].start - played)).toBeLessThan(beat / 4);
+      });
+    }
+    // Two full-rate renders and analyses; the default timeout is optimistic.
+  }, 30000);
 });

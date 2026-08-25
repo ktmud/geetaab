@@ -761,14 +761,15 @@ export function renderShapePattern(
 export function renderDemoTrack(
   chords: SynthChord[],
   pattern: StrumPattern,
-  opts: { sampleRate?: number; bpm?: number; seed?: number; leadIn?: number } = {},
+  opts: { sampleRate?: number; bpm?: number; seed?: number; leadInBeats?: number } = {},
 ): Float32Array {
   const sampleRate = opts.sampleRate ?? 44100;
   const bpm = Math.max(30, Math.min(240, opts.bpm ?? 96));
   const rand = mulberry32(opts.seed ?? 20);
   const beat = 60 / bpm;
-  // A breath before the first chord, so the track does not begin mid-strum.
-  const leadIn = Math.max(0, opts.leadIn ?? 0.2);
+  // A breath before the first chord, counted in beats rather than seconds
+  // because it has to buy two things at once — see the note above.
+  const leadIn = Math.max(0, opts.leadInBeats ?? 1.2) * beat;
   const totalBeats = chords.reduce((n, c) => n + c.beats, 0);
   const out = new Float32Array(Math.ceil((leadIn + totalBeats * beat + 2.6) * sampleRate));
 
