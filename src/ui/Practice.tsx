@@ -571,7 +571,7 @@ export function Practice({
         <button className="btn btn-ghost" onClick={onExit} style={{ padding: '4px 8px' }}>
           <BackIcon size={17} /> {t.exit}
         </button>
-        <strong style={{ fontSize: 13 }}>{title}</strong>
+        <strong className="practice-title">{title}</strong>
         <span className="chip">{translateKeyName(tab.key.name, lang)}</span>
         {tab.capo > 0 ? (
           <span className="chip chip-accent">{t.capoChip(tab.capo)}</span>

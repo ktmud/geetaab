@@ -792,6 +792,12 @@ p {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-dim);
+  /* A chip holds a label, never a sentence: "G 大调", "96 BPM", "4/4". Left to
+     the flexbox it sits in, a narrow row squeezes it until the text wraps —
+     and Chinese wraps between any two characters, so the key came out stacked
+     one character per line. It keeps its width and gives up none of it. */
+  white-space: nowrap;
+  flex: none;
 }
 
 .chip-accent {
@@ -1039,6 +1045,32 @@ input[type='range'] {
   font-size: 12.5px;
   color: var(--text-faint);
   margin-top: 2px;
+}
+
+/* Each fact is one unbreakable unit: Chinese breaks between any two
+   characters, so a plain run of text let the day come apart down its own
+   middle. The dot follows its fact rather than leading the next, so a line
+   that runs out ends "… 不用变调夹 ·" — a continuation — instead of starting
+   the next one with a dot hanging off the front of nothing. */
+.song-row-meta > span {
+  white-space: nowrap;
+}
+
+.song-row-meta > span:not(:last-child)::after {
+  content: '·';
+  margin: 0 5px;
+}
+
+@media (max-width: 560px) {
+  /* On a phone four facts do not fit a 200px row, so the day takes a line of
+     its own — whole, and with no separator left dangling above it. */
+  .song-row-meta > .song-row-when {
+    display: block;
+  }
+
+  .song-row-meta > span:has(+ .song-row-when)::after {
+    content: none;
+  }
 }
 
 /* ---------- listening ---------- */
@@ -1707,6 +1739,17 @@ input[type='range'] {
   flex: none;
   font-size: 12.5px;
   color: var(--text-dim);
+}
+
+/* The one thing in the row that can be any length, so the one thing that
+   gives way when the row runs out: a long song title ends in an ellipsis
+   rather than pushing the chips into stacking their characters. */
+.practice-title {
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .practice-stage {

@@ -185,10 +185,16 @@ export function Home({
                     style={{ background: 'none', border: 'none', padding: 0 }}
                   >
                     <div className="song-row-title">{song.title}</div>
+                    {/* One span per fact, so a line break can only ever fall
+                        between facts: Chinese breaks between any two
+                        characters, and a bare run of text let the day itself
+                        come apart down the middle. */}
                     <div className="song-row-meta">
-                      {song.keyName} · {Math.round(song.tempo)} BPM ·{' '}
-                      {song.capo > 0 ? t.capoText(song.capo) : t.noCapo} ·{' '}
-                      {formatDuration(song.duration)} · {formatWhen(song.createdAt, t, lang)}
+                      <span>{song.keyName}</span>
+                      <span>{Math.round(song.tempo)} BPM</span>
+                      <span>{song.capo > 0 ? t.capoText(song.capo) : t.noCapo}</span>
+                      <span>{formatDuration(song.duration)}</span>
+                      <span className="song-row-when">{formatWhen(song.createdAt, t, lang)}</span>
                     </div>
                   </button>
                   <button
