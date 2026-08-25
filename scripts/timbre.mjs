@@ -194,7 +194,7 @@ function pickStats(feat, windows, thresh) {
     const bodySums = windowSums(feat, f + Math.round(0.1 * fps), f + Math.round(0.22 * fps));
     const body = stat(bodySums);
     const bass = bodySums[0] + bodySums[1] > bodySums[2] + bodySums[3];
-    notes.push({ attack, body, bass });
+    notes.push({ attack, body, bass, peakDb: 10 * Math.log10(peak + 1e-15) });
   }
   const cls = (want) => {
     const sel = notes.filter((n) => n.bass === want);
@@ -204,9 +204,14 @@ function pickStats(feat, windows, thresh) {
       cB: median(sel.map((n) => n.body.centroid)),
       hA: median(sel.map((n) => n.attack.hi)),
       hB: median(sel.map((n) => n.body.hi)),
+      peakDb: median(sel.map((n) => n.peakDb)),
     };
   };
-  return { events: ons.length, thumb: cls(true), fingers: cls(false), floor: median(floors) };
+  const thumb = cls(true);
+  const fingers = cls(false);
+  // How loud a finger note stands over a thumb note: the pattern's balance.
+  const balance = thumb.peakDb != null && fingers.peakDb != null ? fingers.peakDb - thumb.peakDb : null;
+  return { events: ons.length, thumb, fingers, balance, floor: median(floors) };
 }
 
 // --- render the contexts the library actually plays --------------------------
@@ -322,4 +327,5 @@ console.log('\npicking (53231323, 84 BPM, C and Am):');
 const pick = pickStats(fineFeatures(contexts.pick, SR), null, 0.4);
 reportRegister('thumb', pick.thumb, targets.pick.thumb);
 reportRegister('fingers', pick.fingers, targets.pick.fingers);
+reportScalar('balance', pick.balance, targets.pick.balance);
 reportScalar('floor', pick.floor, targets.pick.floor);

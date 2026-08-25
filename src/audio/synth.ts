@@ -281,7 +281,7 @@ const ACOUSTIC: PluckVoice = { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 };
  * tried too and measured soft and dark: the ideal string is not where pick
  * brightness comes from.
  */
-const NAIL: PluckVoice = { cutoff: 4000, pluckPos: 0.1, seedCutoff: 2000 };
+const NAIL: PluckVoice = { cutoff: 4000, pluckPos: 0.1, seedCutoff: 1500 };
 
 /** The thumb's flesh, for bass plucks: darker than a nail, darker than a
     pick. Measured on the reference's thumb notes: 307 Hz at the attack and
@@ -572,31 +572,40 @@ export function renderShapePattern(
         const index = 6 - display;
         const voice = sounding.find((v) => v.string === index);
         if (voice) {
+          const nail = step.pluck.finger !== 'p';
           events.push({
             at,
             string: index,
             midi: voice.midi,
-            amp: amp * 1.15,
+            // The thumb leans in; the fingers answer a shade under it.
+            amp: amp * (nail ? 1.08 : 1.15),
             mute: false,
-            nail: step.pluck.finger !== 'p',
-            thumb: step.pluck.finger === 'p',
+            nail,
+            thumb: !nail,
           });
         }
         continue;
       }
-      // A sweep, not a block: the strings are struck in order across about
-      // 25 ms, and an upstroke starts at the treble end.
+      // A sweep, not a block. The reference's strums cross the strings in
+      // under 10 ms, but the ear preferred the chord-box strum's audible
+      // roll, so the pattern strums borrow its hand: a slower downstroke
+      // with the pick digging hardest into the middle of the sweep.
       const order = step.direction === 'U' ? [...sounding].reverse() : sounding;
-      const spread = (step.direction === 'U' ? 0.018 : 0.025) / Math.max(1, order.length - 1);
+      const struck = step.direction === 'U' ? Math.min(4, order.length) : order.length;
+      const perString = step.direction === 'U' ? 0.01 : 0.019;
       order.forEach((voice, i) => {
         // An upstroke on a guitar catches the top strings and little else.
         const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
         if (!reach) return;
+        const middle = 1 - Math.abs(i - (order.length - 1) / 2) / (order.length / 2 + 0.5);
+        // The pick digs into the middle of the sweep and releases off the
+        // last string with full weight.
+        const weight = i === struck - 1 ? 1 : 0.8 + 0.26 * middle;
         events.push({
-          at: at + i * spread * (0.85 + 0.3 * rand()),
+          at: at + i * perString * (0.85 + 0.3 * rand()),
           string: voice.string,
           midi: voice.midi,
-          amp: amp * (step.mute ? 0.7 : 1),
+          amp: amp * weight * (step.mute ? 0.7 : 1),
           mute: step.mute ?? false,
           nail: false,
         });
