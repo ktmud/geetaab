@@ -292,6 +292,13 @@ export const TUNING = {
   preDamp: 0.016,
   /** The room's send level. */
   roomWet: 0.56,
+  /** The two-stage string decay: seconds to -60 dB for each stage, and the
+      amplitude share of the fast one. */
+  ring: { slow: 8, fast: 0.25, fastMix: 0.74 },
+  /** The soundboard's fitted gains: two low resonances, two dips, a shelf.
+      Centre frequencies and Qs of the low modes are structural and live in
+      `body` below. */
+  body: { r1g: 3.2, r2g: 2.1, p1db: -9, p3f: 1540, p3q: 1.12, p3db: -13.4, shf: 2460, shdb: -15.7 },
 };
 
 const ACOUSTIC = TUNING.acoustic;
@@ -413,11 +420,12 @@ function body(x: Float32Array, sampleRate: number): Float32Array {
       out[i] = yn;
     }
   };
-  resonate(104, 2.4, 3.2);
-  resonate(198, 3.0, 2.1);
-  peak(360, 1.1, -9);
-  peak(1540, 1.12, -13.4);
-  shelf(2460, -15.7);
+  const B = TUNING.body;
+  resonate(104, 2.4, B.r1g);
+  resonate(198, 3.0, B.r2g);
+  peak(360, 1.1, B.p1db);
+  peak(B.p3f, B.p3q, B.p3db);
+  shelf(B.shf, B.shdb);
   return out;
 }
 
@@ -504,7 +512,7 @@ function fadeTail(samples: Float32Array, sampleRate: number, seconds: number): v
  * the way a real string's does — a tail that darkens reads as shorter and
  * realer than one that stays lit.
  */
-const RING = { slow: 8, fast: 0.25, fastMix: 0.74 };
+const RING = TUNING.ring;
 
 function addString(
   out: Float32Array,
