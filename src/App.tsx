@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ANALYSIS_VERSION, analysisIsStale, type AnalysisResult } from './core/analyze';
 import { decodeAudioFile } from './audio/decode';
 import type { TakeGap } from './audio/takeTimeline';
-import { DEMO_PROGRESSION, renderProgression } from './audio/synth';
+import { DEMO_PROGRESSION, renderDemoTrack } from './audio/synth';
+import { STRUM_PATTERNS } from './music/arrange';
 import { encodeWav } from './audio/wav';
 import { analyzeInWorker } from './worker/analyzeClient';
 import {
@@ -250,7 +251,10 @@ export function App() {
 
   const handleDemo = useCallback(() => {
     const sampleRate = 44100;
-    const samples = renderProgression([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], {
+    // The fitted guitar plays the demo; the analyzer hears exactly what the
+    // listener hears, the same as it would a recording.
+    const classic = STRUM_PATTERNS.find((p) => p.id === 'classic') ?? STRUM_PATTERNS[0];
+    const samples = renderDemoTrack([...DEMO_PROGRESSION, ...DEMO_PROGRESSION], classic, {
       sampleRate,
       bpm: 96,
       seed: 20240,

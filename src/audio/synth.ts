@@ -1,6 +1,6 @@
 import { normalizePeak } from '../core/dsp';
 import { QUALITY_INTERVALS, type ChordQuality } from '../core/chordTypes';
-import { STANDARD_TUNING, type ChordShape } from '../music/shapes';
+import { STANDARD_TUNING, easiestShape, type ChordShape } from '../music/shapes';
 import type { StrumPattern } from '../music/arrange';
 import { pluckStringOf } from '../music/pick';
 
@@ -579,6 +579,117 @@ export interface ShapePatternOptions {
   bars?: number;
 }
 
+/** One physical contact with one string, placed in time. */
+interface PatternEvent {
+  at: number;
+  string: number;
+  midi: number;
+  amp: number;
+  mute: boolean;
+  /** Finger pluck rather than a sweep: use the nail's contact. */
+  nail: boolean;
+  /** Thumb pluck: the flesh's contact. */
+  thumb?: boolean;
+  /** The pick's contact burst, on the first string of a sweep. */
+  tick?: number;
+}
+
+/** What one pattern step does to the sounding strings, as events. */
+function collectStepEvents(
+  events: PatternEvent[],
+  step: StrumPattern['steps'][number],
+  sounding: { string: number; midi: number }[],
+  frets: number[],
+  barStart: number,
+  beat: number,
+  rand: () => number,
+): void {
+  // A human lands a few milliseconds off the grid, differently every time.
+  const at = barStart + step.beat * beat + 0.006 * (rand() - 0.5);
+  const amp = (step.accent ? 0.34 : 0.26) * (0.9 + 0.2 * rand());
+  if (step.pluck) {
+    // One string, named by the shape rather than fixed: the thumb follows
+    // the chord's own bass, which is the whole point of the notation.
+    const display = pluckStringOf(step.pluck, { frets } as ChordShape);
+    const index = 6 - display;
+    const voice = sounding.find((v) => v.string === index);
+    if (voice) {
+      const nail = step.pluck.finger !== 'p';
+      events.push({
+        at,
+        string: index,
+        midi: voice.midi,
+        // Levelled to the recording: thumb and fingers peak a few dB over
+        // the passage, the fingers a shade above the thumb.
+        amp: amp * (nail ? TUNING.fingerAmp : TUNING.thumbAmp),
+        mute: false,
+        nail,
+        thumb: !nail,
+        tick: nail ? amp * TUNING.nailTick : 0,
+      });
+    }
+    return;
+  }
+  // A sweep, not a block: a practiced strummer crosses the strings fast —
+  // the reference measures under 10 ms — and evenly, digging hardest into
+  // the middle of the sweep and releasing off the last string with full
+  // weight. An upstroke starts at the treble end and catches the top
+  // strings and little else.
+  const order = step.direction === 'U' ? [...sounding].reverse() : sounding;
+  const struck = step.direction === 'U' ? Math.min(4, order.length) : order.length;
+  const perString = step.direction === 'U' ? TUNING.sweepUp : TUNING.sweepDown;
+  order.forEach((voice, i) => {
+    const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
+    if (!reach) return;
+    const middle = 1 - Math.abs(i - (order.length - 1) / 2) / (order.length / 2 + 0.5);
+    const weight = i === struck - 1 ? 1 : 0.8 + 0.26 * middle;
+    events.push({
+      at: at + i * perString * (0.9 + 0.2 * rand()),
+      string: voice.string,
+      midi: voice.midi,
+      amp: amp * weight * (0.94 + 0.12 * rand()) * (step.mute ? 0.7 : 1),
+      mute: step.mute ?? false,
+      nail: false,
+      tick: i === 0 && !step.mute ? amp * TUNING.sweepTick : 0,
+    });
+  });
+}
+
+/**
+ * Render collected events, damping each string when it is next touched.
+ *
+ * Striking a string silences what it was doing — without that, a ring
+ * measured in seconds turns any pattern into a harp with the pedal down.
+ * The pick or fingertip lands a moment before it releases the new note, so
+ * the old vibration is gone by the strike and the new attack opens on a
+ * clean edge. `damps` are silent touches: the fretting hand lifting off
+ * strings a chord change no longer uses.
+ */
+function playEvents(
+  out: Float32Array,
+  events: PatternEvent[],
+  damps: { at: number; string: number }[],
+  sampleRate: number,
+  rand: () => number,
+): void {
+  events.sort((a, b) => a.at - b.at);
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const next = events.find((later, j) => j > i && later.string === ev.string);
+    let until = next?.at;
+    for (const d of damps) {
+      if (d.string === ev.string && d.at > ev.at && (until == null || d.at < until)) until = d.at;
+    }
+    const hold = until != null ? Math.max(0.05, until - ev.at - TUNING.preDamp) : undefined;
+    const base = ev.nail ? NAIL : ev.thumb ? THUMB : ACOUSTIC;
+    const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
+    const at = Math.max(0, Math.floor(ev.at * sampleRate));
+    if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
+    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, ev.thumb ? TUNING.thumbMix : ev.nail ? TUNING.nailMix : RING.fastMix);
+    if (ev.tick) addTick(out, at, sampleRate, ev.tick, rand);
+  }
+}
+
 export function renderShapePattern(
   frets: number[],
   pattern: StrumPattern,
@@ -601,98 +712,75 @@ export function renderShapePattern(
     if (fret >= 0) sounding.push({ string, midi: STANDARD_TUNING[string] + fret + capo });
   });
 
-  // Collect every pluck first, render second: a string that is struck again
-  // has to know when, because striking a string silences what it was doing.
-  // Without that damping, a ring measured in seconds turns any picking
-  // pattern into a wash — eight notes a bar all sounding at once is a harp
-  // with the pedal down, not a guitar.
-  interface Event {
-    at: number;
-    string: number;
-    midi: number;
-    amp: number;
-    mute: boolean;
-    /** Finger pluck rather than a sweep: use the nail's contact. */
-    nail: boolean;
-    /** Thumb pluck: the flesh's contact. */
-    thumb?: boolean;
-    /** The pick's contact burst, on the first string of a sweep. */
-    tick?: number;
-  }
-  const events: Event[] = [];
+  const events: PatternEvent[] = [];
   for (let bar = 0; bar < bars; bar++) {
     for (const step of pattern.steps) {
-      // A human lands a few milliseconds off the grid, differently every time.
-      const at = bar * barSeconds + step.beat * beat + 0.006 * (rand() - 0.5);
-      const amp = (step.accent ? 0.34 : 0.26) * (0.9 + 0.2 * rand());
-      if (step.pluck) {
-        // One string, named by the shape rather than fixed: the thumb follows
-        // the chord's own bass, which is the whole point of the notation.
-        const display = pluckStringOf(step.pluck, { frets } as ChordShape);
-        const index = 6 - display;
-        const voice = sounding.find((v) => v.string === index);
-        if (voice) {
-          const nail = step.pluck.finger !== 'p';
-          events.push({
-            at,
-            string: index,
-            midi: voice.midi,
-            // Levelled to the recording: thumb and fingers peak a few dB over
-            // the passage, the fingers a shade above the thumb.
-            amp: amp * (nail ? TUNING.fingerAmp : TUNING.thumbAmp),
-            mute: false,
-            nail,
-            thumb: !nail,
-            tick: nail ? amp * TUNING.nailTick : 0,
-          });
-        }
-        continue;
-      }
-      // A sweep, not a block. The reference's strums cross the strings in
-      // under 10 ms, but the ear preferred the chord-box strum's audible
-      // roll, so the pattern strums borrow its hand: a slower downstroke
-      // with the pick digging hardest into the middle of the sweep.
-      const order = step.direction === 'U' ? [...sounding].reverse() : sounding;
-      const struck = step.direction === 'U' ? Math.min(4, order.length) : order.length;
-      // A practiced strummer crosses the strings fast — the reference measures
-      // under 10 ms — and evenly. The chord-box tap keeps its slow expressive
-      // roll; at tempo that roll reads as hesitation.
-      const perString = step.direction === 'U' ? TUNING.sweepUp : TUNING.sweepDown;
-      order.forEach((voice, i) => {
-        // An upstroke on a guitar catches the top strings and little else.
-        const reach = step.direction === 'U' && i >= 4 ? 0 : 1;
-        if (!reach) return;
-        const middle = 1 - Math.abs(i - (order.length - 1) / 2) / (order.length / 2 + 0.5);
-        // The pick digs into the middle of the sweep and releases off the
-        // last string with full weight.
-        const weight = i === struck - 1 ? 1 : 0.8 + 0.26 * middle;
-        events.push({
-          at: at + i * perString * (0.9 + 0.2 * rand()),
-          string: voice.string,
-          midi: voice.midi,
-          amp: amp * weight * (0.94 + 0.12 * rand()) * (step.mute ? 0.7 : 1),
-          mute: step.mute ?? false,
-          nail: false,
-          tick: i === 0 && !step.mute ? amp * TUNING.sweepTick : 0,
-        });
-      });
+      collectStepEvents(events, step, sounding, frets, bar * barSeconds, beat, rand);
     }
   }
-  events.sort((a, b) => a.at - b.at);
-  for (let i = 0; i < events.length; i++) {
-    const ev = events[i];
-    const next = events.find((later, j) => j > i && later.string === ev.string);
-    // The pick or fingertip lands on the string a moment before it releases
-    // the new note: the old vibration is gone by the strike, so the new
-    // attack opens on a clean edge instead of over the tail it replaces.
-    const hold = next ? Math.max(0.05, next.at - ev.at - TUNING.preDamp) : undefined;
-    const base = ev.nail ? NAIL : ev.thumb ? THUMB : ACOUSTIC;
-    const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
-    const at = Math.max(0, Math.floor(ev.at * sampleRate));
-    if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
-    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, ev.thumb ? TUNING.thumbMix : ev.nail ? TUNING.nailMix : RING.fastMix);
-    if (ev.tick) addTick(out, at, sampleRate, ev.tick, rand);
+  playEvents(out, events, [], sampleRate, rand);
+  const shaped = room(body(out, sampleRate), sampleRate);
+  fadeTail(shaped, sampleRate, 0.4);
+  return normalizePeak(shaped, 0.88);
+}
+
+/**
+ * The demo track: a chord progression played the way the pattern player
+ * plays one chord, by the same hands.
+ *
+ * The home screen's "try a demo" used to synthesize with the bare analysis
+ * voice — the byte-stable string the fixtures are built on — because that is
+ * what it was: analyzer ground truth that happened to be audible. Now that
+ * the library has a fitted guitar, the demo song is played by it, and the
+ * analyzer transcribes the same audio the listener hears, exactly as it
+ * would a recording. `renderProgression` stays untouched underneath the
+ * fixtures.
+ *
+ * A progression needs one thing a single looped shape never did: when the
+ * chord changes, the strings the new shape does not use have to be damped —
+ * that is the fretting hand lifting — or G's open bass would ring on under
+ * the D that follows it.
+ */
+export function renderDemoTrack(
+  chords: SynthChord[],
+  pattern: StrumPattern,
+  opts: { sampleRate?: number; bpm?: number; seed?: number } = {},
+): Float32Array {
+  const sampleRate = opts.sampleRate ?? 44100;
+  const bpm = Math.max(30, Math.min(240, opts.bpm ?? 96));
+  const rand = mulberry32(opts.seed ?? 20);
+  const beat = 60 / bpm;
+  const totalBeats = chords.reduce((n, c) => n + c.beats, 0);
+  const out = new Float32Array(Math.ceil((totalBeats * beat + 2.6) * sampleRate));
+
+  const events: PatternEvent[] = [];
+  const damps: { at: number; string: number }[] = [];
+  let prevSounding: number[] = [];
+  let beatCursor = 0;
+  for (const chord of chords) {
+    const shape = easiestShape({ root: chord.root, quality: chord.quality });
+    if (!shape) {
+      beatCursor += chord.beats;
+      continue;
+    }
+    const sounding: { string: number; midi: number }[] = [];
+    shape.frets.forEach((fret, string) => {
+      if (fret >= 0) sounding.push({ string, midi: STANDARD_TUNING[string] + fret });
+    });
+    const changeAt = beatCursor * beat;
+    for (const s of prevSounding) {
+      if (!sounding.some((v) => v.string === s)) damps.push({ at: changeAt, string: s });
+    }
+    prevSounding = sounding.map((v) => v.string);
+    for (let bar = 0; bar * pattern.beatsPerBar < chord.beats; bar++) {
+      for (const step of pattern.steps) {
+        if (bar * pattern.beatsPerBar + step.beat >= chord.beats) continue;
+        collectStepEvents(events, step, sounding, shape.frets, (beatCursor + bar * pattern.beatsPerBar) * beat, beat, rand);
+      }
+    }
+    beatCursor += chord.beats;
   }
+  playEvents(out, events, damps, sampleRate, rand);
   const shaped = room(body(out, sampleRate), sampleRate);
   fadeTail(shaped, sampleRate, 0.4);
   return normalizePeak(shaped, 0.88);
