@@ -188,13 +188,20 @@ export function Home({
                     {/* One span per fact, so a line break can only ever fall
                         between facts: Chinese breaks between any two
                         characters, and a bare run of text let the day itself
-                        come apart down the middle. */}
+                        come apart down the middle. When and how long are one
+                        stamp, read the way a date is read — the day, then the
+                        clock — and they travel together or not at all. The
+                        capo is not here: it is a setting of the arrangement
+                        rather than a fact about the recording, it is on the
+                        song's own page, and "no capo" was the widest thing in
+                        the row while saying the least. */}
                     <div className="song-row-meta">
                       <span>{song.keyName}</span>
                       <span>{Math.round(song.tempo)} BPM</span>
-                      <span>{song.capo > 0 ? t.capoText(song.capo) : t.noCapo}</span>
-                      <span>{formatDuration(song.duration)}</span>
-                      <span className="song-row-when">{formatWhen(song.createdAt, t, lang)}</span>
+                      <span className="song-row-stamp">
+                        <span>{formatWhen(song.createdAt, t, lang)}</span>
+                        <span>{formatDuration(song.duration)}</span>
+                      </span>
                     </div>
                   </button>
                   <button

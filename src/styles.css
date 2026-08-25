@@ -1056,19 +1056,20 @@ input[type='range'] {
   white-space: nowrap;
 }
 
-.song-row-meta > span:not(:last-child)::after {
+.song-row-meta > span:not(:last-child)::after,
+.song-row-stamp > span:not(:last-child)::after {
   content: '·';
   margin: 0 5px;
 }
 
 @media (max-width: 560px) {
-  /* On a phone four facts do not fit a 200px row, so the day takes a line of
-     its own — whole, and with no separator left dangling above it. */
-  .song-row-meta > .song-row-when {
+  /* On a phone the facts fill the row, so the stamp takes a line of its own —
+     both halves of it, whole, and with no separator left dangling above. */
+  .song-row-meta > .song-row-stamp {
     display: block;
   }
 
-  .song-row-meta > span:has(+ .song-row-when)::after {
+  .song-row-meta > span:has(+ .song-row-stamp)::after {
     content: none;
   }
 }
