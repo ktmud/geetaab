@@ -1049,9 +1049,12 @@ input[type='range'] {
 
 /* Each fact is one unbreakable unit: Chinese breaks between any two
    characters, so a plain run of text let the day come apart down its own
-   middle. The dot follows its fact rather than leading the next, so a line
-   that runs out ends "… 不用变调夹 ·" — a continuation — instead of starting
-   the next one with a dot hanging off the front of nothing. */
+   middle. Three facts fit a phone's row now that the capo has gone, so the
+   line does not wrap at all — but if a narrower screen ever makes it, the
+   dot follows its fact rather than leading the next, so the line that runs
+   out ends "… 96 BPM ·" — a continuation — instead of starting the next one
+   with a dot hanging off the front of nothing, and the stamp goes over whole
+   rather than leaving the day stranded from its clock. */
 .song-row-meta > span {
   white-space: nowrap;
 }
@@ -1060,18 +1063,6 @@ input[type='range'] {
 .song-row-stamp > span:not(:last-child)::after {
   content: '·';
   margin: 0 5px;
-}
-
-@media (max-width: 560px) {
-  /* On a phone the facts fill the row, so the stamp takes a line of its own —
-     both halves of it, whole, and with no separator left dangling above. */
-  .song-row-meta > .song-row-stamp {
-    display: block;
-  }
-
-  .song-row-meta > span:has(+ .song-row-stamp)::after {
-    content: none;
-  }
 }
 
 /* ---------- listening ---------- */
