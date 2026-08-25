@@ -281,7 +281,7 @@ const ACOUSTIC: PluckVoice = { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 };
  * tried too and measured soft and dark: the ideal string is not where pick
  * brightness comes from.
  */
-const NAIL: PluckVoice = { cutoff: 6500, pluckPos: 0.08, seedCutoff: 2500 };
+const NAIL: PluckVoice = { cutoff: 5800, pluckPos: 0.1, seedCutoff: 2100 };
 
 /** The thumb's flesh, for bass plucks: darker than a nail, darker than a
     pick. Measured on the reference's thumb notes: 307 Hz at the attack and
@@ -606,7 +606,7 @@ export function renderShapePattern(
             mute: false,
             nail,
             thumb: !nail,
-            tick: nail ? amp * 0.5 : 0,
+            tick: nail ? amp * 0.22 : 0,
           });
         }
         continue;
