@@ -281,7 +281,7 @@ const ACOUSTIC: PluckVoice = { cutoff: 20000, pluckPos: 0.12, seedCutoff: 925 };
  * tried too and measured soft and dark: the ideal string is not where pick
  * brightness comes from.
  */
-const NAIL: PluckVoice = { cutoff: 4000, pluckPos: 0.1, seedCutoff: 1500 };
+const NAIL: PluckVoice = { cutoff: 5000, pluckPos: 0.1, seedCutoff: 1800 };
 
 /** The thumb's flesh, for bass plucks: darker than a nail, darker than a
     pick. Measured on the reference's thumb notes: 307 Hz at the attack and
@@ -289,11 +289,14 @@ const NAIL: PluckVoice = { cutoff: 4000, pluckPos: 0.1, seedCutoff: 1500 };
     octave too bright. */
 const THUMB: PluckVoice = { cutoff: 4000, pluckPos: 0.12, seedCutoff: 500 };
 
-/** A picked note is not a strum: the recording's picking never falls more
-    than ~7 dB between notes, while a strum settles 11. The difference is how
-    much of the pluck lives in the fast decay stage, so plucked events put
-    half their amplitude there instead of the strums' 0.74. */
-const PLUCK_MIX = 0.45;
+/** How much of a pluck lives in the fast decay stage. A picked texture is
+    two textures: the thumb lays a bed that hardly falls between notes — the
+    recording's picking floor is -6.7 dB — while the fingers speak and then
+    recede into that bed rather than droning on top of it. Give both the
+    fingers' sustain and the bed to every note and the pattern turns thick:
+    "loud and dull" was the ear's name for exactly that. */
+const THUMB_MIX = 0.42;
+const NAIL_MIX = 0.62;
 
 /*
    Fitted at 44.1 kHz to time-resolved statistics of the recording's strums,
@@ -577,8 +580,8 @@ export function renderShapePattern(
             at,
             string: index,
             midi: voice.midi,
-            // The thumb leans in; the fingers answer a shade under it.
-            amp: amp * (nail ? 1.08 : 1.15),
+            // The thumb leans in; the fingers answer well under it.
+            amp: amp * (nail ? 0.95 : 1.15),
             mute: false,
             nail,
             thumb: !nail,
@@ -617,12 +620,11 @@ export function renderShapePattern(
     const ev = events[i];
     const next = events.find((later, j) => j > i && later.string === ev.string);
     const hold = next ? Math.max(0.05, next.at - ev.at) : undefined;
-    const plucked = ev.nail || ev.thumb;
     const base = ev.nail ? NAIL : ev.thumb ? THUMB : ACOUSTIC;
     const contact = { ...base, pluckPos: base.pluckPos! + (rand() - 0.5) * 0.05 };
     const at = Math.max(0, Math.floor(ev.at * sampleRate));
     if (ev.mute) addPluck(out, at, ev.midi, ev.amp, sampleRate, 0.18, rand, contact, hold);
-    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, plucked ? PLUCK_MIX : RING.fastMix);
+    else addString(out, at, ev.midi, ev.amp, sampleRate, rand, contact, hold, ev.thumb ? THUMB_MIX : ev.nail ? NAIL_MIX : RING.fastMix);
   }
   const shaped = room(body(out, sampleRate), sampleRate);
   fadeTail(shaped, sampleRate, 0.4);
