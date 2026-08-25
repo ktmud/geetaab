@@ -30,6 +30,9 @@ export const dictionary = {
     yourSongs: 'Your songs',
     storedOnDevice: 'Stored on this device only.',
     showAllSongs: (n: number) => `Show all ${n}`,
+    storageTight: (used: string, total: string) =>
+      `This device is nearly full (${used} of ${total} used). Only the 20 most recent songs keep their recording — older ones keep their tab and lose the audio. Delete a song to make room.`,
+    storageFull: 'That song could not be saved: this device is out of room. Delete a song or two and record it again.',
     deleteLabel: (title: string) => `Delete ${title}`,
     deleteTitle: 'Delete',
     whatComesOut: 'What comes out',
@@ -660,6 +663,9 @@ export const dictionary = {
     yourSongs: '你的歌',
     storedOnDevice: '只存在这台设备里。',
     showAllSongs: (n: number) => `显示全部 ${n} 首`,
+    storageTight: (used: string, total: string) =>
+      `这台设备快存满了（已用 ${used}／${total}）。只有最近 20 首会保留录音，更早的会自动清掉录音、保留谱子。删掉几首可以腾出空间。`,
+    storageFull: '这首歌没能存下来：设备空间不够了。删掉一两首再录一次。',
     deleteLabel: (title: string) => `删除「${title}」`,
     deleteTitle: '删除',
     whatComesOut: '它会给你什么',

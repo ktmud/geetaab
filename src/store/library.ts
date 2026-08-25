@@ -139,6 +139,79 @@ export async function countSongs(): Promise<number> {
   return runTransaction<number>('readonly', (store) => store.count());
 }
 
+/**
+ * How many songs keep their recording.
+ *
+ * A recording is up to 48 MB and a tab is a few kilobytes, so the audio is
+ * effectively the whole library by size, and a browser's quota is not
+ * generous enough to hold an unbounded number of them. Twenty is a working
+ * shelf; past that the recording goes and the tab stays, which is the half
+ * worth keeping — you can still read, play along with and print the song,
+ * you just cannot hear the take it came from.
+ */
+export const KEEP_AUDIO_FOR = 20;
+
+/**
+ * Drop the audio from everything past the newest `keep` songs.
+ *
+ * Deliberately not a delete: the record, its tab and its settings stay
+ * exactly where they were, and only the blob is cleared. Returns how many
+ * songs lost their recording, so the caller can say so.
+ */
+export async function pruneAudio(keep = KEEP_AUDIO_FOR): Promise<number> {
+  const db = await openDb();
+  return new Promise<number>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const request = tx.objectStore(STORE).index('createdAt').openCursor(null, 'prev');
+    let seen = 0;
+    let cleared = 0;
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      const song = cursor.value as StoredSong;
+      seen += 1;
+      if (seen > keep && song.audio) {
+        cursor.update({ ...song, audio: undefined });
+        cleared += 1;
+      }
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error ?? new Error('Could not tidy the song library.'));
+    tx.oncomplete = () => {
+      db.close();
+      resolve(cleared);
+    };
+    tx.onerror = () => reject(tx.error ?? new Error('Could not tidy the song library.'));
+  });
+}
+
+export interface StorageState {
+  usage: number;
+  quota: number;
+  /** 0 to 1. Past `STORAGE_TIGHT` the app says so before it costs anyone a take. */
+  ratio: number;
+}
+
+/** Warn from here up: enough headroom left to record, not enough to ignore. */
+export const STORAGE_TIGHT = 0.8;
+
+/**
+ * What the browser says is left, or null where it will not say.
+ *
+ * Only an estimate — browsers round it, and some report a quota that grows
+ * on demand — so it is worth a warning and not worth a refusal.
+ */
+export async function storageState(): Promise<StorageState | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return null;
+  try {
+    const { usage = 0, quota = 0 } = await navigator.storage.estimate();
+    if (!quota) return null;
+    return { usage, quota, ratio: usage / quota };
+  } catch {
+    return null;
+  }
+}
+
 export function newSongId(): string {
   return `song-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }

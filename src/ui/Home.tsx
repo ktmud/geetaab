@@ -12,6 +12,8 @@ export interface HomeProps {
   /** Everything stored, which may be more than `songs` shows. */
   songTotal: number;
   onShowAllSongs: () => void;
+  /** Said above the list, where someone can act on it by deleting a song. */
+  storageNotice?: string | null;
   onRecord: () => void;
   onFile: (file: File) => void;
   onDemo: () => void;
@@ -51,6 +53,7 @@ export function Home({
   songs,
   songTotal,
   onShowAllSongs,
+  storageNotice,
   onRecord,
   onFile,
   onDemo,
@@ -176,6 +179,11 @@ export function Home({
             <h2>{t.yourSongs}</h2>
             <p>{t.storedOnDevice}</p>
           </div>
+          {storageNotice ? (
+            <p className="storage-notice" role="status">
+              {storageNotice}
+            </p>
+          ) : null}
           <div className="song-list">
             {songs.map((song) => {
               const Icon = SOURCE_ICON[song.source];

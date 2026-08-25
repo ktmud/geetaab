@@ -15,6 +15,9 @@ const MIN_SECONDS = 6;
 export interface ListeningProps {
   onDone: (samples: Float32Array, sampleRate: number, gaps: TakeGap[]) => void;
   onCancel: () => void;
+  /** Said before the take rather than after it: a recording that cannot be
+      saved is worth knowing about while it is still cheap to make room. */
+  storageNotice?: string | null;
 }
 
 /**
@@ -42,7 +45,7 @@ function nameSize(label: string): string {
   return '';
 }
 
-export function Listening({ onDone, onCancel }: ListeningProps) {
+export function Listening({ onDone, onCancel, storageNotice }: ListeningProps) {
   const t = useT();
   const recorderRef = useRef<Recorder | null>(null);
   const painterRef = useRef<SpectroPainter | null>(null);
@@ -274,6 +277,12 @@ export function Listening({ onDone, onCancel }: ListeningProps) {
       <canvas ref={canvasRef} className={`listen-spectro${waiting ? '' : ' on'}`} aria-hidden="true" />
 
       <div className="eyebrow">{waiting ? t.waitingForSong : t.recording}</div>
+
+      {storageNotice ? (
+        <p className="storage-notice listen-storage" role="status">
+          {storageNotice}
+        </p>
+      ) : null}
 
       <div className={`listen-ring${waiting ? ' waiting' : ''}`}>
         <svg viewBox="0 0 120 120" aria-hidden="true">

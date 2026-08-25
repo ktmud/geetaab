@@ -1041,6 +1041,24 @@ input[type='range'] {
   text-overflow: ellipsis;
 }
 
+/* Said where it can be acted on: above the list, and before a take. */
+.storage-notice {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.listen-storage {
+  max-width: 34em;
+  margin: 8px auto 0;
+  text-align: center;
+}
+
 .song-list-more {
   margin-top: 10px;
   font-size: 13px;

@@ -10,6 +10,10 @@ import {
   countSongs,
   deleteSong,
   listSongs,
+  pruneAudio,
+  storageState,
+  STORAGE_TIGHT,
+  type StorageState,
   loadSong,
   newSongId,
   saveSong,
@@ -61,6 +65,12 @@ const MAX_STORED_AUDIO_BYTES = 48 * 1024 * 1024;
 /** How many songs the home screen shows before offering the rest. */
 const HOME_SONG_LIMIT = 6;
 
+/** Bytes as a person reads them: "820 MB", "1.2 GB". */
+function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  return `${Math.round(bytes / 1e6)} MB`;
+}
+
 export function App() {
   const t = useT();
   const [lang, setLang] = useLanguage();
@@ -75,6 +85,10 @@ export function App() {
   const [songs, setSongs] = useState<SongSummary[]>([]);
   const [songTotal, setSongTotal] = useState(0);
   const [showAllSongs, setShowAllSongs] = useState(false);
+  const [storage, setStorage] = useState<StorageState | null>(null);
+  /** Set when a save actually failed, which is the one storage message that
+      is not a warning about the future. */
+  const [saveFailed, setSaveFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const sessionRef = useRef<Session | null>(null);
   sessionRef.current = session;
@@ -137,9 +151,21 @@ export function App() {
     countSongs()
       .then(setSongTotal)
       .catch(() => setSongTotal(0));
+    storageState()
+      .then(setStorage)
+      .catch(() => setStorage(null));
   }, [showAllSongs]);
 
   useEffect(refreshLibrary, [refreshLibrary]);
+
+  /** What to say about storage, if anything: a failed save first, then a
+      warning while there is still room to act on it. Both screens that can
+      cost someone a recording show the same line. */
+  const storageNotice: string | null = saveFailed
+    ? t.storageFull
+    : storage && storage.ratio >= STORAGE_TIGHT
+      ? t.storageTight(formatBytes(storage.usage), formatBytes(storage.quota))
+      : null;
 
   const persist = useCallback(
     (next: Session, nextOptions: TabOptions) => {
@@ -158,7 +184,21 @@ export function App() {
         source: next.source,
         gaps: next.gaps,
       };
-      saveSong(record).then(refreshLibrary).catch(() => undefined);
+      saveSong(record)
+        .then(() => {
+          setSaveFailed(false);
+          // Twenty recordings is the shelf; older songs keep their tabs and
+          // give up their audio, which is what stops a library from filling
+          // a device.
+          return pruneAudio();
+        })
+        .then(refreshLibrary)
+        .catch(() => {
+          // Out of room is the likely reason, and the song silently not being
+          // there is the one outcome worth interrupting someone over.
+          setSaveFailed(true);
+          refreshLibrary();
+        });
     },
     [refreshLibrary],
   );
@@ -503,6 +543,7 @@ export function App() {
             songs={songs}
             songTotal={songTotal}
             onShowAllSongs={() => setShowAllSongs(true)}
+            storageNotice={storageNotice}
             micSupported={micSupported}
             onRecord={() => setScreen({ name: 'listening' })}
             onFile={(file) => void handleFile(file)}
@@ -513,7 +554,11 @@ export function App() {
         ) : null}
 
         {screen.name === 'listening' ? (
-          <Listening onDone={handleRecording} onCancel={() => setScreen({ name: 'home' })} />
+          <Listening
+            onDone={handleRecording}
+            onCancel={() => setScreen({ name: 'home' })}
+            storageNotice={storageNotice}
+          />
         ) : null}
 
         {screen.name === 'chords' ? (
