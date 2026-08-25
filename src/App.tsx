@@ -7,6 +7,7 @@ import { STRUM_PATTERNS } from './music/arrange';
 import { encodeWav } from './audio/wav';
 import { analyzeInWorker } from './worker/analyzeClient';
 import {
+  countSongs,
   deleteSong,
   listSongs,
   loadSong,
@@ -57,6 +58,9 @@ interface Session {
 
 const MAX_STORED_AUDIO_BYTES = 48 * 1024 * 1024;
 
+/** How many songs the home screen shows before offering the rest. */
+const HOME_SONG_LIMIT = 6;
+
 export function App() {
   const t = useT();
   const [lang, setLang] = useLanguage();
@@ -69,6 +73,8 @@ export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [options, setOptions] = useState<TabOptions>({ simplify: true });
   const [songs, setSongs] = useState<SongSummary[]>([]);
+  const [songTotal, setSongTotal] = useState(0);
+  const [showAllSongs, setShowAllSongs] = useState(false);
   const [busy, setBusy] = useState(false);
   const sessionRef = useRef<Session | null>(null);
   sessionRef.current = session;
@@ -121,11 +127,17 @@ export function App() {
     return () => observer.disconnect();
   }, []);
 
+  /** The home list opens with the most recent few; the rest are a tap away.
+      A library is something a player accumulates, and every song on the
+      screen pushes the page that explains the app further down it. */
   const refreshLibrary = useCallback(() => {
-    listSongs()
+    listSongs(showAllSongs ? undefined : HOME_SONG_LIMIT)
       .then(setSongs)
       .catch(() => setSongs([]));
-  }, []);
+    countSongs()
+      .then(setSongTotal)
+      .catch(() => setSongTotal(0));
+  }, [showAllSongs]);
 
   useEffect(refreshLibrary, [refreshLibrary]);
 
@@ -489,6 +501,8 @@ export function App() {
         {screen.name === 'home' ? (
           <Home
             songs={songs}
+            songTotal={songTotal}
+            onShowAllSongs={() => setShowAllSongs(true)}
             micSupported={micSupported}
             onRecord={() => setScreen({ name: 'listening' })}
             onFile={(file) => void handleFile(file)}

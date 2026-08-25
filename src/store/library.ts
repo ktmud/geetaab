@@ -105,9 +105,38 @@ export async function deleteSong(id: string): Promise<void> {
   await runTransaction('readwrite', (store) => store.delete(id));
 }
 
-export async function listSongs(): Promise<SongSummary[]> {
-  const all = await runTransaction<StoredSong[]>('readonly', (store) => store.getAll());
-  return all.map(summarize).sort((a, b) => b.createdAt - a.createdAt);
+/**
+ * Song summaries, newest first, at most `limit` of them.
+ *
+ * Reading through the `createdAt` index rather than taking the whole store at
+ * once is what makes a large library cheap: a record carries its whole
+ * analysis — every beat, every segment — and a handle on its audio, and the
+ * list shows none of that. A shelf of fifty songs was fifty of those
+ * deserialised on every visit to the home screen to draw six rows.
+ */
+export async function listSongs(limit?: number): Promise<SongSummary[]> {
+  const db = await openDb();
+  return new Promise<SongSummary[]>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const request = tx.objectStore(STORE).index('createdAt').openCursor(null, 'prev');
+    const out: SongSummary[] = [];
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor || (limit != null && out.length >= limit)) {
+        resolve(out);
+        return;
+      }
+      out.push(summarize(cursor.value as StoredSong));
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error ?? new Error('Could not read the song library.'));
+    tx.oncomplete = () => db.close();
+  });
+}
+
+/** How many songs are stored, without reading any of them. */
+export async function countSongs(): Promise<number> {
+  return runTransaction<number>('readonly', (store) => store.count());
 }
 
 export function newSongId(): string {

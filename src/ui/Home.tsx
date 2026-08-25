@@ -9,6 +9,9 @@ import { FileIcon, MicIcon, SparkIcon, TrashIcon } from './icons';
 
 export interface HomeProps {
   songs: SongSummary[];
+  /** Everything stored, which may be more than `songs` shows. */
+  songTotal: number;
+  onShowAllSongs: () => void;
   onRecord: () => void;
   onFile: (file: File) => void;
   onDemo: () => void;
@@ -46,6 +49,8 @@ const SOURCE_ICON = {
 
 export function Home({
   songs,
+  songTotal,
+  onShowAllSongs,
   onRecord,
   onFile,
   onDemo,
@@ -216,6 +221,11 @@ export function Home({
               );
             })}
           </div>
+          {songTotal > songs.length ? (
+            <button className="link-button song-list-more" onClick={onShowAllSongs}>
+              {t.showAllSongs(songTotal)}
+            </button>
+          ) : null}
         </section>
       ) : null}
 
